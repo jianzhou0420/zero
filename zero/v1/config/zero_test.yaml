@@ -1,0 +1,25 @@
+model:
+  name: zero
+  d_model: 512
+  ff_dim: 2048
+  num_layers: 6
+  nhead: 8
+  dim_feedforward: 2048
+  dropout: 0.1
+  activation: relu
+  layer_norm_eps: 0.00001
+  bias: True
+  device: cuda
+  dtype: float32
+
+## DPC
+# trainer:
+#   dataset_train_path: /data/rlbench/rlbench_hdf5/train/
+#   dataset_val_path: /data/rlbench/rlbench_hdf5/train/
+#   ckpt_path: /data/ckpt/
+
+# PC
+trainer:
+  dataset_train_path: /data/rlbench
+  dataset_val_path: /data/rlbench
+  ckpt_path: /data/ckpt

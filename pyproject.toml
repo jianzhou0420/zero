@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+
+name = "zero"
+
+version = "0.0"
+
+description = "First attempt at imitation learning on RLBench"
+
+requires-python = ">=3.8"
+
+license = { text = "MIT" }
+
+authors = [
+    { name = "Jaz", email = "jianzhou0420@outlook.com" },
+]
+
+keywords = ["example", "project", "pyproject"]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+"pytorch-lightning==2.4.0",
+"numpy",
+"transformers",
+"h5py",
+"click",
+"tqdm",
+"pygame",
+"zarr",
+"gym",
+"pymunk",
+"scikit-image",
+"opencv-python-headless",
+
+]
+
+[tool.setuptools]
+# If you want to include specific package data or configurations
+
