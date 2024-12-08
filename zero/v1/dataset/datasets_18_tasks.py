@@ -127,3 +127,11 @@ class JianRLBenchDataset(Dataset):
                     episode_idx = j
                     frame_idx = frames_num + idx_tmp
                     return task_idx, episode_idx, frame_idx
+
+
+if __name__ == "__main__":
+
+    with open('/data/rlbench_original/train/close_jar/all_variations/episodes/episode0/low_dim_obs.pkl', 'rb') as f:
+        test = pickle.load(f)
+    print(test)
+    pass

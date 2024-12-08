@@ -39,7 +39,6 @@ def normalize_position(position):
         position[:7] = (position[:7] - JOINT_POSITIONS_LIMITS[:, 0]) / (JOINT_POSITIONS_LIMITS[:, 1] - JOINT_POSITIONS_LIMITS[:, 0])
     else:
         position[..., :7] = (position[..., :7] - JOINT_POSITIONS_LIMITS[:, 0]) / (JOINT_POSITIONS_LIMITS[:, 1] - JOINT_POSITIONS_LIMITS[:, 0])
-
     return position
 
 

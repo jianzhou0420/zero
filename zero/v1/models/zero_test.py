@@ -101,10 +101,9 @@ class ZeroModel(nn.Module):
                                              nn.ReLU(),
                                              nn.Linear(128, 64),
                                              nn.ReLU(),
-                                             nn.Linear(64, 8),
-                                             nn.ReLU()).to('cuda')
+                                             nn.Linear(64, config['model']['action_space']),).to('cuda')
 
-        self.action_decoder = nn.Sequential(nn.Linear(1968, 2048),
+        self.action_decoder = nn.Sequential(nn.Linear((config['model']['num_image'] * 49 + 1) * config['model']['action_space'], 2048),
                                             nn.ReLU(),
                                             nn.Linear(2048, 2048),
                                             nn.ReLU(),
@@ -120,14 +119,9 @@ class ZeroModel(nn.Module):
                                             nn.ReLU(),
                                             nn.Linear(128, 64),
                                             nn.ReLU(),
-                                            nn.Linear(64, 8),).to('cuda')
+                                            nn.Linear(64, config['model']['action_space']),).to('cuda')
 
         # CLIP Related
-        '''
-        (You can treat this function as a python file to understand its local and global variables)
-        Fetch the encoder_image and encoder_text from the CLIP model.
-        Note: varible clip is the clip package, varible clip_model is the clip model.
-        '''
         self.clip_model, image_transforms = clip.load("RN50")  # TODO: Transform 有问题
         state_dict = self.clip_model.state_dict()
         layers = tuple([len(set(k.split(".")[2] for k in state_dict if k.startswith(f"visual.layer{b}")))

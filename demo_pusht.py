@@ -101,6 +101,10 @@ def main(output, render_size, control_hz):
 
             # step env and render
             obs, reward, done, info = env.step(act)
+            print('act:', act)
+            if act is not None:
+                print('act:', type(act[0]))
+
             img = env.render(mode='human')
 
             # regulate control frequency

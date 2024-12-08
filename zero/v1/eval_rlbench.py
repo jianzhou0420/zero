@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 import numpy as np
 from zero.v1.dataset.datasets_18_tasks import JianRLBenchDataset, normalize_image, normalize_position, denormalize_position
-from zero.v1.trainer import TrainerTesterJazz
+from zero.v1.trainer_zero_test import TrainerTesterJazz
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointPosition
 from rlbench.action_modes.gripper_action_modes import Discrete
@@ -21,7 +21,9 @@ from rlbench.tasks import CloseJar, InsertOntoSquarePeg, LightBulbIn, MeatOffGri
     StackCups, TurnTap, SlideBlockToColorTarget, SweepToDustpanOfSize, PlaceWineAtRackLocation
 
 from rlbench.backend.task import Task
-
+'''
+18 tasks from peract
+'''
 tasks_list = [OpenDrawer,
               SlideBlockToColorTarget,
               SweepToDustpanOfSize,

@@ -39,6 +39,8 @@ dependencies = [
 "pymunk",
 "scikit-image",
 "opencv-python-headless",
+"pandas",
+"pyarrow",
 
 ]
 
