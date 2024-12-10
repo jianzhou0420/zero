@@ -148,7 +148,7 @@ class Trainer3DDA(pl.LightningModule):
         return optimizer
 
     def training_step(self, data_dict, idx):
-        print(data_dict['rgbs'])
+        # print(data_dict['rgbs'])
 
         for key in data_dict.keys():
             if isinstance(data_dict[key], torch.Tensor):
@@ -213,7 +213,6 @@ if __name__ == '__main__':
 
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=16000,
-
                          devices='auto',
                          strategy=DDPStrategy(find_unused_parameters=True),
                          default_root_dir='/data/ckpt',
