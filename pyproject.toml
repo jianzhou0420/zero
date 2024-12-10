@@ -26,23 +26,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-dependencies = [
-"pytorch-lightning==2.4.0",
-"numpy",
-"transformers",
-"h5py",
-"click",
-"tqdm",
-"pygame",
-"zarr",
-"gym",
-"pymunk",
-"scikit-image",
-"opencv-python-headless",
-"pandas",
-"pyarrow",
 
-]
 
 [tool.setuptools]
 # If you want to include specific package data or configurations

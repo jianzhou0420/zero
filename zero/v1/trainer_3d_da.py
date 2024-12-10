@@ -1,4 +1,5 @@
 # framework package
+from pytorch_lightning.strategies import DDPStrategy
 from torch.utils.data import DataLoader, default_collate
 import random
 import torch.optim as optim
@@ -19,7 +20,7 @@ import yaml
 from datetime import datetime
 import argparse
 from pathlib import Path
-from zero.v1.dataset.dataset_3dda_rlbench import RLBenchDataset
+from zero.v1.dataset.dataset_3dda_rlbench_7250 import RLBench3DDADataModule
 from zero.v1.models.diffuser_actor import DiffuserActor
 import json
 Instructions = Dict[str, Dict[int, torch.Tensor]]
@@ -45,27 +46,6 @@ def get_gripper_loc_bounds(path: str, buffer: float = 0.0, task: Optional[str] =
         gripper_loc_bounds = np.stack([gripper_loc_bounds_min, gripper_loc_bounds_max])
     print("Gripper workspace size:", gripper_loc_bounds_max - gripper_loc_bounds_min)
     return gripper_loc_bounds
-
-
-def load_instructions(
-    instructions: Optional[Path],
-    tasks: Optional[Sequence[str]] = None,
-    variations: Optional[Sequence[int]] = None,
-) -> Optional[Instructions]:
-    if instructions is not None:
-        with open(instructions, "rb") as fid:
-            data: Instructions = pickle.load(fid)
-        if tasks is not None:
-            data = {task: var_instr for task, var_instr in data.items() if task in tasks}
-        if variations is not None:
-            data = {
-                task: {
-                    var: instr for var, instr in var_instr.items() if var in variations
-                }
-                for task, var_instr in data.items()
-            }
-        return data
-    return None
 
 
 class TrajectoryCriterion:
@@ -168,6 +148,7 @@ class Trainer3DDA(pl.LightningModule):
         return optimizer
 
     def training_step(self, data_dict, idx):
+        print(data_dict['rgbs'])
 
         for key in data_dict.keys():
             if isinstance(data_dict[key], torch.Tensor):
@@ -195,125 +176,15 @@ class Trainer3DDA(pl.LightningModule):
             curr_gripper
         )
         loss = self.criterion.compute_loss(out)
-
         return loss
 
     #######################################
     # internal methods
     #######################################
 
-    def _forward_pass_rlbench(self, data_dict):
-        '''
-        receive data and return the loss
-        '''
-        if data_dict['images'].shape[-1] == 3:
-            data_dict['images'] = data_dict['images'].cuda().permute(0, 1, 4, 2, 3)
-        model_output = self.model(data_dict['text'], data_dict['images'])
-        return model_output
-
-    def _forward_pass_pusht(self, data_dict):
-        '''
-        receive data and return the loss
-        '''
-        text = 'push T to the right place'
-        text = [text for _ in range(data_dict['image'].shape[0])]
-        images = data_dict['image'].cuda()
-        images = images.unsqueeze(1)
-        model_output = self.model(text, images)
-
-        return model_output
-
     #######################################
     # interface methods
     #######################################
-    def get_dataset(self):
-        """Initialize datasets."""
-        """
-        datasets already batched, so no need to use DataLoader
-        """
-        # Load instruction, based on which we load tasks/variations
-        tasks = self.config['tasks']
-        instruction = load_instructions(
-            self.config['path_instructions'],
-            tasks=self.config['tasks'],
-            variations=self.config['variations']
-        )
-        if instruction is None:
-            raise NotImplementedError()
-        else:
-            taskvar = [
-                (task, var)
-                for task, var_instr in instruction.items()
-                for var in var_instr.keys()
-            ]
-
-        # Initialize datasets with arguments
-        train_dataset = RLBenchDataset(
-            root=self.config['path_dataset'],
-            instructions=instruction,
-            taskvar=taskvar,
-            max_episode_length=self.config['max_episode_length'],
-            cache_size=self.config['cache_size'],
-            max_episodes_per_task=self.config['max_episodes_per_task'],
-            num_iters=self.config['train_iters'],
-            cameras=self.config['cameras'],
-            training=True,
-            image_rescale=tuple(
-                float(x) for x in self.config['image_rescale'].split(",")
-            ),
-            return_low_lvl_trajectory=True,
-            dense_interpolation=bool(self.config['dense_interpolation']),
-            interpolation_length=self.config['interpolation_length']
-        )
-        test_dataset = RLBenchDataset(
-            root=self.config['path_valset'],
-            instructions=instruction,
-            taskvar=taskvar,
-            max_episode_length=self.config['max_episode_length'],
-            cache_size=self.config['cache_size_val'],
-            max_episodes_per_task=self.config['max_episodes_per_task'],
-            cameras=self.config['cameras'],
-            training=False,
-            image_rescale=tuple(
-                float(x) for x in self.config['image_rescale'].split(",")
-            ),
-            return_low_lvl_trajectory=True,
-            dense_interpolation=bool(self.config['dense_interpolation']),
-            interpolation_length=self.config['interpolation_length']
-        )
-        return train_dataset, test_dataset
-
-    def get_dataloader(self):
-        train_dataset, test_dataset = self.get_dataset()
-
-        bs = self.config['batch_size']
-        shuffle = self.config['shuffle']
-        num_workers = self.config['num_workers']
-
-        # train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=bs, shuffle=shuffle, num_workers=num_workers)
-        # test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=bs, shuffle=shuffle, num_workers=num_workers)
-        test_dataloader = None
-
-        def seed_worker(worker_id):
-            worker_seed = torch.initial_seed() % 2**32
-            np.random.seed(worker_seed)
-            random.seed(worker_seed)
-            np.random.seed(np.random.get_state()[1][0] + worker_id)
-        g = torch.Generator()
-        g.manual_seed(0)
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-            batch_size=self.config['batch_size'],
-            shuffle=False,
-            num_workers=self.config['num_workers'],
-            worker_init_fn=seed_worker,
-            collate_fn=default_collate,
-            pin_memory=True,
-            # sampler=train_sampler,
-            drop_last=True,
-            generator=g
-        )
-        return train_dataloader, test_dataloader
 
 
 if __name__ == '__main__':
@@ -325,22 +196,27 @@ if __name__ == '__main__':
         task=config['tasks'][0] if len(config['tasks']) == 1 else None,
         buffer=config['gripper_loc_bounds_buffer'],
     )
+    from pytorch_lightning import seed_everything
+    seed_everything(42)
+
     trainer_pl = Trainer3DDA(config)
+    datamodule = RLBench3DDADataModule(config)
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    train_dataloader, test_dataloader = trainer_pl.get_dataloader()
+
     dataset_name = config['dataset_name']
 
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=10,
+        every_n_epochs=100,
         save_last=True,
         filename=f'{current_time}' + f'{dataset_name}' + '{epoch:03d}'  # Checkpoint filename
     )
 
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
-                         max_epochs=1,
+                         max_epochs=16000,
                          devices=1,
-                         strategy='auto',
+                         strategy=DDPStrategy(find_unused_parameters=True),
                          default_root_dir='/data/ckpt',
+                         reload_dataloaders_every_n_epochs=1,  # help mimic the behavior of 3dda
                          )
 
-    trainer.fit(trainer_pl, train_dataloader)
+    trainer.fit(trainer_pl, datamodule=datamodule)
