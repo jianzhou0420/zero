@@ -5,7 +5,7 @@ dataset_name: "rlbench_peract"
 cameras: ["left_shoulder", "right_shoulder", "wrist","front"]
 image_size: "256,256"
 max_episodes_per_task: -1
-path_instructions: "/home/jian/git_all/git_manipulation/3d_diffuser_actor/instructions/peract/instructions.pkl"
+path_instructions: "/data/3dda/instructions/peract/instructions.pkl"
 seed: 0
 tasks: [
     "place_cups", "close_jar", "insert_onto_square_peg", "light_bulb_in",
