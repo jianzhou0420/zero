@@ -213,7 +213,8 @@ if __name__ == '__main__':
 
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=16000,
-                         devices=4,
+                         accelerator='gpu',
+                         devices='auto',
                          strategy=DDPStrategy(find_unused_parameters=True),
                          default_root_dir='/data/ckpt',
                          reload_dataloaders_every_n_epochs=1,  # help mimic the behavior of 3dda
