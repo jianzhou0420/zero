@@ -27,7 +27,19 @@ classifiers = [
 ]
 
 
+dependencies = [
+  "h5py",
+  "pytorch_lightning",
+  "git+https://github.com/openai/CLIP",
+  "transformers",
+  "einops",
+  "blosc",
+  "diffusers",
+  "dgl",
+  
+]
 
 [tool.setuptools]
 # If you want to include specific package data or configurations
+
 

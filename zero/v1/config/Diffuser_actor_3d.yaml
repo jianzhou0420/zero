@@ -20,13 +20,13 @@ variations: 0 #
 checkpoint: null
 accumulate_grad_batches: 1
 val_freq: 4000 
-path_gripper_location_boundaries: "/home/jian/git_all/git_manipulation/3d_diffuser_actor/tasks/18_peract_tasks_location_bounds.json"
+path_gripper_location_boundaries: "/workspace/zero/zero/v1/tasks/18_peract_tasks_location_bounds.json"
 gripper_loc_bounds_buffer: 0.04
 eval_only: 0
 
 # Training and validation datasets
-path_dataset: "/home/jian/git_all/git_manipulation/3d_diffuser_actor/data/peract/Peract_packaged/train"
-path_valset: "/home/jian/git_all/git_manipulation/3d_diffuser_actor/data/peract/Peract_packaged/val"
+path_dataset: "/data/3dda/peract/Peract_packaged/train"
+path_valset: "/data/3dda/peract/Peract_packaged/val"
 dense_interpolation: 1
 interpolation_length: 2
 
