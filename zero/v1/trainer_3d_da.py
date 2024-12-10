@@ -206,14 +206,14 @@ if __name__ == '__main__':
     dataset_name = config['dataset_name']
 
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=100,
+        every_n_epochs=200,
         save_last=True,
         filename=f'{current_time}' + f'{dataset_name}' + '{epoch:03d}'  # Checkpoint filename
     )
 
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=16000,
-                         devices=1,
+                         devices=4,
                          strategy=DDPStrategy(find_unused_parameters=True),
                          default_root_dir='/data/ckpt',
                          reload_dataloaders_every_n_epochs=1,  # help mimic the behavior of 3dda
