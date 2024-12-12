@@ -145,9 +145,10 @@ class RLBenchDataset(Dataset):
         # 原始代码里面是随机选取每个episode的一段，虽然总共keyposes是11855个，但每个epoch其实只跑了约7250个，每次不一样，但约等于7250，这里我们直接固定为7250
         #
         # 每次到新的epoch就重新选取一次，
+        self._episodes = sorted(self._episodes, key=lambda x: str(x[2]))
 
-        with open(refer_list_path, 'rb') as f:
-            self.refer_list = pickle.load(f)
+        # with open(refer_list_path, 'rb') as f:
+        #     self.refer_list = pickle.load(f)
 
     def create_refer_list(self, num_epoches, save_path):
         # make sure save_path exists
@@ -477,6 +478,6 @@ if __name__ == '__main__':
     datamodule.setup('fit')
     train_loader = datamodule.train_dataloader()
 
-    # datamodule.train_dataset.create_refer_list(16000, '/media/jian/ssd4t/data/peract/Peract_packaged/train/a_refer_list')
-    print(datamodule.train_dataset.__len__())
-    print(datamodule.train_dataset._episodes[0:4])
+    datamodule.train_dataset.create_refer_list(16000, '/media/jian/ssd4t/data/peract/Peract_packaged/train/a_refer_list')
+    # print(datamodule.train_dataset.__len__())
+    # print(datamodule.train_dataset._episodes[0:4])
