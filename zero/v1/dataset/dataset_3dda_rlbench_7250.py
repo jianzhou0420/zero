@@ -467,6 +467,7 @@ if __name__ == '__main__':
     with open('/hpcfs/users/a1946536/zero/zero/v1/config/Diffuser_actor_3d.yaml') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     config['variations'] = tuple(range(200))
+    config['gripper_location_boundaries'] = '/hpcfs/users/a1946536/zero/zero/v1/tasks/18_peract_tasks_location_bounds.json'
     config['gripper_location_boundaries'] = get_gripper_loc_bounds(
         config['path_gripper_location_boundaries'],
         task=config['tasks'][0] if len(config['tasks']) == 1 else None,

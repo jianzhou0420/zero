@@ -204,7 +204,7 @@ if __name__ == '__main__':
         task=config['tasks'][0] if len(config['tasks']) == 1 else None,
         buffer=config['gripper_loc_bounds_buffer'],
     )
-    config
+
     from pytorch_lightning import seed_everything
     seed_everything(42)
 
