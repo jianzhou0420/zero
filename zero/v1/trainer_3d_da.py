@@ -192,7 +192,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--homepath', type=str, default='./')
     args = parser.parse_args()
-    config_path = os.path.join(args.homepath, 'zero/zero/v1/config/Diffuser_actor_3d.yaml')
+    config_path = os.path.join(args.homepath, 'config/Diffuser_actor_3d.yaml')
     with open(config_path) as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     config['variations'] = tuple(range(200))
