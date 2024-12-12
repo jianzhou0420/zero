@@ -145,10 +145,14 @@ class RLBenchDataset(Dataset):
         # 原始代码里面是随机选取每个episode的一段，虽然总共keyposes是11855个，但每个epoch其实只跑了约7250个，每次不一样，但约等于7250，这里我们直接固定为7250
         #
         # 每次到新的epoch就重新选取一次，
+
         with open(refer_list_path, 'rb') as f:
             self.refer_list = pickle.load(f)
 
     def create_refer_list(self, num_epoches, save_path):
+        # make sure save_path exists
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
 
         refer_list_episodewise = []
         for episode_id in trange(self._num_episodes):
@@ -158,22 +162,21 @@ class RLBenchDataset(Dataset):
             if episode is None:
                 return None
 
-            chunks = np.zeros(num_epoches)
-            chunks = np.random.randint(0, math.ceil(len(episode[0]) / self._max_episode_length), size=num_epoches)
+            chunks = np.array([random.randint(0, math.ceil(len(episode[0]) / self._max_episode_length) - 1) for _ in range(num_epoches)])  # np.random.randint dont accept random from [0,0]
             lower_index = chunks * self._max_episode_length
-            upper_index = np.clip((chunks + 1) * self._max_episode_length, 0, len(episode[0]))
+            upper_index = (chunks + 1) * self._max_episode_length
 
             frame_ids = np.array(episode[0])
 
-            frame_ids = [frame_ids[lower:upper] for lower, upper in zip(lower_index, upper_index)]
-            refer_list_episodewise.append(frame_ids)
+            frame_ids = [frame_ids[lower:upper] for lower, upper in zip(lower_index, upper_index)]  # num_epoches,frame_ids(different length)
+            refer_list_episodewise.append(frame_ids)  # num_episodes,num_epoches,frame_ids(different length)
             del episode
 
         # now i have a refer list, each element in it is a list of num_epoches samples for single episode
         refer_list_epochwise = []
         for epoch_id in trange(num_epoches):
             single_refer_list_epochwise = []
-            for episode_id in trange(self._num_episodes):
+            for episode_id in range(self._num_episodes):
                 for frame_id in refer_list_episodewise[episode_id][epoch_id]:
                     single_refer_list_epochwise.append([episode_id, int(frame_id)])
             refer_list_epochwise.append(single_refer_list_epochwise)
@@ -234,15 +237,19 @@ class RLBenchDataset(Dataset):
 
         frame_ids = []
         frame_ids.append(frame_id)
-
         # print(f"frame_ids: {frame_ids}")
 
+        # print(f"frame_ids: {frame_ids}")
         # Get the image tensors for the frame ids we got
-        states = torch.stack([
-            episode[1][i] if isinstance(episode[1][i], torch.Tensor)
-            else torch.from_numpy(episode[1][i])
-            for i in frame_ids
-        ])
+        try:
+            states = torch.stack([
+                episode[1][i] if isinstance(episode[1][i], torch.Tensor)
+                else torch.from_numpy(episode[1][i])
+                for i in frame_ids
+            ])
+        except:
+            print("episodeid: ", episode_id, "frame_id: ", frame_id)
+            print("episode[0]: ", episode[0])
 
         # Camera ids
         if episode[3]:
@@ -387,7 +394,6 @@ class RLBench3DDADataModule(LightningDataModule):
                 for task, var_instr in instruction.items()
                 for var in var_instr.keys()
             ]
-        self.epoch_id = 0
         # Initialize datasets with arguments
         self.train_dataset = RLBenchDataset(
             root=self.config['path_dataset'],
@@ -470,4 +476,5 @@ if __name__ == '__main__':
     datamodule.setup('fit')
     train_loader = datamodule.train_dataloader()
 
-    # train_dataset.create_refer_list(400, '.')
+    datamodule.train_dataset.create_refer_list(16000, '/media/jian/ssd4t/data/peract/Peract_packaged/train/a_refer_list')
+    print(datamodule.train_dataset.__len__())

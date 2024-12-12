@@ -19,7 +19,6 @@ dependencies:
       - attrs==24.2.0
       - blosc==1.11.2
       - git+https://github.com/openai/CLIP
-      - git+https://github.com/jianzhou0420/zero
       - diffusers==0.31.0
       - einops==0.8.0
       - frozenlist==1.5.0
