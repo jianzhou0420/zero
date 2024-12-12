@@ -198,6 +198,7 @@ if __name__ == '__main__':
     config['variations'] = tuple(range(200))
 
     path_gripper_location_boundaries = os.path.join(args.homepath, 'tasks/18_peract_tasks_location_bounds.json')
+    print(path_gripper_location_boundaries)
     config['gripper_location_boundaries'] = get_gripper_loc_bounds(
         path_gripper_location_boundaries,
         task=config['tasks'][0] if len(config['tasks']) == 1 else None,
