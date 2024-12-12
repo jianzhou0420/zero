@@ -36,7 +36,7 @@ exp_log_dir: "Actor_18Peract_100Demo_multitask"
 run_log_dir: log/ddd/log
 
 # Main training parameters
-num_workers: 1
+num_workers: 15
 batch_size: 8
 batch_size_val: 1
 cache_size: 600
