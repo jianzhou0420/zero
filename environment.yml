@@ -19,7 +19,7 @@ dependencies:
   - cuda-nvrtc=11.8.89=0
   - cuda-nvtx=11.8.86=0
   - cuda-runtime=11.8.0=0
-  - cuda-version=12.6=3
+  - cuda-version=11.8
   - dgl=2.4.0.th24.cu118=py310_0
   - ffmpeg=4.3=hf484d3e_0
   - filelock=3.13.1=py310h06a4308_0
