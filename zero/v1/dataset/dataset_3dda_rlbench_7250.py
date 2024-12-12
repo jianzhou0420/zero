@@ -147,8 +147,8 @@ class RLBenchDataset(Dataset):
         # 每次到新的epoch就重新选取一次，
         self._episodes = sorted(self._episodes, key=lambda x: str(x[2]))
 
-        # with open(refer_list_path, 'rb') as f:
-        #     self.refer_list = pickle.load(f)
+        with open(refer_list_path, 'rb') as f:
+            self.refer_list = pickle.load(f)
 
     def create_refer_list(self, num_epoches, save_path):
         # make sure save_path exists
