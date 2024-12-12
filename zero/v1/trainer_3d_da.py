@@ -1,4 +1,5 @@
 # framework package
+import os
 from pytorch_lightning.strategies import DDPStrategy
 from torch.utils.data import DataLoader, default_collate
 import random
@@ -188,7 +189,11 @@ class Trainer3DDA(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    with open('/workspace/zero/zero/v1/config/Diffuser_actor_3d.yaml') as file:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--homepath', type=str, default='./')
+    args = parser.parse_args()
+    config_path = os.path.join(args.homepath, 'zero/zero/v1/config/Diffuser_actor_3d.yaml')
+    with open(config_path) as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     config['variations'] = tuple(range(200))
     config['gripper_location_boundaries'] = get_gripper_loc_bounds(
