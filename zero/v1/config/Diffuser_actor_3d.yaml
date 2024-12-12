@@ -5,7 +5,7 @@ dataset_name: "rlbench_peract"
 cameras: ["left_shoulder", "right_shoulder", "wrist","front"]
 image_size: "256,256"
 max_episodes_per_task: -1
-path_instructions: "/data/3dda/instructions/peract/instructions.pkl"
+path_instructions: "/hpcfs/users/a1946536/data/peract/Peract_packaged/instructions.pkl"
 seed: 0
 tasks: [
     "place_cups", "close_jar", "insert_onto_square_peg", "light_bulb_in",
@@ -20,13 +20,14 @@ variations: 0 #
 checkpoint: null
 accumulate_grad_batches: 1
 val_freq: 4000 
-path_gripper_location_boundaries: "/workspace/zero/zero/v1/tasks/18_peract_tasks_location_bounds.json"
+path_gripper_location_boundaries: "/workspace/zero/zero/v1/tasks/18_peract_tasks_location_bounds.json" # changed in main
 gripper_loc_bounds_buffer: 0.04
 eval_only: 0
 
 # Training and validation datasets
-path_dataset: "/data/3dda/peract/Peract_packaged/train"
-path_valset: "/data/3dda/peract/Peract_packaged/val"
+path_dataset: "/hpcfs/users/a1946536/data/peract/Peract_packaged/train"
+path_valset: "/hpcfs/users/a1946536/data/peract/Peract_packaged/val"
+
 dense_interpolation: 1
 interpolation_length: 2
 

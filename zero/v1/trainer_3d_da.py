@@ -196,11 +196,14 @@ if __name__ == '__main__':
     with open(config_path) as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     config['variations'] = tuple(range(200))
+
+    path_gripper_location_boundaries = os.path.join(args.homepath, 'tasks/18_peract_tasks_location_bounds.json')
     config['gripper_location_boundaries'] = get_gripper_loc_bounds(
-        config['path_gripper_location_boundaries'],
+        path_gripper_location_boundaries,
         task=config['tasks'][0] if len(config['tasks']) == 1 else None,
         buffer=config['gripper_loc_bounds_buffer'],
     )
+    config
     from pytorch_lightning import seed_everything
     seed_everything(42)
 
