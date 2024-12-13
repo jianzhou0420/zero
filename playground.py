@@ -1,5 +1,8 @@
+import os
 test = [0, 1, 2, 3, 4]
 
-print(test[0:5])
+a = "/home/jian/zero"
+b = "zero/some"
+path = os.path.join(a, b)
 
-print(test[0:0])
+print(path)

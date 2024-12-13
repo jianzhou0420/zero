@@ -361,7 +361,7 @@ class RLBench3DDADataModule(LightningDataModule):
         self.epoch_id = 0
         # Initialize datasets with arguments
         self.train_dataset = RLBenchDataset(
-            root=self.config['path_dataset'],
+            root=self.config['path_train_dataset'],
             instructions=instruction,
             taskvar=taskvar,
             max_episode_length=self.config['max_episode_length'],
@@ -376,7 +376,7 @@ class RLBench3DDADataModule(LightningDataModule):
             return_low_lvl_trajectory=True,
             dense_interpolation=bool(self.config['dense_interpolation']),
             interpolation_length=self.config['interpolation_length'],
-            refer_list_path=os.path.join(self.config['path_dataset'], 'a_refer_list', f'refer_list_epoch_{self.epoch_id}.pkl'))
+            refer_list_path=os.path.join(self.config['path_train_dataset'], 'a_refer_list', f'refer_list_epoch_{self.epoch_id}.pkl'))
 
     def resetup(self):
         '''

@@ -189,16 +189,29 @@ class Trainer3DDA(pl.LightningModule):
 
 
 if __name__ == '__main__':
+
+    '''
+    Dataset should in the following order:
+    /pathtodata/peract/Peract_packaged/train"
+    /pathtodata/peract/Peract_packaged/val"
+    /pathtodata/peract/Peract_packaged/instruction.pkl"
+    /pathtodata/peract/Peract_packaged/train/a_refer_list
+    '''
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--homepath', type=str, default='/hpcfs/users/a1946536/zero/zero/v1/')
+    parser.add_argument('--datapath', type=str, default='/hpcfs/users/a1946536/data/')
     args = parser.parse_args()
     config_path = os.path.join(args.homepath, 'config/Diffuser_actor_3d.yaml')
     with open(config_path) as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     config['variations'] = tuple(range(200))
 
-    path_gripper_location_boundaries = os.path.join(args.homepath, 'tasks/18_peract_tasks_location_bounds.json')
-    print(path_gripper_location_boundaries)
+    config['path_train_dataset'] = os.path.join(args.datapath, config['relative_path_train_dataset'])
+    config['path_val_dataset'] = os.path.join(args.datapath, config['relative_path_val_dataset'])
+    config['path_instructions'] = os.path.join(args.datapath, config['relative_path_instructions'])
+    path_gripper_location_boundaries = os.path.join(args.homepath, config['relative_path_gripper_location_boundaries'])
+
     config['gripper_location_boundaries'] = get_gripper_loc_bounds(
         path_gripper_location_boundaries,
         task=config['tasks'][0] if len(config['tasks']) == 1 else None,
