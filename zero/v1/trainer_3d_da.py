@@ -200,7 +200,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--homepath', type=str, default='/hpcfs/users/a1946536/zero/zero/v1/')
-    parser.add_argument('--datapath', type=str, default='/hpcfs/users/a1946536/data/')
+    parser.add_argument('--datapath', type=str, default='/ssd/')
     args = parser.parse_args()
     config_path = os.path.join(args.homepath, 'config/Diffuser_actor_3d.yaml')
     with open(config_path) as file:

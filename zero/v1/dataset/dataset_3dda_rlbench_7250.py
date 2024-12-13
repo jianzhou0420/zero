@@ -382,6 +382,7 @@ class RLBench3DDADataModule(LightningDataModule):
         '''
         resetup the dataset with new refer_list
         '''
+        print('current epoch_id: ', self.epoch_id)
         instruction = load_instructions(
             self.config['path_instructions'],
             tasks=self.config['tasks'],

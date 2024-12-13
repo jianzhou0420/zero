@@ -41,10 +41,10 @@ exp_log_dir: "Actor_18Peract_100Demo_multitask"
 run_log_dir: log/ddd/log
 
 # Main training parameters
-num_workers: 15
-batch_size: 8
+num_workers: 10
+batch_size: 16
 batch_size_val: 1
-cache_size: 600
+cache_size: 0
 cache_size_val: 0
 lr: 0.0001
 wd: 0.005  # Used only for CALVIN
