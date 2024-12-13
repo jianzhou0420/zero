@@ -177,6 +177,8 @@ class Trainer3DDA(pl.LightningModule):
             curr_gripper
         )
         loss = self.criterion.compute_loss(out)
+        if idx % 100 == 0:
+            print(idx)
         return loss
 
     #######################################
