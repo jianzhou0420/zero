@@ -190,7 +190,7 @@ class Trainer3DDA(pl.LightningModule):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--homepath', type=str, default='./')
+    parser.add_argument('--homepath', type=str, default='/hpcfs/users/a1946536/zero/zero/v1/')
     args = parser.parse_args()
     config_path = os.path.join(args.homepath, 'config/Diffuser_actor_3d.yaml')
     with open(config_path) as file:
