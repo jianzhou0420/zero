@@ -139,6 +139,6 @@ if __name__ == '__main__':
                          max_epochs=max_epochs,
                          devices='auto',
                          strategy=DDPStrategy(find_unused_parameters=True),
-                         default_root_dir='/data/ckpt/')
+                         default_root_dir='/data/ckpt')
 
     trainer.fit(trainer_model, train_dataloader)
