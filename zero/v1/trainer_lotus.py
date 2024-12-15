@@ -1,4 +1,5 @@
 # framework package
+import os
 import math
 from argparse import Namespace
 from typing import List, Dict, Tuple, Union, Iterator
@@ -117,13 +118,10 @@ class TrainerLotus(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    with open('/hpcfs/users/a1946536/zero/zero/v1/config/lotus.yaml') as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-
     import yacs
 
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/hpcfs/users/a1946536/zero/zero/v1/config/lotus.yaml')
+    config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
 
     # Convert the loaded YAML dictionary to Namespace
 
