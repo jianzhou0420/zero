@@ -115,7 +115,7 @@ MODEL:
     pre_norm: True
     shuffle_orders: True
     enable_rpe: False
-    enable_flash: True
+    enable_flash: False
     upcast_attention: False
     upcast_softmax: False
     cls_mode: False
