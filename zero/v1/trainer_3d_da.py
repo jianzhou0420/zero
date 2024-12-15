@@ -240,7 +240,7 @@ if __name__ == '__main__':
                          devices='auto',
                          #  strategy="auto",
                          strategy=DDPStrategy(find_unused_parameters=True),
-                         default_root_dir='/hpcfs/users/a1946536/log/',
+                         default_root_dir='/data/ckpt',
                          reload_dataloaders_every_n_epochs=1,  # help mimic the behavior of 3dda
                          )
 

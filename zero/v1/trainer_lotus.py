@@ -1,4 +1,5 @@
 # framework package
+from pytorch_lightning.strategies import DDPStrategy
 import os
 import math
 from argparse import Namespace
@@ -123,8 +124,6 @@ if __name__ == '__main__':
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
 
-    # Convert the loaded YAML dictionary to Namespace
-
     trainer_model = TrainerLotus(config)
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     train_dataloader, _ = trainer_model.get_dataloader(config)
@@ -138,8 +137,8 @@ if __name__ == '__main__':
     print(f"max_epochs: {max_epochs}")
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=max_epochs,
-                         devices=1,
-                         strategy='auto',
-                         default_root_dir='/data/ckpt')
+                         devices='auto',
+                         strategy=DDPStrategy(find_unused_parameters=True),
+                         default_root_dir='/data/ckpt/')
 
     trainer.fit(trainer_model, train_dataloader)
