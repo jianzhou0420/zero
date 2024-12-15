@@ -109,7 +109,7 @@ class TrainerLotus(pl.LightningModule):
                 pin_memory=config.TRAIN.pin_mem,
                 collate_fn=collate_fn,
                 drop_last=False,
-                prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
+                # prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
             )
             return loader, pre_epoch
         # function
