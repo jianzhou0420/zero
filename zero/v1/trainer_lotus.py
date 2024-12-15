@@ -134,6 +134,8 @@ if __name__ == '__main__':
         filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
     )
     max_epochs = config.TRAIN.num_train_steps // len(train_dataloader)
+    print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
+    print(f"len(train_dataloader): {len(train_dataloader)}")
     print(f"max_epochs: {max_epochs}")
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=max_epochs,
