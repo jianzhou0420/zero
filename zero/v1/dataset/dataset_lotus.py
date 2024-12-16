@@ -243,6 +243,7 @@ class SimplePolicyDataset(Dataset):
         return gt_rots
 
     def __getitem__(self, idx):
+        # len(self.data_ids) == 1754
         if self.all_step_in_batch:
             taskvar, data_id = self.data_ids[idx]
         else:
@@ -257,6 +258,7 @@ class SimplePolicyDataset(Dataset):
             'pc_centroids': [], 'pc_radius': [], 'ee_poses': [],
             'txt_embeds': [], 'gt_actions': [],
         }
+
         if self.pos_type == 'disc':
             outs['disc_pos_probs'] = []
 

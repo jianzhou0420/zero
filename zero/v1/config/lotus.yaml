@@ -3,7 +3,7 @@ output_dir: 'data/experiments/gembench/simple_policy_ptv3/debug'
 tfboard_log_dir: null # 'data/TFBoard/xxx'
 checkpoint: null
 checkpoint_strict_load: False # true, false
-local_rank: -1
+
 TRAIN:
   resume_training: True
   resume_encoder_only: False
@@ -11,7 +11,7 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 2
+  train_batch_size: 4
   # val_batch_size: 1
 
   gradient_accumulation_steps: 1
@@ -29,7 +29,7 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 4
+  n_workers: 15
   pin_mem: True
 
 

@@ -47,10 +47,10 @@ class TrainerLotus(pl.LightningModule):
         self.config = config
         self.model = SimplePolicyPTV3CA(config.MODEL)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx):  # 每次的batch_size都是不一样的应该说，每个小batch的每一个sample，sample的长度是不一样的
 
         _, losses = self.model(batch, compute_loss=True, compute_final_action=False)
-        print(f"After loading: {torch.cuda.memory_allocated()} bytes")
+        # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
         return losses['total']
 
     def configure_optimizers(self):
@@ -71,47 +71,21 @@ class TrainerLotus(pl.LightningModule):
         return dataset
 
     def get_dataloader(self, config):
-        def build_dataloader(dataset, collate_fn, is_train: bool, config, batch_size=None):
+        def build_dataloader(dataset, collate_fn, is_train: bool, config):
             '''
-            copied from lotus
+            copied from lotus, sampler is not used as pytorchlightning will automaticallt config it for me
             '''
-            if batch_size is None:
-                batch_size = config.TRAIN.train_batch_size if is_train else config.TRAIN.val_batch_size
-
-            if config.local_rank == -1:
-                if is_train:
-                    sampler: Union[
-                        RandomSampler, SequentialSampler, DistributedSampler
-                    ] = RandomSampler(dataset)
-                else:
-                    sampler = SequentialSampler(dataset)
-
-                size = torch.cuda.device_count() if torch.cuda.is_available() else 1
-                def pre_epoch(e): return None
-
-                # DataParallel: scale the batch size by the number of GPUs
-                if size > 1:
-                    batch_size *= size
-
-            else:
-                size = dist.get_world_size()
-                sampler = DistributedSampler(
-                    dataset, num_replicas=size, rank=dist.get_rank(),
-                    shuffle=is_train
-                )
-                pre_epoch = sampler.set_epoch
-
+            batch_size = config.TRAIN.train_batch_size if is_train else config.TRAIN.val_batch_size
             loader = DataLoader(
                 dataset,
-                sampler=sampler,
                 batch_size=batch_size,
                 num_workers=config.TRAIN.n_workers,
                 pin_memory=config.TRAIN.pin_mem,
                 collate_fn=collate_fn,
                 drop_last=False,
-                # prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
+                prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
             )
-            return loader, pre_epoch
+            return loader
         # function
         dataset = self.get_dataset(config)
         train_loader = build_dataloader(dataset, ptv3_collate_fn, is_train=True, config=config)
@@ -126,7 +100,7 @@ if __name__ == '__main__':
 
     trainer_model = TrainerLotus(config)
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    train_dataloader, _ = trainer_model.get_dataloader(config)
+    train_dataloader = trainer_model.get_dataloader(config)
 
     checkpoint_callback = ModelCheckpoint(
         every_n_epochs=10,
