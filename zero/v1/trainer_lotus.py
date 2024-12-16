@@ -116,8 +116,8 @@ if __name__ == '__main__':
     print(f"max_epochs: {max_epochs}")
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=max_epochs,
-                         devices='auto',
-                         strategy=DDPStrategy(),
+                         devices=1,
+                         strategy='auto',
                          default_root_dir='/data/ckpt')
 
     trainer.fit(trainer_model, train_dataloader)
