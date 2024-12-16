@@ -140,7 +140,7 @@ if __name__ == '__main__':
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=max_epochs,
                          devices='auto',
-                         strategy=DDPStrategy(find_unused_parameters=True),
+                         strategy=DDPStrategy(),
                          default_root_dir='/data/ckpt')
 
     trainer.fit(trainer_model, train_dataloader)
