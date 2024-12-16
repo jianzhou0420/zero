@@ -50,6 +50,9 @@ class TrainerLotus(pl.LightningModule):
     def training_step(self, batch, batch_idx):  # 每次的batch_size都是不一样的应该说，每个小batch的每一个sample，sample的长度是不一样的
 
         _, losses = self.model(batch, compute_loss=True, compute_final_action=False)
+        self.log('train_loss', losses['total'])
+        if self.global_step % 100 == 0:
+            print(f"train_loss: {losses['total']}")
         # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
         return losses['total']
 
