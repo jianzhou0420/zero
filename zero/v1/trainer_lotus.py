@@ -1,4 +1,5 @@
 # framework package
+from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.strategies import DDPStrategy
 import os
 import math
@@ -106,9 +107,9 @@ if __name__ == '__main__':
             save_last=True,
             filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
         )
-
+        csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger1')
         scale_factor = 8 / config.TRAIN.train_batch_size
-        max_epochs = config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor
+        max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
         print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
         print(f"len(train_dataloader): {len(train_dataloader)}")
         print(f"max_epochs: {max_epochs}")
@@ -116,7 +117,8 @@ if __name__ == '__main__':
                              max_epochs=max_epochs,
                              devices='auto',
                              strategy='auto',
-                             default_root_dir='/data/ckpt')
+                             default_root_dir='/data/ckpt',
+                             logger=csvlogger1,)
 
         trainer.fit(trainer_model, train_dataloader)
 

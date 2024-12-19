@@ -1,4 +1,5 @@
 # framework package
+from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 import torch
 import numpy as np
 import pytorch_lightning as pl
@@ -128,10 +129,12 @@ if __name__ == '__main__':
         filename=f'{current_time}' + f'{dataset_name}' + '{epoch:03d}'  # Checkpoint filename
     )
 
+    csvlogger1 = CSVLogger('/data/ckpt/logs', name=f'{current_time}' + f'{dataset_name}')
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=51,
                          devices=1,
                          strategy='auto',
-                         default_root_dir='/data/ckpt')
+                         default_root_dir='/data/ckpt',
+                         logger=csvlogger1)
 
     trainer.fit(trainer_pl, train_dataloader)
