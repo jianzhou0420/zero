@@ -253,8 +253,8 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         pred_pos, pred_rot, pred_open = pred_actions  # 下面关于pred_pos, pred_rot, pred_open的操作在训练时都是无用的
 
         # Test: check if memory is modified
-        test = [item.clone() for item in pred_actions]
-        print(all(torch.equal(a, b) for a, b in zip(test, pred_actions)))
+        # test = [item.clone() for item in pred_actions]
+        # print(all(torch.equal(a, b) for a, b in zip(test, pred_actions)))
 
         # 3.1 get Ground Truth
         if self.config.action_config.pos_pred_type == 'heatmap_disc':
@@ -309,7 +309,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             pred_rot = torch.from_numpy(pred_rot).to(device)
         final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open.unsqueeze(-1)], dim=-1)
 
-        print(all(torch.equal(a, b) for a, b in zip(test, pred_actions)))  # True ，所以真的是无用的
+        # print(all(torch.equal(a, b) for a, b in zip(test, pred_actions)))  # True ，所以真的是无用的
         # 4. Compute Loss
         if compute_loss:
             losses = self.compute_loss(
