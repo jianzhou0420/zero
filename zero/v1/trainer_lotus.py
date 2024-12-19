@@ -108,8 +108,9 @@ if __name__ == '__main__':
             filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
         )
         csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger1')
-        scale_factor = 8 / config.TRAIN.train_batch_size
-        max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
+        # scale_factor = 8 / config.TRAIN.train_batch_size
+        # max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
+        max_epochs = int(1368)
         print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
         print(f"len(train_dataloader): {len(train_dataloader)}")
         print(f"max_epochs: {max_epochs}")
