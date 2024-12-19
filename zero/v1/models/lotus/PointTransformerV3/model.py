@@ -279,7 +279,7 @@ class PDNorm(PointModule):
 
     def forward(self, point):
         assert {"feat"}.issubset(point.keys())
-        
+
         if self.decouple:
             assert {"condition"}.issubset(point.keys())
             if isinstance(point.condition, str):
@@ -395,7 +395,7 @@ class SerializedAttention(PointModule):
 
         if add_coords_in_attn != 'none':
             self.coords_proj = torch.nn.Linear(3, channels, bias=False)
-        self.add_coords_in_attn = add_coords_in_attn           
+        self.add_coords_in_attn = add_coords_in_attn
 
     @torch.no_grad()
     def get_rel_pos(self, point, order):
@@ -436,19 +436,19 @@ class SerializedAttention(PointModule):
             unpad = torch.arange(_offset[-1], device=offset.device)
             cu_seqlens = []
             for i in range(len(offset)):
-                unpad[_offset[i] : _offset[i + 1]] += _offset_pad[i] - _offset[i]
+                unpad[_offset[i]: _offset[i + 1]] += _offset_pad[i] - _offset[i]
                 if bincount[i] != bincount_pad[i]:
                     pad[
                         _offset_pad[i + 1]
                         - self.patch_size
-                        + (bincount[i] % self.patch_size) : _offset_pad[i + 1]
+                        + (bincount[i] % self.patch_size): _offset_pad[i + 1]
                     ] = pad[
                         _offset_pad[i + 1]
                         - 2 * self.patch_size
-                        + (bincount[i] % self.patch_size) : _offset_pad[i + 1]
+                        + (bincount[i] % self.patch_size): _offset_pad[i + 1]
                         - self.patch_size
                     ]
-                pad[_offset_pad[i] : _offset_pad[i + 1]] -= _offset_pad[i] - _offset[i]
+                pad[_offset_pad[i]: _offset_pad[i + 1]] -= _offset_pad[i] - _offset[i]
                 cu_seqlens.append(
                     torch.arange(
                         _offset_pad[i],
@@ -541,7 +541,7 @@ class SerializedAttention(PointModule):
             qkv = torch.stack([q, k, v], dim=1)     # (N'*K, 3, H, C')
 
             feat = flash_attn.flash_attn_varlen_qkvpacked_func(
-                qkv.half(), #.reshape(-1, 3, H, C // H),
+                qkv.half(),  # .reshape(-1, 3, H, C // H),
                 cu_seqlens,
                 max_seqlen=self.patch_size,
                 dropout_p=self.attn_drop if self.training else 0,
@@ -963,7 +963,7 @@ class PointTransformerV3(PointModule):
         self.enc = PointSequential()
         for s in range(self.num_stages):
             enc_drop_path_ = enc_drop_path[
-                sum(enc_depths[:s]) : sum(enc_depths[: s + 1])
+                sum(enc_depths[:s]): sum(enc_depths[: s + 1])
             ]
             enc = PointSequential()
             if s > 0:
@@ -993,7 +993,7 @@ class PointTransformerV3(PointModule):
                         attn_drop=attn_drop,
                         proj_drop=proj_drop,
                         drop_path=enc_drop_path_[i],
-                        norm_layer=vanilla_ln_layer if (pdnorm_only_decoder and s < (self.num_stages-1)) else ln_layer,
+                        norm_layer=vanilla_ln_layer if (pdnorm_only_decoder and s < (self.num_stages - 1)) else ln_layer,
                         act_layer=act_layer,
                         pre_norm=pre_norm,
                         order_index=i % len(self.order),
@@ -1018,7 +1018,7 @@ class PointTransformerV3(PointModule):
             dec_channels = list(dec_channels) + [enc_channels[-1]]
             for s in reversed(range(self.num_stages - 1)):
                 dec_drop_path_ = dec_drop_path[
-                    sum(dec_depths[:s]) : sum(dec_depths[: s + 1])
+                    sum(dec_depths[:s]): sum(dec_depths[: s + 1])
                 ]
                 dec_drop_path_.reverse()
                 dec = PointSequential()

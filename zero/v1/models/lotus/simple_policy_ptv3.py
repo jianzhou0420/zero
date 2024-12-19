@@ -228,13 +228,21 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             pc_fts: (batch, npoints, dim)
             txt_embeds: (batch, txt_dim)
         '''
-        batch = self.prepare_batch(batch)
+        batch = self.prepare_batch(batch)  # send to device
         device = batch['pc_fts'].device
 
         ptv3_batch = self.prepare_ptv3_batch(batch)
 
+        # 1. Point Transformer V3
         point_outs = self.ptv3_model(ptv3_batch, return_dec_layers=True)
+        # test
+        # test = point_outs[0]
+        # print('type(point_outs)', type(test))
+        # print('point_outs[0].feat', type(test.feat))
+        # print('point_outs["feat"]', type(test['feat']))
+        # /test
 
+        # 2. Action Head
         pred_actions = self.act_proj_head(
             point_outs[-1].feat, batch['npoints_in_batch'], coords=point_outs[-1].coord,
             temp=self.config.action_config.get('pos_heatmap_temp', 1),
@@ -242,8 +250,13 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             # dec_layers_embed=[point_outs[k] for k in [0, 2, 4, 6, 8]] # TODO
             dec_layers_embed=[point_outs[k] for k in [0, 1, 2, 3, 4]] if self.config.ptv3_config.dec_depths[0] == 1 else [point_outs[k] for k in [0, 2, 4, 6, 8]]  # TODO
         )
+        pred_pos, pred_rot, pred_open = pred_actions  # 下面关于pred_pos, pred_rot, pred_open的操作在训练时都是无用的
 
-        pred_pos, pred_rot, pred_open = pred_actions
+        # Test: check if memory is modified
+        test = [item.clone() for item in pred_actions]
+        print(all(torch.equal(a, b) for a, b in zip(test, pred_actions)))
+
+        # 3.1 get Ground Truth
         if self.config.action_config.pos_pred_type == 'heatmap_disc':
             # TODO
             # if not compute_loss:
@@ -276,6 +289,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             else:
                 pred_pos = batch['gt_actions'][..., :3]
 
+        # 3.2 figure out predicted action type
         if self.config.action_config.rot_pred_type == 'rot6d':
             # no grad
             pred_rot = self.rot_transform.matrix_to_quaternion(
@@ -295,6 +309,8 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             pred_rot = torch.from_numpy(pred_rot).to(device)
         final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open.unsqueeze(-1)], dim=-1)
 
+        print(all(torch.equal(a, b) for a, b in zip(test, pred_actions)))  # True ，所以真的是无用的
+        # 4. Compute Loss
         if compute_loss:
             losses = self.compute_loss(
                 pred_actions, batch['gt_actions'],
@@ -315,11 +331,12 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         # loss_cfg = self.config.loss_config
         device = tgt_actions.device
 
+        # 1. get predicted actions and ground truth
         pred_pos, pred_rot, pred_open = pred_actions
         tgt_pos, tgt_rot, tgt_open = tgt_actions[..., :3], tgt_actions[..., 3:-1], tgt_actions[..., -1]
 
         # position loss
-        if self.config.action_config.pos_pred_type == 'heatmap_disc':
+        if self.config.action_config.pos_pred_type == 'heatmap_disc':  # 如果预测的是heatmap，对heatmap和gt的heatmap进行交叉熵
             # pos_loss = F.cross_entropy(
             #     pred_pos.view(-1, 100), disc_pos_probs.view(-1, 100), reduction='mean'
             # )

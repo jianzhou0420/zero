@@ -363,6 +363,7 @@ class SimplePolicyDataset(Dataset):
                 centroid = np.mean(xyz, 0)
             elif self.xyz_shift == 'gripper':
                 centroid = copy.deepcopy(ee_pose[:3])
+
             if self.xyz_norm:
                 radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
             else:
@@ -455,41 +456,22 @@ def ptv3_collate_fn(data):
 
 
 if __name__ == '__main__':
-    seed = 0
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    import yacs.config
 
-    dataset = SimplePolicyDataset(
-        'data/gembench/train_dataset/keysteps_bbox_pcd/seed0/voxel1cm',
-        'data/gembench/train_dataset/keysteps_bbox_pcd/instr_embeds_clip.npy',
-        'assets/taskvars_instructions_new.json',
-        taskvar_file='assets/taskvars_train.json',
-        num_points=4096, xyz_norm=True, xyz_shift='center',
-        use_height=False, rot_type='euler_delta',
-        instr_embed_type='last', include_last_step=True,
-        rm_robot='box_keep_gripper', rm_table=True,
-        all_step_in_batch=True, same_npoints_per_example=False,
-        sample_points_by_distance=True, augment_pc=False,
-        rm_pc_outliers=True
-    )
+    config = yacs.config.CfgNode(new_allowed=True)
+    config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+
+    dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
     print('#data', len(dataset))
 
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=100, shuffle=True, num_workers=0,
+        dataset, batch_size=8, shuffle=True, num_workers=0,
         collate_fn=ptv3_collate_fn
     )
     print('#steps', len(dataloader))
+    counter = 0
+    for i in range(len(dataset)):
+        data = dataset[i]
+        counter += len(dataset[i]['data_ids'])
 
-    for batch in dataloader:
-        for k, v in batch.items():
-            if isinstance(v, torch.Tensor):
-                print(k, v.size())
-            # else:
-            #     print(k, v)
-        print(batch['gt_actions'].min(dim=0)[0])
-        print(batch['gt_actions'].max(dim=0)[0])
-        print(np.min(batch['pc_radius']), np.mean(batch['pc_radius']), np.max(batch['pc_radius']))
-        # np.save('batch.npy', batch)
-        break
+    print('frames', counter)

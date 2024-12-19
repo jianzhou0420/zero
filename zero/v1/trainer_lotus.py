@@ -14,16 +14,13 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.nn import functional as F
 
 # utils package
-import yacs.config
 import yaml
 from datetime import datetime
 import argparse
 from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 from zero.v1.dataset.dataset_lotus import SimplePolicyDataset, ptv3_collate_fn
 from zero.v1.models.lotus.optim.misc import build_optimizer
-'''
-# 在function一级不会传导config的子集，直接传导整个config
-'''
+
 torch.set_float32_matmul_precision('medium')
 
 
@@ -96,28 +93,33 @@ class TrainerLotus(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    import yacs
+    def train():
+        import yacs
 
-    config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+        config = yacs.config.CfgNode(new_allowed=True)
+        config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
 
-    trainer_model = TrainerLotus(config)
-    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    train_dataloader = trainer_model.get_dataloader(config)
+        trainer_model = TrainerLotus(config)
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        train_dataloader = trainer_model.get_dataloader(config)
 
-    checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=10,
-        save_last=True,
-        filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
-    )
-    max_epochs = config.TRAIN.num_train_steps // len(train_dataloader)
-    print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
-    print(f"len(train_dataloader): {len(train_dataloader)}")
-    print(f"max_epochs: {max_epochs}")
-    trainer = pl.Trainer(callbacks=[checkpoint_callback],
-                         max_epochs=max_epochs,
-                         devices=1,
-                         strategy='auto',
-                         default_root_dir='/data/ckpt')
+        checkpoint_callback = ModelCheckpoint(
+            every_n_epochs=10,
+            save_last=True,
+            filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
+        )
 
-    trainer.fit(trainer_model, train_dataloader)
+        scale_factor = 8 / config.TRAIN.train_batch_size
+        max_epochs = config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor
+        print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
+        print(f"len(train_dataloader): {len(train_dataloader)}")
+        print(f"max_epochs: {max_epochs}")
+        trainer = pl.Trainer(callbacks=[checkpoint_callback],
+                             max_epochs=max_epochs,
+                             devices='auto',
+                             strategy='auto',
+                             default_root_dir='/data/ckpt')
+
+        trainer.fit(trainer_model, train_dataloader)
+
+    train()
