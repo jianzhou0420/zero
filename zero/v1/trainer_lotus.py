@@ -12,7 +12,7 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.nn import functional as F
-
+import yacs.config
 # utils package
 import yaml
 from datetime import datetime
@@ -20,7 +20,7 @@ import argparse
 from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 from zero.v1.dataset.dataset_lotus import SimplePolicyDataset, ptv3_collate_fn
 from zero.v1.models.lotus.optim.misc import build_optimizer
-
+#
 torch.set_float32_matmul_precision('medium')
 
 
@@ -94,8 +94,6 @@ class TrainerLotus(pl.LightningModule):
 
 if __name__ == '__main__':
     def train():
-        import yacs
-
         config = yacs.config.CfgNode(new_allowed=True)
         config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
 
