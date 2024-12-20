@@ -565,7 +565,7 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v1/config/lotus.yaml'
-    args.checkpoint = '/media/jian/ssd4t/model_step_220000.pt'
+    args.checkpoint = '/data/ckpt/model_step_220000.pt'
 
     for i in range(20):
         args.seed = i
