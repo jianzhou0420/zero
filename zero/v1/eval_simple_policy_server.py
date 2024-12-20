@@ -559,65 +559,69 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
 
 def main():
     # To use gpu in subprocess: https://pytorch.org/docs/stable/notes/multiprocessing.html
+
     mp.set_start_method('spawn')
 
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v1/config/lotus.yaml'
     args.checkpoint = '/media/jian/ssd4t/model_step_220000.pt'
-    if not os.path.exists(args.checkpoint):
-        print(args.checkpoint, 'not exists')
-        return
 
-    pred_dir = os.path.join(args.expr_dir, 'preds', f'seed{args.seed}')
-    os.makedirs(pred_dir, exist_ok=True)
-    pred_file = os.path.join(pred_dir, 'results.jsonl')
-    existed_taskvars = set()
-    if os.path.exists(pred_file):
-        with jsonlines.open(pred_file, 'r') as f:
-            for item in f:
-                item_step = int(os.path.basename(item['checkpoint']).split('.')[0].split('_')[-1])
-                if item_step == args.ckpt_step:
-                    existed_taskvars.add(f"{item['task']}+{item['variation']}")
+    for i in range(20):
+        args.seed = i
+        if not os.path.exists(args.checkpoint):
+            print(args.checkpoint, 'not exists')
+            return
 
-    taskvars = json.load(open(args.taskvar_file))
-    taskvars = [taskvar for taskvar in taskvars if taskvar not in existed_taskvars]
-    print('checkpoint', args.ckpt_step, '#taskvars', len(taskvars))
+        pred_dir = os.path.join(args.expr_dir, 'preds', f'seed{args.seed}')
+        os.makedirs(pred_dir, exist_ok=True)
+        pred_file = os.path.join(pred_dir, 'results.jsonl')
+        existed_taskvars = set()
+        if os.path.exists(pred_file):
+            with jsonlines.open(pred_file, 'r') as f:
+                for item in f:
+                    item_step = int(os.path.basename(item['checkpoint']).split('.')[0].split('_')[-1])
+                    if item_step == args.ckpt_step:
+                        existed_taskvars.add(f"{item['task']}+{item['variation']}")
 
-    batch_queue = mp.Queue(args.queue_size)
-    result_queues = [mp.Queue(args.queue_size) for _ in range(args.num_workers)]
-    producer_queue = mp.Queue(args.queue_size)
+        taskvars = json.load(open(args.taskvar_file))
+        taskvars = [taskvar for taskvar in taskvars if taskvar not in existed_taskvars]
+        print('checkpoint', args.ckpt_step, '#taskvars', len(taskvars))
 
-    consumer = mp.Process(target=consumer_fn, args=(args, batch_queue, result_queues))
-    consumer.start()
+        batch_queue = mp.Queue(args.queue_size)
+        result_queues = [mp.Queue(args.queue_size) for _ in range(args.num_workers)]
+        producer_queue = mp.Queue(args.queue_size)
 
-    producers = {}
-    i, k_res = 0, 0
-    while i < len(taskvars):
-        taskvar = taskvars[i]
-        if len(producers) < args.num_workers:
-            print('start', i, taskvar)
-            producer = mp.Process(
-                target=producer_fn,
-                args=(i, k_res, args, taskvar, pred_file, batch_queue, result_queues[k_res], producer_queue),
-                name=taskvar
-            )
-            producer.start()
-            producers[i] = producer
-            i += 1
-            k_res += 1
-        else:
-            proc_id, k_res = producer_queue.get()
-            producers[proc_id].join()
-            del producers[proc_id]
-            # producers[0].join()
-            # producers = producers[1:]
+        consumer = mp.Process(target=consumer_fn, args=(args, batch_queue, result_queues))
+        consumer.start()
 
-    for p in producers.values():
-        p.join()
+        producers = {}
+        i, k_res = 0, 0
+        while i < len(taskvars):
+            taskvar = taskvars[i]
+            if len(producers) < args.num_workers:
+                print('start', i, taskvar)
+                producer = mp.Process(
+                    target=producer_fn,
+                    args=(i, k_res, args, taskvar, pred_file, batch_queue, result_queues[k_res], producer_queue),
+                    name=taskvar
+                )
+                producer.start()
+                producers[i] = producer
+                i += 1
+                k_res += 1
+            else:
+                proc_id, k_res = producer_queue.get()
+                producers[proc_id].join()
+                del producers[proc_id]
+                # producers[0].join()
+                # producers = producers[1:]
 
-    batch_queue.put(None)
-    consumer.join()
+        for p in producers.values():
+            p.join()
+
+        batch_queue.put(None)
+        consumer.join()
 
 
 if __name__ == '__main__':
