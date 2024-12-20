@@ -63,10 +63,10 @@ TRAIN_DATASET:
 
 VAL_DATASET:
   use_val: False
-  # data_dir: '/data/lotus/peract/test/keysteps_bbox_pcd/voxel1cm'
-  # instr_embed_file: '/data/lotus/peract/test/keysteps_bbox_pcd/instr_embeds_clip.npy'
-  # taskvar_instr_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
-  # taskvar_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_train.json'
+  data_dir: '/data/lotus/peract/test/keysteps_bbox_pcd/voxel1cm'
+  instr_embed_file: '/data/lotus/peract/test/keysteps_bbox_pcd/instr_embeds_clip.npy'
+  taskvar_instr_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_train.json'
   num_points: 4096
   xyz_shift: center # none, center, gripper
   xyz_norm: False

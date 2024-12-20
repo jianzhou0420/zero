@@ -88,7 +88,7 @@ class ServerArguments(tap.Tap):
     max_steps: int = 25
 
     microstep_data_dir: str = ''
-    seed: int = 100  # seed for RLBench
+    seed: int = 2024  # seed for RLBench
     num_workers: int = 4
     queue_size: int = 20
     taskvar_file: str = '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
@@ -111,7 +111,7 @@ class ServerArguments(tap.Tap):
     # sbatch
     ############################
     ckpt_step = 220000
-    seed = 100
+    seed = 42
     num_workers = 4
     num_demos = 20
     microstep_data_dir = '/media/jian/ssd4t/lotus/peract/test/microsteps'
@@ -138,13 +138,15 @@ class Actioner(object):
         if args.checkpoint is not None:
             config.checkpoint = args.checkpoint
 
-        model = TrainerLotus.load_from_checkpoint(checkpoint_path='/media/jian/ssd4t/test.ckpt', config=self.config)
-        self.model = model.model
-        # if config.checkpoint:
-        #     checkpoint = torch.load(
-        #         config.checkpoint, map_location=lambda storage, loc: storage
-        #     )
-        #     self.model.load_state_dict(checkpoint, strict=True)
+        # model = TrainerLotus.load_from_checkpoint(checkpoint_path='/media/jian/ssd4t/test.ckpt', config=self.config)
+        # self.model = model.model
+
+        self.model = SimplePolicyPTV3CA(config.MODEL)
+        if config.checkpoint:
+            checkpoint = torch.load(
+                config.checkpoint, map_location=lambda storage, loc: storage
+            )
+            self.model.load_state_dict(checkpoint, strict=True)
 
         self.model.to(self.device)
         self.model.eval()
@@ -562,7 +564,7 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v1/config/lotus.yaml'
-    args.checkpoint = '/media/jian/ssd4t/test.ckpt'
+    args.checkpoint = '/media/jian/ssd4t/model_step_220000.pt'
     if not os.path.exists(args.checkpoint):
         print(args.checkpoint, 'not exists')
         return
