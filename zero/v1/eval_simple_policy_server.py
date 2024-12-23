@@ -37,6 +37,8 @@ from termcolor import colored
 from zero.v1.trainer_lotus import TrainerLotus
 
 
+
+
 def task_file_to_task_class(task_file):
     import importlib
     name = task_file.replace('.py', '')
@@ -79,7 +81,7 @@ def gen_seq_masks(seq_lens, max_len=None):
 
 
 class ServerArguments(tap.Tap):
-    expr_dir: str
+    expr_dir: str ='/data/ckpt/'
     ckpt_step: int
     device: str = 'cuda'  # cpu, cuda
 
@@ -114,7 +116,7 @@ class ServerArguments(tap.Tap):
     seed = 42
     num_workers = 4
     num_demos = 20
-    microstep_data_dir = '/media/jian/ssd4t/lotus/peract/test/microsteps'
+    microstep_data_dir = '/data/lotus/peract/test/microsteps'
 
 
 class Actioner(object):
@@ -137,16 +139,17 @@ class Actioner(object):
 
         if args.checkpoint is not None:
             config.checkpoint = args.checkpoint
-
-        # model = TrainerLotus.load_from_checkpoint(checkpoint_path='/media/jian/ssd4t/test.ckpt', config=self.config)
-        # self.model = model.model
-
-        self.model = SimplePolicyPTV3CA(config.MODEL)
-        if config.checkpoint:
-            checkpoint = torch.load(
-                config.checkpoint, map_location=lambda storage, loc: storage
-            )
-            self.model.load_state_dict(checkpoint, strict=True)
+        # config.pl_flag=False
+        if config.pl_flag:
+            model = TrainerLotus.load_from_checkpoint(checkpoint_path=config.checkpoint, config=self.config)
+            self.model = model.model
+        else:
+            self.model = SimplePolicyPTV3CA(config.MODEL)
+            if config.checkpoint:
+                checkpoint = torch.load(
+                    config.checkpoint, map_location=lambda storage, loc: storage
+                )
+                self.model.load_state_dict(checkpoint, strict=True)
 
         self.model.to(self.device)
         self.model.eval()
@@ -565,7 +568,7 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v1/config/lotus.yaml'
-    args.checkpoint = '/data/ckpt/model_step_220000.pt'
+    args.checkpoint = '/data/ckpt/model_step_1.ckpt'
 
     for i in range(20):
         args.seed = i

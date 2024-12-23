@@ -163,3 +163,4 @@ MODEL:
 # suplementary configs from the sbatch script
 ############################################
 world_size: 1
+pl_flag: True
