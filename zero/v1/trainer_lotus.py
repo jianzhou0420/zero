@@ -1,26 +1,31 @@
 # framework package
-from pytorch_lightning.loggers import CSVLogger
-from pytorch_lightning.strategies import DDPStrategy
-import os
-import math
-from argparse import Namespace
-from typing import List, Dict, Tuple, Union, Iterator
-import torch.distributed as dist
-from torch.utils.data.distributed import DistributedSampler
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
-import torch
-import numpy as np
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
-from torch.nn import functional as F
-import yacs.config
-# utils package
-import yaml
-from datetime import datetime
-import argparse
-from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
-from zero.v1.dataset.dataset_lotus_modified import SimplePolicyDataset, ptv3_collate_fn
+
 from zero.v1.models.lotus.optim.misc import build_optimizer
+from zero.v1.dataset.dataset_lotus_modified import SimplePolicyDataset, ptv3_collate_fn
+from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
+import argparse
+from datetime import datetime
+import yaml
+import yacs.config
+from torch.nn import functional as F
+from pytorch_lightning.callbacks import ModelCheckpoint
+import pytorch_lightning as pl
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data.distributed import DistributedSampler
+import torch.distributed as dist
+from typing import List, Dict, Tuple, Union, Iterator
+from argparse import Namespace
+import math
+import os
+from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.loggers import CSVLogger
+import warnings
+
+warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
+
+# utils package
 #
 torch.set_float32_matmul_precision('medium')
 
@@ -107,7 +112,7 @@ if __name__ == '__main__':
             save_last=True,
             filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
         )
-        csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger2')
+        csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger3')
         # scale_factor = 8 / config.TRAIN.train_batch_size
         # max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
         max_epochs = int(1368)
