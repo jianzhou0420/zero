@@ -399,7 +399,7 @@ class SimplePolicyDataset(Dataset):
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
             outs['gt_actions'].append(torch.from_numpy(gt_action).float())
             outs['step_ids'].append(t)
-
+            print('outs', outs)
         return outs
 
 
@@ -462,16 +462,16 @@ if __name__ == '__main__':
     config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
-    print('#data', len(dataset))
 
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=8, shuffle=True, num_workers=0,
+        dataset, batch_size=8, shuffle=True, num_workers=1,
         collate_fn=ptv3_collate_fn
     )
-    print('#steps', len(dataloader))
-    counter = 0
-    for i in range(len(dataset)):
-        data = dataset[i]
-        counter += len(dataset[i]['data_ids'])
 
-    print('frames', counter)
+    # dataset
+    data = dataset[0]
+
+    # dataloader
+    # counter = 0
+    # for data in dataloader:
+    #     counter += 1

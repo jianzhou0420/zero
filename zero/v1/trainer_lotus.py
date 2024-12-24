@@ -19,7 +19,7 @@ import yaml
 from datetime import datetime
 import argparse
 from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
-from zero.v1.dataset.dataset_lotus import SimplePolicyDataset, ptv3_collate_fn
+from zero.v1.dataset.dataset_lotus_modified import SimplePolicyDataset, ptv3_collate_fn
 from zero.v1.models.lotus.optim.misc import build_optimizer
 #
 torch.set_float32_matmul_precision('medium')
@@ -107,7 +107,7 @@ if __name__ == '__main__':
             save_last=True,
             filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
         )
-        csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger1')
+        csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger2')
         # scale_factor = 8 / config.TRAIN.train_batch_size
         # max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
         max_epochs = int(1368)
@@ -118,7 +118,6 @@ if __name__ == '__main__':
                              max_epochs=max_epochs,
                              devices='auto',
                              strategy='auto',
-                             default_root_dir='/data/ckpt',
                              logger=csvlogger1,)
 
         trainer.fit(trainer_model, train_dataloader)

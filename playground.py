@@ -1,20 +1,12 @@
-import torch
 
-# Original list of tensors
-a = torch.tensor([1, 2, 3])
-b = torch.tensor([4, 5, 6])
-c = torch.tensor([7, 8, 9])
 
-pred_actions = [a, b, c]
+import pickle
+import numpy as np
+with open('frames_each_episode.pkl', 'rb') as f:
+    data = pickle.load(f)
+array = data.astype(np.int32)
 
-# Unpacking
-pred_pos, pred_rot, pred_open = pred_actions
 
-# Check memory identity
-print(pred_pos is pred_actions[0])  # True
-print(pred_rot is pred_actions[1])  # True
-print(pred_open is pred_actions[2])  # True
-
-# Modifying pred_pos affects pred_actions[0]
-pred_pos[0] = 100
-print(pred_actions[0])  # tensor([100, 2, 3])
+# Save the array to a text file with a comma after each number
+with open("array_with_commas.txt", "w") as file:
+    file.write(str([num for num in array]))
