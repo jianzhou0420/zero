@@ -153,8 +153,9 @@ if __name__ == '__main__':
                              strategy='auto',
                              logger=csvlogger1,)
 
-    args = argparse.ArgumentParser()
-    args.add_argument('--loadckpt', type=str, default=None)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--loadckpt', type=str, default=None)
+    args = parser.parse_args()
     if args.loadckpt is not None:
         train_resume(args.loadckpt)
     else:
