@@ -152,6 +152,7 @@ if __name__ == '__main__':
                              devices='auto',
                              strategy='auto',
                              logger=csvlogger1,)
+        trainer.fit(trainer_model, train_dataloader)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--loadckpt', type=str, default=None)
