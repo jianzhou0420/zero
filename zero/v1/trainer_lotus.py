@@ -54,7 +54,7 @@ class TrainerLotus(pl.LightningModule):
 
         _, losses = self.model(batch, compute_loss=True, compute_final_action=False)
         self.log('train_loss', losses['total'])
-        if self.global_step % 100 == 0:
+        if self.global_step % 10 == 0:
             print(f"train_loss: {losses['total']}")
         # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
         return losses['total']
@@ -127,4 +127,35 @@ if __name__ == '__main__':
 
         trainer.fit(trainer_model, train_dataloader)
 
-    train()
+    def train_resume(checkpoint_path):
+        config = yacs.config.CfgNode(new_allowed=True)
+        config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+
+        trainer_model = TrainerLotus.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        train_dataloader = trainer_model.get_dataloader(config)
+
+        checkpoint_callback = ModelCheckpoint(
+            every_n_epochs=10,
+            save_last=True,
+            filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
+        )
+        csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger3')
+        # scale_factor = 8 / config.TRAIN.train_batch_size
+        # max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
+        max_epochs = int(1368)
+        print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
+        print(f"len(train_dataloader): {len(train_dataloader)}")
+        print(f"max_epochs: {max_epochs}")
+        trainer = pl.Trainer(callbacks=[checkpoint_callback],
+                             max_epochs=max_epochs,
+                             devices='auto',
+                             strategy='auto',
+                             logger=csvlogger1,)
+
+    args = argparse.ArgumentParser()
+    args.add_argument('--loadckpt', type=str, default=None)
+    if args.loadckpt is not None:
+        train_resume(args.loadckpt)
+    else:
+        train()

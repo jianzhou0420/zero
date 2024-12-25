@@ -11,7 +11,7 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 48 
+  train_batch_size: 64 
   # val_batch_size: 1
 
   gradient_accumulation_steps: 1
@@ -29,7 +29,7 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 96
+  n_workers: 30
   pin_mem: True
 
 
