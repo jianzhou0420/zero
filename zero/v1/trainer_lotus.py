@@ -101,7 +101,7 @@ class TrainerLotus(pl.LightningModule):
 if __name__ == '__main__':
     def train():
         config = yacs.config.CfgNode(new_allowed=True)
-        config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+        config.merge_from_file('/hpcfs/users/a1946536/code/zero/zero/v1/config/lotus.yaml')
 
         trainer_model = TrainerLotus(config)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -112,24 +112,24 @@ if __name__ == '__main__':
             save_last=True,
             filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
         )
-        csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger3')
+        csvlogger1 = CSVLogger('/hpcfs/users/a1946536/logs', name='test')
         # scale_factor = 8 / config.TRAIN.train_batch_size
         # max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
-        max_epochs = int(1368)
+        max_epochs = int(1500)
         print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
         print(f"len(train_dataloader): {len(train_dataloader)}")
         print(f"max_epochs: {max_epochs}")
         trainer = pl.Trainer(callbacks=[checkpoint_callback],
                              max_epochs=max_epochs,
-                             devices='auto',
-                             strategy='auto',
+                             devices=[0],
+                             
                              logger=csvlogger1,)
 
         trainer.fit(trainer_model, train_dataloader)
 
     def train_resume(checkpoint_path):
         config = yacs.config.CfgNode(new_allowed=True)
-        config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+        config.merge_from_file('/hpcfs/users/a1946536/code/zero/zero/v1/config/lotus.yaml')
 
         trainer_model = TrainerLotus.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -140,7 +140,7 @@ if __name__ == '__main__':
             save_last=True,
             filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
         )
-        csvlogger1 = CSVLogger('/data/ckpt/logs', name='csvlogger3')
+        csvlogger1 = CSVLogger('/hpcfs/users/a1946536/logs', name='test')
         # scale_factor = 8 / config.TRAIN.train_batch_size
         # max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
         max_epochs = int(1368)

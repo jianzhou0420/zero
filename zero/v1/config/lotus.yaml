@@ -29,15 +29,17 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 30
+  n_workers: 10
   pin_mem: True
 
+#/hpcfs/users/a1946536/
+#/hpcfs/users/a1946536/code/
 
 TRAIN_DATASET:
-  data_dir: '/data/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'
-  instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
-  taskvar_instr_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
+  data_dir: '/hpcfs/users/a1946536/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'
+  instr_embed_file: '/hpcfs/users/a1946536/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
+  taskvar_instr_file: '/hpcfs/users/a1946536/code/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/hpcfs/users/a1946536/code/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
   num_points: 4096
   xyz_shift: center # none, center, gripper
   xyz_norm: False
@@ -61,34 +63,34 @@ TRAIN_DATASET:
   pos_heatmap_no_robot: True
   real_robot: False
 
-VAL_DATASET:
-  use_val: False
-  data_dir: '/data/lotus/peract/test/keysteps_bbox_pcd/voxel1cm'
-  instr_embed_file: '/data/lotus/peract/test/keysteps_bbox_pcd/instr_embeds_clip.npy'
-  taskvar_instr_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_train.json'
-  num_points: 4096
-  xyz_shift: center # none, center, gripper
-  xyz_norm: False
-  use_height: False
-  sample_points_by_distance: False
-  rot_type: euler_disc # quat, rot6d, euler, euler_delta, euler_disc
-  pos_type: disc # disc, cont
-  instr_embed_type: 'last' # last, all
-  all_step_in_batch: True
-  include_last_step: False
-  rm_table: True
-  rm_robot: box_keep_gripper  # none, gt, box, box_keep_gripper
-  augment_pc: True
-  aug_max_rot: 45
-  same_npoints_per_example: False
-  rm_pc_outliers: False
-  rm_pc_outliers_neighbors: 25
-  pos_bins: 15
-  pos_bin_size: 0.01
-  pos_heatmap_type: 'dist' # plain, dist
-  pos_heatmap_no_robot: True
-  real_robot: False
+# VAL_DATASET:
+#   use_val: False
+#   data_dir: '/data/lotus/peract/test/keysteps_bbox_pcd/voxel1cm'
+#   instr_embed_file: '/data/lotus/peract/test/keysteps_bbox_pcd/instr_embeds_clip.npy'
+#   taskvar_instr_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
+#   taskvar_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_train.json'
+#   num_points: 4096
+#   xyz_shift: center # none, center, gripper
+#   xyz_norm: False
+#   use_height: False
+#   sample_points_by_distance: False
+#   rot_type: euler_disc # quat, rot6d, euler, euler_delta, euler_disc
+#   pos_type: disc # disc, cont
+#   instr_embed_type: 'last' # last, all
+#   all_step_in_batch: True
+#   include_last_step: False
+#   rm_table: True
+#   rm_robot: box_keep_gripper  # none, gt, box, box_keep_gripper
+#   augment_pc: True
+#   aug_max_rot: 45
+#   same_npoints_per_example: False
+#   rm_pc_outliers: False
+#   rm_pc_outliers_neighbors: 25
+#   pos_bins: 15
+#   pos_bin_size: 0.01
+#   pos_heatmap_type: 'dist' # plain, dist
+#   pos_heatmap_no_robot: True
+#   real_robot: False
 
 MODEL:
   model_class: 'SimplePolicyPTV3CA'

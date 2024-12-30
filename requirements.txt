@@ -1,10 +1,4 @@
---find-links https://download.pytorch.org/whl/cu121
-torch==2.4.0
-torchvision==0.19.0
-torchaudio==2.4.0
-# DGL
---find-links https://data.dgl.ai/wheels/torch-2.4/cu121/repo.html
-dgl
+
 
 # General pip dependencies
 aiohappyeyeballs==2.4.4
@@ -32,7 +26,7 @@ propcache==0.2.1
 pydantic==2.10.3
 pydantic-core==2.27.1
 python-dateutil==2.9.0.post0
-pytorch-lightning==2.4.0
+pytorch-lightning
 pytz==2024.2
 regex==2024.11.6
 safetensors==0.4.5
@@ -79,14 +73,12 @@ Requests==2.32.3
 scikit_learn==1.5.2
 scipy==1.14.1
 setuptools==72.1.0
-spconv_cu121==2.3.6
+
 tensorboardX==2.6.2.2
 termcolor==2.5.0
 timm==1.0.9
-torch_scatter==2.1.2
 tqdm==4.66.4
 
 typed_argument_parser==1.10.0
 yacs==0.1.8
---find-links https://data.pyg.org/whl/torch-2.4.0+cu121.html
-torch-scatter
+spconv-cu118

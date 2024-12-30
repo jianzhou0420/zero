@@ -159,6 +159,9 @@ class SimplePolicyDataset(Dataset):
         for i, frame in enumerate(self.frames):
             self.globanframe_to_frame.extend(list(range(frame)))
 
+        
+        #cache
+        self.cache=dict()
     def __exit__(self):
         for lmdb_env in self.lmdb_envs.values():
             lmdb_env.close()
@@ -257,6 +260,21 @@ class SimplePolicyDataset(Dataset):
         gt_rots = gt_rots.numpy()
         return gt_rots
 
+    def check_cache(self,episodes_idx):
+        
+        if self.cache.get(episodes_idx) is None:
+            
+            if self.all_step_in_batch:
+                taskvar, data_id = self.episodes[episodes_idx]
+            else:
+                taskvar, data_id, data_step = self.episodes[episodes_idx]
+            data = msgpack.unpackb(self.lmdb_txns[taskvar].get(data_id))
+            self.cache[episodes_idx]=data
+            return data
+        else:
+            return self.cache[episodes_idx]
+        
+      
     def __getitem__(self, global_frame_idx):
 
         start_time = time.time()
@@ -266,6 +284,8 @@ class SimplePolicyDataset(Dataset):
         episodes_idx = self.globalframe_to_episode[global_frame_idx]
         frame_idx = self.globanframe_to_frame[global_frame_idx]
 
+        data=self.check_cache(episodes_idx)
+        
         if self.all_step_in_batch:
             taskvar, data_id = self.episodes[episodes_idx]
         else:

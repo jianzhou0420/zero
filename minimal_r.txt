@@ -1,0 +1,10 @@
+spconv-cu116
+einops
+scipy
+open3d
+lmdb
+msgpack
+msgpack_numpy
+timm
+pytorch-lightning
+easydict

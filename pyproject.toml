@@ -18,28 +18,4 @@ authors = [
     { name = "Jaz", email = "jianzhou0420@outlook.com" },
 ]
 
-keywords = ["example", "project", "pyproject"]
-
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
-
-
-[tool.poetry.dependencies]
-python = ">=3.8,<3.12"  # Specify compatible Python versions
-h5py = "^3.8.0"          # Add a specific or compatible version
-pytorch-lightning = "^2.0.0"  # Specify a version range
-transformers = "^4.32.0"  # Example for Transformers
-einops = "^0.6.0"         # Compatible version
-blosc = "^1.11.0"         # Compatible version
-diffusers = "^0.19.0"     # Specify a version range
-
-# Git dependency
-clip = { git = "https://github.com/openai/CLIP.git" }
-
-[tool.setuptools]
-# If you want to include specific package data or configurations
-
 
