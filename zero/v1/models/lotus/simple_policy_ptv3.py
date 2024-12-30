@@ -68,7 +68,7 @@ class ActionHead(nn.Module):
         )
 
     def forward(
-        self, point_embeds, npoints_in_batch, coords=None, temp=1,
+        self, feat, npoints_in_batch, coords=None, temp=1,
         gt_pos=None, dec_layers_embed=None,
     ):
         '''
@@ -79,9 +79,9 @@ class ActionHead(nn.Module):
         Return:
             pred_actions: (batch, num_steps, dim_actions)
         '''
-
+        # 1. xt
         if self.pos_pred_type.startswith('heatmap_mlp'):
-            heatmap_embeds = self.heatmap_mlp(point_embeds)
+            heatmap_embeds = self.heatmap_mlp(feat)
             if self.pos_pred_type == 'heatmap_mlp3':
                 heatmaps = torch.split(heatmap_embeds[:, :3], npoints_in_batch)
                 new_coords = coords + heatmap_embeds[:, 3:]
@@ -111,12 +111,17 @@ class ActionHead(nn.Module):
             # np.save('debug1.npy', {'coords': coords.data.cpu().numpy(), 'new_coords': new_coords[0].data.cpu().numpy(), 'heatmaps': heatmaps[0].data.cpu().numpy()})
 
         elif self.pos_pred_type == 'heatmap_disc':
-            xt = self.heatmap_mlp(point_embeds)  # (npoints, 3*pos_bins)
+            xt = self.heatmap_mlp(feat)  # (npoints, 3*pos_bins)
             xt = einops.rearrange(xt, 'n (c b) -> c n b', c=3)  # (3, #npoints, pos_bins)
 
+        # 2. xr
         if self.reduce == 'max':
-            split_point_embeds = torch.split(point_embeds, npoints_in_batch)
-            pc_embeds = torch.stack([torch.max(x, 0)[0] for x in split_point_embeds], 0)
+            split_feat = torch.split(feat, npoints_in_batch)  # 按照归属切分 成 64 个tensor，每个tensor(约1050,128)
+
+            test0 = split_feat[0]
+            test1 = torch.max(split_feat[0], 0)
+            test2 = test1[0]
+            pc_embeds = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，
             action_embeds = self.action_mlp(pc_embeds)
         elif self.reduce.startswith('multiscale_max'):
             pc_embeds = []
@@ -129,11 +134,11 @@ class ActionHead(nn.Module):
             pc_embeds = torch.cat(pc_embeds, dim=1)
             action_embeds = self.action_mlp(pc_embeds)
         elif self.reduce == 'mean':
-            split_point_embeds = torch.split(point_embeds, npoints_in_batch)
-            pc_embeds = torch.stack([torch.mean(x, 0) for x in split_point_embeds], 0)
+            split_feat = torch.split(feat, npoints_in_batch)
+            pc_embeds = torch.stack([torch.mean(x, 0) for x in split_feat], 0)
             action_embeds = self.action_mlp(pc_embeds)
         else:  # attn
-            action_embeds = self.action_mlp(point_embeds)
+            action_embeds = self.action_mlp(feat)
             action_heatmaps = torch.split(action_embeds[:, :1], npoints_in_batch)
             action_heatmaps = [torch.softmax(x / temp, dim=0)for x in action_heatmaps]
             split_action_embeds = torch.split(action_embeds[:, 1:], npoints_in_batch)
@@ -149,6 +154,7 @@ class ActionHead(nn.Module):
         elif self.rot_pred_type == 'euler_disc':
             xr = action_embeds[..., :self.euler_bins * 3].view(-1, self.euler_bins, 3)
 
+        # 3. xo
         xo = action_embeds[..., -1]
 
         if self.pos_pred_type == 'heatmap_mlp_topk':
@@ -223,7 +229,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
 
         return outs
 
-    def forward(self, batch, compute_loss=False, **kwargs):
+    def forward(self, batch, is_train=False):
         '''batch data:
             pc_fts: (batch, npoints, dim)
             txt_embeds: (batch, txt_dim)
@@ -243,24 +249,21 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         # /test
 
         # 2. Action Head
-        pred_actions = self.act_proj_head(
+        pred_actions = self.act_proj_head(  # 只用到了point_outs的最后一层
             point_outs[-1].feat, batch['npoints_in_batch'], coords=point_outs[-1].coord,
             temp=self.config.action_config.get('pos_heatmap_temp', 1),
             gt_pos=batch['gt_actions'][..., :3] if 'gt_actions' in batch else None,
             # dec_layers_embed=[point_outs[k] for k in [0, 2, 4, 6, 8]] # TODO
             dec_layers_embed=[point_outs[k] for k in [0, 1, 2, 3, 4]] if self.config.ptv3_config.dec_depths[0] == 1 else [point_outs[k] for k in [0, 2, 4, 6, 8]]  # TODO
         )
-        pred_pos, pred_rot, pred_open = pred_actions  # 下面关于pred_pos, pred_rot, pred_open的操作在训练时都是无用的
-
-        # Test: check if memory is modified
-        # test = [item.clone() for item in pred_actions]
-        # print(all(torch.equal(a, b) for a, b in zip(test, pred_actions)))
-
+        # 下面关于pred_pos, pred_rot, pred_open的操作在训练时都是无用的
+        # 我修改了，只在eval时生效
         # 3.1 get Ground Truth
-        if self.config.action_config.pos_pred_type == 'heatmap_disc':
-            # TODO
-            # if not compute_loss:
-            if kwargs.get('compute_final_action', True):
+        if not is_train:  # means eval
+            pred_pos, pred_rot, pred_open = pred_actions
+            if self.config.action_config.pos_pred_type == 'heatmap_disc':
+                # TODO
+                # if not compute_loss:
                 # import time
                 # st = time.time()
                 cont_pred_pos = []
@@ -286,40 +289,36 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                 cont_pred_pos = torch.from_numpy(np.array(cont_pred_pos)).float().to(device)
                 # print('time', time.time() - st)
                 pred_pos = cont_pred_pos
-            else:
-                pred_pos = batch['gt_actions'][..., :3]
 
-        # 3.2 figure out predicted action type
-        if self.config.action_config.rot_pred_type == 'rot6d':
-            # no grad
-            pred_rot = self.rot_transform.matrix_to_quaternion(
-                self.rot_transform.compute_rotation_matrix_from_ortho6d(pred_rot.data.cpu())
-            ).float().to(device)
-        elif self.config.action_config.rot_pred_type == 'euler':
-            pred_rot = pred_rot * 180
-            pred_rot = self.rot_transform.euler_to_quaternion(pred_rot.data.cpu()).float().to(device)
-        elif self.config.action_config.rot_pred_type == 'euler_delta':
-            pred_rot = pred_rot * 180
-            cur_euler_angles = R.from_quat(batch['ee_poses'][..., 3:7].data.cpu()).as_euler('xyz', degrees=True)
-            pred_rot = pred_rot.data.cpu() + cur_euler_angles
-            pred_rot = self.rot_transform.euler_to_quaternion(pred_rot).float().to(device)
-        elif self.config.action_config.rot_pred_type == 'euler_disc':
-            pred_rot = torch.argmax(pred_rot, 1).data.cpu().numpy()
-            pred_rot = np.stack([discrete_euler_to_quaternion(x, self.act_proj_head.euler_resolution) for x in pred_rot], 0)
-            pred_rot = torch.from_numpy(pred_rot).to(device)
-        final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open.unsqueeze(-1)], dim=-1)
+                # 3.2 figure out predicted action type
+                if self.config.action_config.rot_pred_type == 'rot6d':
+                    # no grad
+                    pred_rot = self.rot_transform.matrix_to_quaternion(
+                        self.rot_transform.compute_rotation_matrix_from_ortho6d(pred_rot.data.cpu())
+                    ).float().to(device)
+                elif self.config.action_config.rot_pred_type == 'euler':
+                    pred_rot = pred_rot * 180
+                    pred_rot = self.rot_transform.euler_to_quaternion(pred_rot.data.cpu()).float().to(device)
+                elif self.config.action_config.rot_pred_type == 'euler_delta':
+                    pred_rot = pred_rot * 180
+                    cur_euler_angles = R.from_quat(batch['ee_poses'][..., 3:7].data.cpu()).as_euler('xyz', degrees=True)
+                    pred_rot = pred_rot.data.cpu() + cur_euler_angles
+                    pred_rot = self.rot_transform.euler_to_quaternion(pred_rot).float().to(device)
+                elif self.config.action_config.rot_pred_type == 'euler_disc':
+                    pred_rot = torch.argmax(pred_rot, 1).data.cpu().numpy()
+                    pred_rot = np.stack([discrete_euler_to_quaternion(x, self.act_proj_head.euler_resolution) for x in pred_rot], 0)
+                    pred_rot = torch.from_numpy(pred_rot).to(device)
+                final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open.unsqueeze(-1)], dim=-1)
+                return final_pred_actions
 
-        # print(all(torch.equal(a, b) for a, b in zip(test, pred_actions)))  # True ，所以真的是无用的
-        # 4. Compute Loss
-        if compute_loss:
+        else:  # if is_train
+
             losses = self.compute_loss(
                 pred_actions, batch['gt_actions'],
                 disc_pos_probs=batch.get('disc_pos_probs', None),
                 npoints_in_batch=batch['npoints_in_batch']
             )
-            return final_pred_actions, losses
-        else:
-            return final_pred_actions
+            return losses
 
     def compute_loss(self, pred_actions, tgt_actions, disc_pos_probs=None, npoints_in_batch=None):
         """
@@ -336,7 +335,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         tgt_pos, tgt_rot, tgt_open = tgt_actions[..., :3], tgt_actions[..., 3:-1], tgt_actions[..., -1]
 
         # position loss
-        if self.config.action_config.pos_pred_type == 'heatmap_disc':  # 如果预测的是heatmap，对heatmap和gt的heatmap进行交叉熵
+        if self.config.action_config.pos_pred_type == 'heatmap_disc':  # 如果预测的是heatmap，对heatmap和gt的heatmap进行交叉熵, gt的pos的heatmap是已经给出的，放在disc_pos_probs里
             # pos_loss = F.cross_entropy(
             #     pred_pos.view(-1, 100), disc_pos_probs.view(-1, 100), reduction='mean'
             # )

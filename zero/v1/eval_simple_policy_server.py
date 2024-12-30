@@ -37,8 +37,6 @@ from termcolor import colored
 from zero.v1.trainer_lotus import TrainerLotus
 
 
-
-
 def task_file_to_task_class(task_file):
     import importlib
     name = task_file.replace('.py', '')
@@ -81,7 +79,7 @@ def gen_seq_masks(seq_lens, max_len=None):
 
 
 class ServerArguments(tap.Tap):
-    expr_dir: str ='/data/ckpt/'
+    expr_dir: str = '/data/ckpt/debug'
     ckpt_step: int
     device: str = 'cuda'  # cpu, cuda
 
@@ -91,7 +89,7 @@ class ServerArguments(tap.Tap):
 
     microstep_data_dir: str = ''
     seed: int = 2024  # seed for RLBench
-    num_workers: int = 4
+    num_workers: int = 1
     queue_size: int = 20
     taskvar_file: str = '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
     num_demos: int = 20
@@ -469,7 +467,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         video_log_dir = os.path.join(args.video_dir, f'{task_str}+{variation}')
         os.makedirs(str(video_log_dir), exist_ok=True)
 
-    move = Mover(task, max_tries=args.max_tries)
+    move = Mover(task, max_tries=args.max_tries)  # 这个是干什么的
 
     if args.microstep_data_dir != '':
         episodes_dir = os.path.join(args.microstep_data_dir, task_str, f"variation{variation}", "episodes")
@@ -478,7 +476,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             episode_ids = os.listdir(episodes_dir)
             episode_ids.sort(key=lambda ep: int(ep[7:]))
             for idx, ep in enumerate(episode_ids):
-                try:
+                try:  # 为什么eval的时候会需要demo？
                     demo = env.get_demo(task_str, variation, idx, load_images=False)
                     demos.append(demo)
                 except Exception as e:
@@ -516,15 +514,15 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             }
             batch_queue.put((k_res, batch))
 
-            output = result_queue.get()
+            output = result_queue.get()  # 不用担心message归属问题，因为queue是专用的。
             action = output["action"]
 
             if action is None:
-                break
+                raise ValueError("Action is None!")
 
             # update the observation based on the predicted action
             try:
-                obs, reward, terminate, _ = move(action, verbose=False)
+                obs, reward, terminate, _ = move(action, verbose=True)
                 obs_state_dict = env.get_observation(obs)  # type: ignore
 
                 if reward == 1:
@@ -568,7 +566,7 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v1/config/lotus.yaml'
-    args.checkpoint = '/data/ckpt/model_step_1.ckpt'
+    args.checkpoint = '/data/20241219_061619epoch=1359.ckpt'
 
     for i in range(20):
         args.seed = i

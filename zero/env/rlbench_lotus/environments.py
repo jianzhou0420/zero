@@ -51,9 +51,9 @@ class Mover:
         action = action.copy()
 
         change_gripper = ((self._last_action[-1] > 0.5) & (action[-1] < 0.5)) or \
-                         ((self._last_action[-1] < 0.5) & (action[-1] > 0.5))
+                         ((self._last_action[-1] < 0.5) & (action[-1] > 0.5))  # 是否需要改变gripper的状态
 
-        if self._disabled:
+        if self._disabled:  # disable mover itself
             return self._task.step(action)
 
         target = action.copy()
@@ -65,7 +65,8 @@ class Mover:
         terminate = None
         reward = 0
 
-        for try_id in range(self._max_tries):
+        for try_id in range(self._max_tries):  # 为什么要试10次？防止路径规划不到位。其实基本都到位，从结果来看，一般第一次就成功了
+
             # print('task step', try_id)
             obs, reward, terminate = self._task.step(action)
             # print('finish step')
