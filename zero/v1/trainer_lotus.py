@@ -122,7 +122,7 @@ if __name__ == '__main__':
         trainer = pl.Trainer(callbacks=[checkpoint_callback],
                              max_epochs=max_epochs,
                              devices=[0],
-                             
+
                              logger=csvlogger1,)
 
         trainer.fit(trainer_model, train_dataloader)
