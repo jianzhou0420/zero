@@ -1,3 +1,4 @@
+from zero.v1.tools_scripts.draw_pointcloud import DrawPointcloud
 import time
 from zero.v1.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 from zero.v1.models.lotus.utils.robot_box import RobotBox
@@ -73,6 +74,7 @@ def gen_seq_masks(seq_lens, max_len=None):
 
 
 # it is stupid i know that but for now use it #TODO
+# Attention! Here we already removed the last scene
 frames = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 10, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 7, 14, 14, 14, 14, 14, 15, 14, 14, 14, 14, 12, 14, 14, 14, 12, 14, 13, 14, 14, 14, 12, 14, 14, 12, 21, 21, 22, 20, 21, 21, 21, 23, 21, 21, 19, 21, 21, 21, 19, 23, 21, 21, 22, 19, 19, 21, 21, 21, 24, 21, 18, 21, 21, 20, 17, 21, 22, 21, 21, 23, 21, 21, 20, 21, 20, 21, 5, 5, 5, 5, 5, 4, 5, 5, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 5, 5, 7, 4, 7, 4, 5, 5, 5, 4, 5, 5, 5, 4, 5, 4, 5, 4, 5, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 4, 4, 4, 4, 4, 6, 6, 2, 4, 4, 2, 2, 2, 4, 6, 6, 6, 2, 2, 4, 6, 2, 2, 4, 4, 4, 6, 6, 6, 2, 2, 4, 4, 6, 6, 6, 6, 2, 2, 2, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 6, 2, 2, 4, 6, 6, 6, 6, 6, 6, 2, 2, 2, 2, 4, 4, 4, 4, 6, 2, 4, 4, 6, 6, 6, 2, 4, 4, 6, 6, 6, 4, 4, 6, 2, 2, 6, 6, 6, 6, 2, 2, 2, 6, 6, 2, 2, 2, 4, 4, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 5, 5, 4, 5, 6, 6, 5, 5, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 11, 11, 11, 17, 23, 11, 11, 23, 11, 23, 23, 11, 11, 11, 24, 22, 11, 17, 17, 23, 23, 23, 22, 17, 23, 23, 11, 17, 23, 23, 11, 11, 11, 11, 17, 23, 23, 11, 23, 23, 11, 11, 23, 11, 11, 23, 23, 11, 11, 11, 11, 11, 17, 11, 11, 11, 11, 11, 17, 23, 23, 17, 17, 17, 17, 23, 23, 23, 11, 11, 17, 23, 23, 17, 17, 17, 23, 23, 11, 11, 11, 11, 17, 23, 23, 23, 11, 11, 11, 11, 11, 11, 17, 17, 17, 23, 23, 17, 17, 23, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 4, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 5, 5, 4, 5, 5, 4, 4, 4, 5, 4, 5, 5, 5, 5, 4, 4, 5, 4, 5, 4, 5, 5, 4, 5, 5, 5, 5, 4, 5, 4, 5, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
 
 
@@ -159,9 +161,11 @@ class SimplePolicyDataset(Dataset):
         for i, frame in enumerate(self.frames):
             self.globanframe_to_frame.extend(list(range(frame)))
 
-        
-        #cache
-        self.cache=dict()
+        # cache
+        self.cache = dict()
+        # draw 3d pointcloud
+        self.drawer = DrawPointcloud()
+
     def __exit__(self):
         for lmdb_env in self.lmdb_envs.values():
             lmdb_env.close()
@@ -260,21 +264,20 @@ class SimplePolicyDataset(Dataset):
         gt_rots = gt_rots.numpy()
         return gt_rots
 
-    def check_cache(self,episodes_idx):
-        
+    def check_cache(self, episodes_idx):
+
         if self.cache.get(episodes_idx) is None:
-            
+
             if self.all_step_in_batch:
                 taskvar, data_id = self.episodes[episodes_idx]
             else:
                 taskvar, data_id, data_step = self.episodes[episodes_idx]
             data = msgpack.unpackb(self.lmdb_txns[taskvar].get(data_id))
-            self.cache[episodes_idx]=data
+            self.cache[episodes_idx] = data
             return data
         else:
             return self.cache[episodes_idx]
-        
-      
+
     def __getitem__(self, global_frame_idx):
 
         start_time = time.time()
@@ -284,8 +287,8 @@ class SimplePolicyDataset(Dataset):
         episodes_idx = self.globalframe_to_episode[global_frame_idx]
         frame_idx = self.globanframe_to_frame[global_frame_idx]
 
-        data=self.check_cache(episodes_idx)
-        
+        data = self.check_cache(episodes_idx)
+
         if self.all_step_in_batch:
             taskvar, data_id = self.episodes[episodes_idx]
         else:
@@ -308,19 +311,12 @@ class SimplePolicyDataset(Dataset):
 
         num_steps = len(data['xyz'])
         t = frame_idx
-        if t == num_steps - 1:
-            t -= 1  # the last frame is not used,暂时这么办 TODO：最后一帧剔除
+
+        if t == num_steps - 1:  # 因为我在self.frames里面没有算最后一帧，所以这里就不会选中最后一帧, 属于bug与特殊需求相互抵消了，哈哈哈哈哈哈
+            t -= 1
+            print(f"t: {t}")
 
         xyz, rgb = data['xyz'][t], data['rgb'][t]
-        # # real robot point cloud is very noisy, requiring noise point cloud removal
-        # # segmentation fault if n_workers>0
-        # if self.real_robot:
-        #     pcd = o3d.geometry.PointCloud()
-        #     pcd.points = o3d.utility.Vector3dVector(xyz)
-        #     pcd.colors = o3d.utility.Vector3dVector(rgb)
-        #     pcd, outlier_masks = pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=0.2)
-        #     xyz = xyz[outlier_masks]
-        #     rgb = rgb[outlier_masks]
 
         if self.real_robot:  # save in a different format
             arm_links_info = (data['bbox_info'][0], data['pose_info'][0])
@@ -346,6 +342,7 @@ class SimplePolicyDataset(Dataset):
             mask = xyz[..., 2] > self.TABLE_HEIGHT
             xyz = xyz[mask]
             rgb = rgb[mask]
+
         if self.rm_robot.startswith('box'):
             mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.rm_robot)
             xyz = xyz[mask]
@@ -499,21 +496,16 @@ def ptv3_collate_fn(data):
 
 if __name__ == '__main__':
     import yacs.config
-
+    from tqdm import trange
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=8, shuffle=True, num_workers=1,
-        collate_fn=ptv3_collate_fn
-    )
-
     # dataset
     data = dataset[0]
 
-    dataloader
-    counter = 0
-    for data in dataloader:
-        counter += 1
+    length = len(dataset)
+
+    for i in trange(length):
+        dataset[i]

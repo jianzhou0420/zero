@@ -1,3 +1,5 @@
+from zero.v1.tools_scripts.draw_pointcloud import DrawPointcloud
+from tqdm import trange
 from zero.v1.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 from zero.v1.models.lotus.utils.robot_box import RobotBox
 from zero.v1.models.lotus.utils.rotation_transform import (
@@ -23,8 +25,9 @@ import msgpack
 import msgpack_numpy
 msgpack_numpy.patch()
 
-
 # import open3d as o3d
+
+
 def pad_tensors(tensors, lens=None, pad=0, max_len=None):
     """B x [T, ...] torch tensors"""
     if lens is None:
@@ -144,6 +147,9 @@ class SimplePolicyDataset(Dataset):
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
 
+        # drawer
+        self.drawer = DrawPointcloud()
+
     def __exit__(self):
         for lmdb_env in self.lmdb_envs.values():
             lmdb_env.close()
@@ -244,6 +250,7 @@ class SimplePolicyDataset(Dataset):
 
     def __getitem__(self, idx):
         # len(self.data_ids) == 1754
+        debug_draw = True
         if self.all_step_in_batch:
             taskvar, data_id = self.data_ids[idx]
         else:
@@ -265,6 +272,7 @@ class SimplePolicyDataset(Dataset):
         gt_rots = self.get_groundtruth_rotations(data['action'][:, 3:7])
 
         num_steps = len(data['xyz'])
+        test = []
         for t in range(num_steps):
             if (not self.all_step_in_batch) and t != data_step:
                 continue
@@ -380,6 +388,7 @@ class SimplePolicyDataset(Dataset):
 
             rgb = (rgb / 255.) * 2 - 1
             pc_ft = np.concatenate([xyz, rgb], 1)
+            test.append(pc_ft)
             if self.use_height:
                 pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
 
@@ -392,14 +401,26 @@ class SimplePolicyDataset(Dataset):
                     robot_point_idxs=robot_point_idxs
                 )
                 outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
-
             outs['data_ids'].append(f'{taskvar}-{data_id.decode("ascii")}-t{t}')
             outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
             outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
             outs['gt_actions'].append(torch.from_numpy(gt_action).float())
             outs['step_ids'].append(t)
-            print('outs', outs)
+
+        if debug_draw:
+            episodes_name = taskvar
+            save_dir = os.path.join('/data/lotus/visualization_after', episodes_name)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            else:
+                return
+            for i in range(len(outs['step_ids'])):
+                save_path = os.path.join(save_dir, str(i) + 'after' + '.html')
+                xyz = test[i][:, :3]
+                rgb = np.round((test[i][:, 3:] + 1) / 2 * 255).astype(np.uint8)
+                self.drawer.save_onece(xyz, rgb, save_path=save_path)
+            return
         return outs
 
 
@@ -463,15 +484,7 @@ if __name__ == '__main__':
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=8, shuffle=True, num_workers=1,
-        collate_fn=ptv3_collate_fn
-    )
-
-    # dataset
-    data = dataset[0]
-
-    # dataloader
-    # counter = 0
-    # for data in dataloader:
-    #     counter += 1
+    episode_length = []
+    dataset_length = len(dataset)
+    for i in trange(dataset_length):
+        dataset[i]

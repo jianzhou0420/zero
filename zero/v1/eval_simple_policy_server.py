@@ -99,8 +99,8 @@ class ServerArguments(tap.Tap):
 
     best_disc_pos: str = 'max'  # max, ens1
 
-    record_video: bool = False
-    video_dir: str = None
+    record_video: bool = True
+    video_dir: str = '/media/jian/ssd4t/ckpt/debug/videos'
     not_include_robot_cameras: bool = False
     video_rotate_cam: bool = False
     video_resolution: int = 480
@@ -566,9 +566,9 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v1/config/lotus.yaml'
-    args.checkpoint = '/data/20241219_061619epoch=1359.ckpt'
-
-    for i in range(20):
+    args.checkpoint = '/media/jian/ssd4t/20241225_004530epoch=1359.ckpt'
+    seeds = [42]
+    for i in seeds:
         args.seed = i
         if not os.path.exists(args.checkpoint):
             print(args.checkpoint, 'not exists')

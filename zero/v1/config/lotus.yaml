@@ -36,10 +36,10 @@ TRAIN:
 #/hpcfs/users/a1946536/code/
 
 TRAIN_DATASET:
-  data_dir: '/hpcfs/users/a1946536/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'
-  instr_embed_file: '/hpcfs/users/a1946536/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
-  taskvar_instr_file: '/hpcfs/users/a1946536/code/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/hpcfs/users/a1946536/code/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
+  data_dir: '/data/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'
+  instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
+  taskvar_instr_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
   num_points: 4096
   xyz_shift: center # none, center, gripper
   xyz_norm: False

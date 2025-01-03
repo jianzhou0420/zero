@@ -1,12 +1,7 @@
-
-
-import pickle
 import numpy as np
-with open('frames_each_episode.pkl', 'rb') as f:
-    data = pickle.load(f)
-array = data.astype(np.int32)
 
+test = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+test = test.astype(np.float128)
 
-# Save the array to a text file with a comma after each number
-with open("array_with_commas.txt", "w") as file:
-    file.write(str([num for num in array]))
+print(test.dtype)
+print(test.dtype == np.float_)
