@@ -11,7 +11,7 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 48
+  train_batch_size: 12
   # val_batch_size: 1
 
   gradient_accumulation_steps: 1
@@ -36,11 +36,11 @@ TRAIN:
 #/hpcfs/users/a1946536/code/
 
 TRAIN_DATASET:
-  data_dir: '/data/selfgen/seed42/voxel0.005'
+  data_dir: '/data/selfgen/seed42/voxel0.002'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
-  num_points: 4096
+  num_points: 16384
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True

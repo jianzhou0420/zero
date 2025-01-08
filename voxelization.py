@@ -126,9 +126,10 @@ for task in tasks_list:
             new_rgb_list = []
             for frame_id in range(rgb.shape[0]):
                 arm_links_info = (data['bbox'][frame_id], data['pose'][frame_id])
-                new_xyz, new_rgb = process_pc(xyz[frame_id], rgb[frame_id], arm_links_info, voxel_size=args.voxel_size, visualize=False)
+                new_xyz, new_rgb = process_pc(xyz[frame_id], rgb[frame_id], arm_links_info, voxel_size=args.voxel_size, visualize=True)
                 new_pc_list.append(new_xyz)
                 new_rgb_list.append(new_rgb)
+                print('new_xyz:', new_xyz.shape, 'new_rgb:', new_rgb.shape)
             data['pc'] = new_pc_list
             data['rgb'] = new_rgb_list
             sub = data_path.split('/seed42')

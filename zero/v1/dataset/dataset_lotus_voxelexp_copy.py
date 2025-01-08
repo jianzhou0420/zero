@@ -317,6 +317,8 @@ class SimplePolicyDataset(Dataset):
         instr = random.choice(self.taskvar_instrs[taskvar])
         instr_embed = self.instr_embeds[instr]
         # sampling points
+        print(f"xyz: {xyz.shape}")
+
         if len(xyz) > self.num_points:
             if self.sample_points_by_distance:
                 dists = np.sqrt(np.sum((xyz - current_pose[:3])**2, 1))
@@ -459,7 +461,7 @@ if __name__ == '__main__':
     import yacs.config
     from tqdm import trange
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+    config.merge_from_file('/workspace/zero/zero/v1/config/lotus_0.003.yaml')
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 

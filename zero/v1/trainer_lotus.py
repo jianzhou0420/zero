@@ -99,9 +99,9 @@ class TrainerLotus(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    def train():
+    def train(voxel_size):
         config = yacs.config.CfgNode(new_allowed=True)
-        config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+        config.merge_from_file(f'/workspace/zero/zero/v1/config/lotus_{voxel_size}.yaml')
 
         trainer_model = TrainerLotus(config)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -112,7 +112,7 @@ if __name__ == '__main__':
             save_last=True,
             filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
         )
-        csvlogger1 = CSVLogger('/data/logs', name='voxel_test')
+        csvlogger1 = CSVLogger('/data/logs', name=f'voxel{voxel_size}')
 
         max_epochs = int(1368)
         print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
@@ -155,8 +155,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--loadckpt', type=str, default=None)
+    parser.add_argument('--voxel_size', type=float)
     args = parser.parse_args()
     if args.loadckpt is not None:
         train_resume(args.loadckpt)
     else:
-        train()
+        train(args.voxel_size)
