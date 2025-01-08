@@ -1,7 +1,7 @@
 # framework package
 
 from zero.v1.models.lotus.optim.misc import build_optimizer
-from zero.v1.dataset.dataset_lotus_modified import SimplePolicyDataset, ptv3_collate_fn
+from zero.v1.dataset.dataset_lotus_voxelexp_copy import SimplePolicyDataset, ptv3_collate_fn
 from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime
@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
     def train_resume(checkpoint_path):
         config = yacs.config.CfgNode(new_allowed=True)
-        config.merge_from_file('/hpcfs/users/a1946536/code/zero/zero/v1/config/lotus.yaml')
+        config.merge_from_file('/data/zero/zero/v1/config/lotus.yaml')
 
         trainer_model = TrainerLotus.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
