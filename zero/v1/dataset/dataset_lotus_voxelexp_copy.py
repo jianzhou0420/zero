@@ -317,7 +317,7 @@ class SimplePolicyDataset(Dataset):
         instr = random.choice(self.taskvar_instrs[taskvar])
         instr_embed = self.instr_embeds[instr]
         # sampling points
-        print(f"xyz: {xyz.shape}")
+        # print(f"xyz: {xyz.shape}")
 
         if len(xyz) > self.num_points:
             if self.sample_points_by_distance:
