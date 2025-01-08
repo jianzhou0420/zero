@@ -303,7 +303,7 @@ class SimplePolicyDataset(Dataset):
 
         if t == num_steps - 1:  # 因为我在self.frames里面没有算最后一帧，所以这里就不会选中最后一帧, 属于bug与特殊需求相互抵消了，哈哈哈哈哈哈
             t -= 1
-            print(f"t: {t}")
+            # print(f"t: {t}")
 
         xyz, rgb = data['pc'][t].copy(), data['rgb'][t].copy()
 
@@ -316,7 +316,27 @@ class SimplePolicyDataset(Dataset):
         # randomly select one instruction
         instr = random.choice(self.taskvar_instrs[taskvar])
         instr_embed = self.instr_embeds[instr]
+        # sampling points
+        if len(xyz) > self.num_points:
+            if self.sample_points_by_distance:
+                dists = np.sqrt(np.sum((xyz - current_pose[:3])**2, 1))
+                probs = 1 / np.maximum(dists, 0.1)
+                probs = np.maximum(softmax(probs), 1e-30)
+                probs = probs / sum(probs)
+                # probs = 1 / dists
+                # probs = probs / np.sum(probs)
+                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False, p=probs)
+            else:
+                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+        else:
+            if self.same_npoints_per_example:
+                point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
+            else:
+                max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
+                point_idxs = np.random.permutation(len(xyz))[:max_npoints]
 
+        xyz = xyz[point_idxs]
+        rgb = rgb[point_idxs]
         height = xyz[:, -1] - self.TABLE_HEIGHT
 
         if self.pos_heatmap_no_robot:
@@ -441,7 +461,6 @@ if __name__ == '__main__':
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
 
-    config.TRAIN_DATASET.data_dir = '/media/jian/ssd4t/selfgen/20250105/train_dataset/post_process_keysteps/seed42/voxel0.005'
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
     # dataset
@@ -452,3 +471,4 @@ if __name__ == '__main__':
     for i in trange(length):
         data = dataset[i]
         print(data['data_ids'])
+        print(data['pc_fts'][0].shape)
