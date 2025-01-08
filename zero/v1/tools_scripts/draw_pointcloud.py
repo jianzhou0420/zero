@@ -4,7 +4,7 @@ import os
 import datetime
 
 
-class DrawPointcloud:
+class PointCloudDrawer:
     def __init__(self):
         pass
     ####################
@@ -14,7 +14,7 @@ class DrawPointcloud:
     def draw_onece_blocking(self, points, colors=None, block=True):
 
         fig = self._draw_onece(points, colors)
-        fig.show()
+        fig.show(block=block)
 
     def save_onece(self, points, colors=None, save_path=None):
         fig = self._draw_onece(points, colors)
@@ -40,7 +40,8 @@ class DrawPointcloud:
             colors = np.random.rand(len(x), 3)
 
         # check if dtype is float
-        if np.issubclass_(colors.dtype.type, np.integer):
+
+        if issubclass(colors.dtype.type, np.integer):
             colors = colors.astype(float) / 255
 
         # Create a 3D scatter plot

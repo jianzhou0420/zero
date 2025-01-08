@@ -1,4 +1,4 @@
-from zero.v1.tools_scripts.draw_pointcloud import DrawPointcloud
+from zero.v1.tools_scripts.draw_pointcloud import PointCloudDrawer
 from tqdm import trange
 from zero.v1.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 from zero.v1.models.lotus.utils.robot_box import RobotBox
@@ -148,7 +148,7 @@ class SimplePolicyDataset(Dataset):
         self.rotation_transform = RotationMatrixTransform()
 
         # drawer
-        self.drawer = DrawPointcloud()
+        self.drawer = PointCloudDrawer()
 
     def __exit__(self):
         for lmdb_env in self.lmdb_envs.values():
@@ -250,7 +250,7 @@ class SimplePolicyDataset(Dataset):
 
     def __getitem__(self, idx):
         # len(self.data_ids) == 1754
-        debug_draw = True
+        debug_draw = False
         if self.all_step_in_batch:
             taskvar, data_id = self.data_ids[idx]
         else:

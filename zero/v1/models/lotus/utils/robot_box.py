@@ -2,9 +2,10 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
 
+
 class RobotBox(object):
 
-    def __init__(self, arm_links_info, env_name='rlbench', keep_gripper=False):
+    def __init__(self, arm_links_info, env_name='rlbench', keep_gripper=False, selfgen=False):
         bbox_info, pose_info = arm_links_info
 
         self.robot_obboxes = []
@@ -13,26 +14,44 @@ class RobotBox(object):
             arm_links = ["Panda_link0", "Panda_link1", "Panda_link2", "Panda_link3", "Panda_link4", "Panda_link5", "Panda_link6", "Panda_link7"]
             if not keep_gripper:
                 arm_links.extend(["Panda_rightfinger", "Panda_leftfinger", "Panda_gripper"])
+            if selfgen:
+                for arm_link in arm_links:
+                    if arm_link in ["Panda_link0", "Panda_rightfinger", "Panda_leftfinger", "Panda_gripper"]:
+                        link_bbox = bbox_info[f"{arm_link}_visual"]
+                        link_pose = pose_info[f"{arm_link}_visual"]
+                    else:
+                        link_bbox = bbox_info[f"{arm_link}_respondable"]
+                        link_pose = pose_info[f"{arm_link}_respondable"]
+                    link_bbox = np.array(link_bbox)
 
-            for arm_link in arm_links:
-                if arm_link in ["Panda_link0", "Panda_rightfinger", "Panda_leftfinger", "Panda_gripper"]:
-                    link_bbox = bbox_info[f"{arm_link}_visual_bbox"]
-                    link_pose = pose_info[f"{arm_link}_visual_pose"]
-                else:
-                    link_bbox = bbox_info[f"{arm_link}_respondable_bbox"]
-                    link_pose = pose_info[f"{arm_link}_respondable_pose"]
+                    link_rot = R.from_quat(link_pose[3:]).as_matrix()   # xyzw
+                    obbox = o3d.geometry.OrientedBoundingBox(
+                        link_pose[:3], link_rot, link_bbox[1::2] - link_bbox[::2]
+                    )
 
-                link_rot = R.from_quat(link_pose[3:]).as_matrix()   # xyzw
-                obbox = o3d.geometry.OrientedBoundingBox(
-                    link_pose[:3], link_rot, link_bbox[1::2] - link_bbox[::2]
-                )
+                    self.robot_obboxes.append(obbox)
 
-                self.robot_obboxes.append(obbox)
+            else:
+                for arm_link in arm_links:
+                    if arm_link in ["Panda_link0", "Panda_rightfinger", "Panda_leftfinger", "Panda_gripper"]:
+                        link_bbox = bbox_info[f"{arm_link}_visual"]
+                        link_pose = pose_info[f"{arm_link}_visual"]
+                    else:
+                        link_bbox = bbox_info[f"{arm_link}_respondable"]
+                        link_pose = pose_info[f"{arm_link}_respondable"]
+
+                    link_rot = R.from_quat(link_pose[3:]).as_matrix()   # xyzw
+                    link_bbox = np.array(link_bbox)
+                    obbox = o3d.geometry.OrientedBoundingBox(
+                        link_pose[:3], link_rot, link_bbox[1::2] - link_bbox[::2]
+                    )
+
+                    self.robot_obboxes.append(obbox)
 
         elif env_name == 'real':
             rm_links = [
-                'left_base_link_bbox', 'left_shoulder_link_bbox', 'left_upper_arm_link_bbox', 
-                'left_forearm_link_bbox', 'left_wrist_1_link_bbox', 'left_wrist_2_link_bbox', 
+                'left_base_link_bbox', 'left_shoulder_link_bbox', 'left_upper_arm_link_bbox',
+                'left_forearm_link_bbox', 'left_wrist_1_link_bbox', 'left_wrist_2_link_bbox',
                 'left_wrist_3_link_bbox', 'left_ft300_mounting_plate_bbox', 'left_ft300_sensor_bbox'
             ]
             if not keep_gripper:
@@ -65,5 +84,5 @@ class RobotBox(object):
 
         if return_indices:
             return overlap_ratio, overlap_point_ids
-        
+
         return overlap_ratio

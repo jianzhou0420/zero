@@ -1,7 +1,9 @@
-import numpy as np
-
-test = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-test = test.astype(np.float128)
-
-print(test.dtype)
-print(test.dtype == np.float_)
+import lmdb
+import os
+import msgpack
+import pickle
+# Path to your LMDB database
+path = '/media/jian/ssd4t/selfgen/20250105/train_dataset/post_process_keysteps/seed42/voxel0.001/close_jar/variation0/episodes/episode0/data.pkl'
+with open(path, 'rb') as f:
+    data = pickle.load(f)
+print(data.keys())
