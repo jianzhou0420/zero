@@ -116,7 +116,7 @@ if __name__ == '__main__':
         )
         csvlogger1 = CSVLogger('/data/logs', name=f'voxel{voxel_size}')
 
-        max_epochs = int(6500)
+        max_epochs = int(1500)
         print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
         print(f"len(train_dataloader): {len(train_dataloader)}")
         print(f"max_epochs: {max_epochs}")
