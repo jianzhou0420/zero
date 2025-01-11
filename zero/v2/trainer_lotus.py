@@ -103,7 +103,7 @@ if __name__ == '__main__':
         config = yacs.config.CfgNode(new_allowed=True)
         config.merge_from_file(f'/workspace/zero/zero/v1/config/lotus.yaml')
 
-        config.TRAIN_DATASET.tasks_to_use = ['close_jar']
+        # config.TRAIN_DATASET.tasks_to_use = ['close_jar']
         trainer_model = TrainerLotus(config)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
         train_dataloader = trainer_model.get_dataloader(config)
