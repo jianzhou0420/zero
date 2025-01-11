@@ -128,38 +128,41 @@ if __name__ == '__main__':
 
         trainer.fit(trainer_model, train_dataloader)
 
-    def train_resume(checkpoint_path):
-        config = yacs.config.CfgNode(new_allowed=True)
-        config.merge_from_file('/data/zero/zero/v1/config/lotus.yaml')
+    # def train_resume(ckpt_path):
+    #     config = yacs.config.CfgNode(new_allowed=True)
+    #     config.merge_from_file(f'/workspace/zero/zero/v1/config/lotus.yaml')
 
-        trainer_model = TrainerLotus.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
-        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        train_dataloader = trainer_model.get_dataloader(config)
+    #     config.TRAIN_DATASET.tasks_to_use = ['close_jar']
+    #     trainer_model = TrainerLotus(config)
+    #     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    #     train_dataloader = trainer_model.get_dataloader(config)
+    #     # ckpt_path = '/media/jian/ssd4t/logs/voxelNone/version_4/checkpoints/20250111_162332epoch=1499.ckpt'
+    #     checkpoint_callback = ModelCheckpoint(
+    #         every_n_epochs=500,
+    #         save_top_k=-1,
+    #         save_last=False,
+    #         filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
+    #     )
+    #     csvlogger1 = CSVLogger('/data/logs', name=f'voxel{None}')
 
-        checkpoint_callback = ModelCheckpoint(
-            every_n_epochs=10,
-            save_last=True,
-            filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
-        )
-        csvlogger1 = CSVLogger('/hpcfs/users/a1946536/logs', name='test')
-        # scale_factor = 8 / config.TRAIN.train_batch_size
-        # max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
-        max_epochs = int(1368)
-        print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
-        print(f"len(train_dataloader): {len(train_dataloader)}")
-        print(f"max_epochs: {max_epochs}")
-        trainer = pl.Trainer(callbacks=[checkpoint_callback],
-                             max_epochs=max_epochs,
-                             devices='auto',
-                             strategy='auto',
-                             logger=csvlogger1,)
-        trainer.fit(trainer_model, train_dataloader)
+    #     max_epochs = int(6500)
+    #     print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
+    #     print(f"len(train_dataloader): {len(train_dataloader)}")
+    #     print(f"max_epochs: {max_epochs}")
+    #     trainer = pl.Trainer(callbacks=[checkpoint_callback],
+    #                          max_epochs=max_epochs,
+    #                          devices='auto',
+    #                          strategy='auto',
+    #                          logger=csvlogger1,
+    #                          )
+
+    #     trainer.fit(trainer_model, train_dataloader, ckpt_path=ckpt_path)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--loadckpt', type=str, default=None)
     parser.add_argument('--voxel_size', type=float)
     args = parser.parse_args()
-    if args.loadckpt is not None:
-        train_resume(args.loadckpt)
-    else:
-        train(args.voxel_size)
+    # if args.loadckpt is not None:
+    #     train_resume(args.loadckpt)
+    # else:
+    train(args.voxel_size)
