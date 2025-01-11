@@ -36,7 +36,7 @@ import torch.multiprocessing as mp
 from termcolor import colored
 from zero.v1.trainer_lotus import TrainerLotus
 
-from zero.z_utils.process_voxel import process_pc
+from zero.z_utils.process_voxel import process_pc, dataset_part_process
 
 
 def task_file_to_task_class(task_file):
@@ -200,10 +200,60 @@ class Actioner(object):
             rgb = rgb[idxs]
         return xyz, rgb
 
-    def process_point_clouds(
-        self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
+    def process_obs(
+        self, xyz, rgb, ee_pose=None, arm_links_info=None, taskvar=None
     ):
+
+        # 然后进行两个处理，一个是创建dataset的时候的处理，一个是Dataset getitem的时候的处理
+        # 1. voxelization process
+        xyz, rgb = process_pc(xyz, rgb, arm_links_info, self.config.MODEL.action_config.voxel_size, visualize=False)
+
+        data = {}
+        data['xyz'] = xyz
+        data['rgb'] = rgb
+        pc_ft, centroid, radius = dataset_part_process(data, ee_pose)
+        # 2. dataset getitem process
+
+        return pc_ft, centroid, radius, ee_pose
+
+    def preprocess_obs(self, taskvar, step_id, obs):
+       # 3 steps: 1. record part, 2. voxelize part, 3. dataset part
+
+        # 1.record part
+        apply_rgb = True
+        apply_pc = True
+        apply_cameras = ("left_shoulder", "right_shoulder", "wrist", "front")
+        apply_depth = True
+        gripper_pose = False
+        # fetch state: (#cameras, H, W, C)
+        state_dict = {"rgb": [], "depth": [], "xyz": []}
+        for cam in apply_cameras:
+            if apply_rgb:
+                rgb = getattr(obs, "{}_rgb".format(cam))
+                state_dict["rgb"] += [rgb]
+
+            if apply_depth:
+                depth = getattr(obs, "{}_depth".format(cam))
+                state_dict["depth"] += [depth]
+
+            if apply_pc:
+                pc = getattr(obs, "{}_point_cloud".format(cam))
+                state_dict["xyz"] += [pc]
+
+        # fetch gripper state (3+4+1, )
+        gripper = np.concatenate([obs.gripper_pose, [obs.gripper_open]]).astype(np.float32)
+        state_dict["gripper"] = gripper
+        bbox = obs.misc['bbox']
+        pose = obs.misc['pose']
+
+        # 2.0 variable convert
+        xyz = np.array(state_dict['xyz'])
+        rgb = np.array(state_dict['rgb'])
+        ee_pose = np.array(state_dict['gripper'])
+        arm_links_info = (bbox, pose)
+        # 2.1 voxelize part
         # keep points in robot workspace
+
         xyz = xyz.reshape(-1, 3)
         in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
                   (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
@@ -212,118 +262,55 @@ class Actioner(object):
             in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
         xyz = xyz[in_mask]
         rgb = rgb.reshape(-1, 3)[in_mask]
-        if gt_sem is not None:
-            gt_sem = gt_sem.reshape(-1)[in_mask]
+        new_xyz, new_rgb = process_pc(xyz, rgb, arm_links_info, voxel_size=0.003, visualize=False)
+        data = {}
+        data['xyz'] = new_xyz
+        data['rgb'] = new_rgb
+        data['bbox'] = bbox
+        data['pose'] = pose
+        data['action'] = ee_pose
 
-        # downsampling
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd, _, trace = pcd.voxel_down_sample_and_trace(
-            self.config.MODEL.action_config.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
-        )
-        xyz = np.asarray(pcd.points)
-        trace = np.array([v[0] for v in trace])
-        rgb = rgb[trace]
-        if gt_sem is not None:
-            gt_sem = gt_sem[trace]
+        # 3. dataset part
+        xyz, rgb = data['xyz'], data['rgb']
+        arm_links_info = (data['bbox'], data['pose'])
+        current_pose = copy.deepcopy(data['action'])
 
-        if self.args.real_robot:
-            for _ in range(1):
-                pcd = o3d.geometry.PointCloud()
-                pcd.points = o3d.utility.Vector3dVector(xyz)
-                pcd.colors = o3d.utility.Vector3dVector(rgb)
-                pcd, outlier_masks = pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=0.2)
-                xyz = xyz[outlier_masks]
-                rgb = rgb[outlier_masks]
-                if gt_sem is not None:
-                    gt_sem = gt_sem[outlier_masks]
-
-        # remove non-object points
-        if not self.args.real_robot:
-            rm_label_ids = get_rlbench_labels(
-                taskvar.split('+')[0], table=self.data_cfg.rm_table, robot=(self.data_cfg.rm_robot == 'gt'), wall=False, floor=False
-            )
-            if len(rm_label_ids) > 0:
-                rm_mask = self._get_mask_with_label_ids(gt_sem, rm_label_ids)
-                xyz = xyz[~rm_mask]
-                rgb = rgb[~rm_mask]
-
-        if self.data_cfg.rm_robot.startswith('box'):
-            mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.data_cfg.rm_robot)
-            xyz = xyz[mask]
-            rgb = rgb[mask]
-
-        if self.data_cfg.rm_pc_outliers:
-            xyz, rgb = self._rm_pc_outliers(xyz, rgb)
-
+        # randomly select one instruction
+        instr = random.choice(self.taskvar_instrs[taskvar])
+        instr_embed = self.instr_embeds[instr]
         # sampling points
-        if len(xyz) > self.data_cfg.num_points:
-            if self.data_cfg.sample_points_by_distance:
-                dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
-                probs = 1 / np.maximum(dists, 0.1)
-                probs = np.maximum(softmax(probs), 1e-30)
-                probs = probs / sum(probs)
-                # probs = 1 / dists
-                # probs = probs / np.sum(probs)
-                point_idxs = np.random.choice(len(xyz), self.data_cfg.num_points, replace=False, p=probs)
-            else:
-                point_idxs = np.random.choice(len(xyz), self.data_cfg.num_points, replace=False)
+        # print(f"xyz: {xyz.shape}")
+
+        if len(xyz) > self.config.TRAIN_DATASET.num_points:
+            point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False)
         else:
-            if self.data_cfg.same_npoints_per_example:
-                point_idxs = np.random.choice(xyz.shape[0], self.data_cfg.num_points, replace=True)
-            else:
-                point_idxs = np.arange(xyz.shape[0])
+            max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
+            point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+
         xyz = xyz[point_idxs]
         rgb = rgb[point_idxs]
         height = xyz[:, -1] - self.TABLE_HEIGHT
 
-        # normalize
-        if self.data_cfg.xyz_shift == 'none':
-            centroid = np.zeros((3, ))
-        elif self.data_cfg.xyz_shift == 'center':
-            centroid = np.mean(xyz, 0)
-        elif self.data_cfg.xyz_shift == 'gripper':
-            centroid = copy.deepcopy(ee_pose[:3])
-        if self.data_cfg.xyz_norm:
-            radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
-        else:
-            radius = 1
+        # normalize point cloud
+
+        centroid = np.mean(xyz, 0)
+
+        radius = 1
 
         xyz = (xyz - centroid) / radius
         height = height / radius
-        ee_pose[:3] = (ee_pose[:3] - centroid) / radius
+
+        current_pose[:3] = (current_pose[:3] - centroid) / radius
 
         rgb = (rgb / 255.) * 2 - 1
         pc_ft = np.concatenate([xyz, rgb], 1)
-        if self.data_cfg.get('use_height', False):
-            pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
 
-        return pc_ft, centroid, radius, ee_pose
+        pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
 
-    def voxel_process_point_cloud(self):
-        pass
-
-    def voxel_preprocess_obs(self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None):
-
-        pass
-
-    def preprocess_obs(self, taskvar, step_id, obs):
-        rgb = np.stack(obs['rgb'], 0)  # (N, H, W, C)
-        xyz = np.stack(obs['pc'], 0)  # (N, H, W, C)
-        if 'gt_mask' in obs:
-            gt_sem = np.stack(obs['gt_mask'], 0)  # (N, H, W)
-        else:
-            gt_sem = None
-
-        # select one instruction
-        instr = self.taskvar_instrs[taskvar][0]
-        instr_embed = self.instr_embeds[instr]
-
-        pc_ft, pc_centroid, pc_radius, ee_pose = self.process_point_clouds(
-            xyz, rgb, gt_sem=gt_sem, ee_pose=copy.deepcopy(obs['gripper']),
-            arm_links_info=obs['arm_links_info'], taskvar=taskvar
-        )
-
+        # 3.2 output
+        pc_centroid = centroid
+        pc_radius = radius
+        # output
         batch = {
             'pc_fts': torch.from_numpy(pc_ft).float(),
             'pc_centroids': pc_centroid,
@@ -348,14 +335,12 @@ class Actioner(object):
         return batch
 
     def predict(
-        self, task_str=None, variation=None, step_id=None, obs_state_dict=None,
+        self, task_str=None, variation=None, step_id=None, obs=None,
         episode_id=None, instructions=None,
     ):
         # print(obs_state_dict)
         taskvar = f'{task_str}+{variation}'
-        batch = self.preprocess_obs(
-            taskvar, step_id, obs_state_dict,
-        )
+        batch = self.preprocess_obs(taskvar, step_id, obs,)
         with torch.no_grad():
             actions = []
             # TODO
@@ -376,6 +361,9 @@ class Actioner(object):
         # action = action.data.cpu().numpy()
         action = action.numpy()
         action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
+        # test:debug
+        # action[2] += self.TABLE_HEIGHT
+        # /test
         # TODO: ensure the action height is above the table
         action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
@@ -383,28 +371,7 @@ class Actioner(object):
             'action': action
         }
 
-        if self.args.save_obs_outs_dir is not None:
-            np.save(
-                os.path.join(self.args.save_obs_outs_dir, f'{task_str}+{variation}-{episode_id}-{step_id}.npy'),
-                {
-                    'batch': {k: v.data.cpu().numpy() if isinstance(v, torch.Tensor) else v for k, v in batch.items()},
-                    'obs': obs_state_dict,
-                    'action': action
-                }
-            )
-
         return out
-
-    def voxel_predict(self, task_str=None, variation=None, step_id=None, obs_state_dict=None,
-                      episode_id=None, instructions=None,
-                      ):
-        taskvar = f'{task_str}+{variation}'
-        # 1.voxelize
-        # 2.dataset process
-        # 3.model predict
-        # 4.reconstruct the action
-
-        pass
 
 
 def consumer_fn(args, batch_queue, result_queues):
@@ -528,7 +495,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
                 'task_str': task_str,
                 'variation': variation,
                 'step_id': step_id,
-                'obs_state_dict': obs_state_dict,
+                'obs': obs,
                 'episode_id': demo_id,
                 'instructions': instructions,
             }
@@ -543,7 +510,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             # update the observation based on the predicted action
             try:
                 obs, reward, terminate, _ = move(action, verbose=True)
-                obs_state_dict = env.get_observation(obs)  # type: ignore
+                # obs_state_dict = env.get_observation(obs)  # type: ignore
 
                 if reward == 1:
                     success_rate += 1 / num_demos

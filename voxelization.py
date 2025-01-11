@@ -99,7 +99,7 @@ def process_pc(xyz, rgb, arm_links_info, voxel_size, visualize=False):
 
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument('--voxel_size', type=float, default=0.001, required=True)
+argparser.add_argument('--voxel_size', type=float, default=0.001)
 args = argparser.parse_args()
 
 # region test
