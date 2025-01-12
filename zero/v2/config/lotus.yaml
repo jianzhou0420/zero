@@ -11,7 +11,7 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 24
+  train_batch_size: 48
   # val_batch_size: 1
 
   gradient_accumulation_steps: 1
