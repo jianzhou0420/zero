@@ -2,7 +2,7 @@
 
 from pytorch_lightning.callbacks import Callback
 from zero.v2.models.lotus.optim.misc import build_optimizer
-from zero.v2.dataset.dataset_lotus_voxelexp_copy import SimplePolicyDataset, ptv3_collate_fn
+from zero.v2.dataset.dataset_lotus_modified import SimplePolicyDataset, ptv3_collate_fn
 from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime
@@ -23,7 +23,7 @@ import os
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.loggers import CSVLogger
 import warnings
-
+from pytorch_lightning.loggers import TensorBoardLogger
 warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
 
 # utils package
@@ -55,7 +55,7 @@ class TrainerLotus(pl.LightningModule):
     def training_step(self, batch, batch_idx):  # 每次的batch_size都是不一样的应该说，每个小batch的每一个sample，sample的长度是不一样的
 
         losses = self.model(batch, is_train=True)
-        self.log('train_loss', losses['total'])
+        self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)
         if self.global_step % 10 == 0:
             print(f"train_loss: {losses['total']}")
         # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
@@ -68,6 +68,7 @@ class TrainerLotus(pl.LightningModule):
             warmup_steps=self.config.TRAIN.warmup_steps,
             total_steps=self.config.TRAIN.num_train_steps,
         )
+        print(scheduler.get_lr())
         scheduler_config = {
             "scheduler": scheduler,
             "interval": "step",  # Adjust learning rate every step
@@ -115,35 +116,33 @@ if __name__ == '__main__':
     parser.add_argument('--loadckpt', type=str, default=None)
     parser.add_argument('--voxel_size', type=float)
     args = parser.parse_args()
-    # if args.loadckpt is not None:
-    #     train_resume(args.loadckpt)
-    # else:
 
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(f'/workspace/zero/zero/v2/config/lotus.yaml')
 
-    # config.TRAIN_DATASET.tasks_to_use = ['close_jar']
+    config.TRAIN_DATASET.tasks_to_use = ['close_jar']
     trainer_model = TrainerLotus(config)
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     train_dataloader = trainer_model.get_dataloader(config)
 
-    print_lr_callback = PrintLRCallback()
     checkpoint_callback = ModelCheckpoint(
         every_n_epochs=500,
         save_top_k=-1,
         save_last=False,
         filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
     )
-    csvlogger1 = CSVLogger('/data/logs/test', name=f'voxel{args.voxel_size}')
+    csvlogger1 = CSVLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
+    tensorboardlogger1 = TensorBoardLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
 
     max_epochs = int(1500)
     print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
     print(f"len(train_dataloader): {len(train_dataloader)}")
     print(f"max_epochs: {max_epochs}")
-    trainer = pl.Trainer(callbacks=[checkpoint_callback, print_lr_callback],
+    trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=max_epochs,
                          devices='auto',
                          strategy='auto',
-                         logger=csvlogger1,)
+                         logger=tensorboardlogger1,
+                         )
 
     trainer.fit(trainer_model, train_dataloader)

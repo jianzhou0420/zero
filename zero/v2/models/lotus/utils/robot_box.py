@@ -34,11 +34,11 @@ class RobotBox(object):
             else:
                 for arm_link in arm_links:
                     if arm_link in ["Panda_link0", "Panda_rightfinger", "Panda_leftfinger", "Panda_gripper"]:
-                        link_bbox = bbox_info[f"{arm_link}_visual"]
-                        link_pose = pose_info[f"{arm_link}_visual"]
+                        link_bbox = bbox_info[f"{arm_link}_visual_bbox"]
+                        link_pose = pose_info[f"{arm_link}_visual_pose"]
                     else:
-                        link_bbox = bbox_info[f"{arm_link}_respondable"]
-                        link_pose = pose_info[f"{arm_link}_respondable"]
+                        link_bbox = bbox_info[f"{arm_link}_respondable_bbox"]
+                        link_pose = pose_info[f"{arm_link}_respondable_pose"]
 
                     link_rot = R.from_quat(link_pose[3:]).as_matrix()   # xyzw
                     link_bbox = np.array(link_bbox)
