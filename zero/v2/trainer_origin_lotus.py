@@ -93,6 +93,7 @@ class TrainerLotus(pl.LightningModule):
                 collate_fn=collate_fn,
                 drop_last=False,
                 prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
+                shuffle=False
             )
             return loader
         # function
@@ -113,7 +114,7 @@ class PrintLRCallback(Callback):
 
 
 if __name__ == '__main__':
-
+    pl.seed_everything(42)
     parser = argparse.ArgumentParser()
     parser.add_argument('--loadckpt', type=str, default=None)
     parser.add_argument('--voxel_size', type=float)
