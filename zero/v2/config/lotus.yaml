@@ -3,7 +3,7 @@ output_dir: 'data/experiments/gembench/simple_policy_ptv3/debug'
 tfboard_log_dir: null # 'data/TFBoard/xxx'
 checkpoint: null
 checkpoint_strict_load: False # true, false
-exp_name: 'exp1_debug'
+exp_name: 'exp0_original_exp'
 TRAIN:
   resume_training: True
   resume_encoder_only: False

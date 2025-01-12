@@ -132,7 +132,7 @@ if __name__ == '__main__':
         filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
     )
     csvlogger1 = CSVLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
-    tensorboardlogger1 = TensorBoardLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
+    # tensorboardlogger1 = TensorBoardLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
 
     max_epochs = int(1500)
     print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
@@ -142,7 +142,7 @@ if __name__ == '__main__':
                          max_epochs=max_epochs,
                          devices='auto',
                          strategy='auto',
-                         logger=tensorboardlogger1,
+                         logger=csvlogger1,
                          )
 
     trainer.fit(trainer_model, train_dataloader)
