@@ -19,13 +19,13 @@ import open3d as o3d
 from sklearn.neighbors import LocalOutlierFactor
 from scipy.spatial.transform import Rotation as R
 
-from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
+from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 
-from zero.v1.config.default import get_config
+from zero.v2.config.default import get_config
 
-from zero.v1.config.constants import get_robot_workspace, get_rlbench_labels
+from zero.v2.config.constants import get_robot_workspace, get_rlbench_labels
 from zero.z_utils.robot_box import RobotBox
 import random
 from zero.env.rlbench_lotus.recorder import (
@@ -34,7 +34,7 @@ from zero.env.rlbench_lotus.recorder import (
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
-from zero.v1.trainer_lotus import TrainerLotus
+from zero.v2.trainer_lotus import TrainerLotus
 
 from zero.z_utils.process_voxel import process_pc, dataset_part_process
 

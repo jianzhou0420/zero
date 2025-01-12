@@ -19,13 +19,13 @@ import open3d as o3d
 from sklearn.neighbors import LocalOutlierFactor
 from scipy.spatial.transform import Rotation as R
 
-from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
+from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 
-from zero.v1.config.default import get_config
+from zero.v2.config.default import get_config
 
-from zero.v1.config.constants import get_robot_workspace, get_rlbench_labels
+from zero.v2.config.constants import get_robot_workspace, get_rlbench_labels
 from zero.z_utils.robot_box import RobotBox
 import random
 from zero.env.rlbench_lotus.recorder import (
@@ -34,7 +34,7 @@ from zero.env.rlbench_lotus.recorder import (
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
-from zero.v1.trainer_lotus import TrainerLotus
+from zero.v2.trainer_lotus import TrainerLotus
 
 from zero.z_utils.process_voxel import process_pc
 
@@ -585,11 +585,11 @@ def main():
 
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
-    args.exp_config = '/workspace/zero/zero/v1/config/lotus_0.003.yaml'
-    args.checkpoint = '/media/jian/ssd4t/exp/exp1_voxelsize/Voxel003_20250108_115803epoch=1359.ckpt'
-    args.expr_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_1_voxel003'
-    args.video_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_1_voxel003'
-    # args.tasks_to_use = ['close_jar']
+    args.exp_config = '/workspace/zero/zero/v2/config/lotus.yaml'
+    args.checkpoint = '/media/jian/ssd4t/logs/voxelNone/version_5/checkpoints/20250111_232034epoch=6499.ckpt'
+    args.expr_dir = '/media/jian/ssd4t/exp/exp2_singletask/eval/eval_2'
+    args.video_dir = '/media/jian/ssd4t/exp/exp2_singletask/eval/eval_2'
+    args.tasks_to_use = ['close_jar']
     seeds = [42]
     for i in seeds:
         args.seed = i
