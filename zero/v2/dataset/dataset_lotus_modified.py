@@ -169,6 +169,9 @@ class SimplePolicyDataset(Dataset):
         self.cache = dict()
         # draw 3d pointcloud
         # self.drawer = PointCloudDrawer()
+        for i in range(len(self.episodes)):
+            self.check_cache(i)
+
         print('test')
 
     def __exit__(self):
