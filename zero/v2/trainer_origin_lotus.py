@@ -97,6 +97,7 @@ class TrainerLotus(pl.LightningModule):
             return loader
         # function
         dataset = self.get_dataset(config)
+        print(f"len(dataset): {len(dataset)}")
         train_loader = build_dataloader(dataset, ptv3_collate_fn, is_train=True, config=config)
         return train_loader
 

@@ -16,8 +16,8 @@ TRAIN:
 
   gradient_accumulation_steps: 1
   num_epochs: null
-  num_train_steps: 300000
-  warmup_steps: 5000
+  num_train_steps: 91882
+  warmup_steps: 1531
 
   optim: 'adamw'
   learning_rate: 0.0001

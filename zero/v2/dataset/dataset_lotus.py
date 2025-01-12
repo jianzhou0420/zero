@@ -480,11 +480,14 @@ if __name__ == '__main__':
     import yacs.config
 
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v/config/lotus.yaml')
+    config.merge_from_file('/workspace/zero/zero/v2/config/lotus.yaml')
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
     episode_length = []
     dataset_length = len(dataset)
+    print(dataset_length)
     for i in trange(dataset_length):
         dataset[i]
+        print(dataset[i])
+        break
