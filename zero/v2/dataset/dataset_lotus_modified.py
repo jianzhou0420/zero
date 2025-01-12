@@ -498,4 +498,6 @@ if __name__ == '__main__':
     length = len(dataset)
 
     for i in trange(length):
+
         dataset[i]
+        print(dataset[i]['pc_fts'][0].shape)
