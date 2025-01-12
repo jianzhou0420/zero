@@ -428,7 +428,7 @@ class SimplePolicyDataset(Dataset):
         outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
         outs['gt_actions'].append(torch.from_numpy(gt_action).float())
         outs['step_ids'].append(t)
-        print(len(pc_ft[0]))
+
         return outs
 
 
