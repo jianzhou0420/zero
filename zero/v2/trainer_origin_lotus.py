@@ -135,7 +135,7 @@ if __name__ == '__main__':
     csvlogger1 = CSVLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
     # tensorboardlogger1 = TensorBoardLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
 
-    max_epochs = int(1)
+    max_epochs = int(1500)
     print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
     print(f"len(train_dataloader): {len(train_dataloader)}")
     print(f"max_epochs: {max_epochs}")
