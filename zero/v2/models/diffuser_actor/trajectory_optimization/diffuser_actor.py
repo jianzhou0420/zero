@@ -4,18 +4,18 @@ import torch.nn.functional as F
 import einops
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 
-from zero.v1.models.diffuser_actor.utils.layers import (
+from zero.v2.models.diffuser_actor.utils.layers import (
     FFWRelativeSelfAttentionModule,
     FFWRelativeCrossAttentionModule,
     FFWRelativeSelfCrossAttentionModule
 )
-from zero.v1.models.diffuser_actor.utils.encoder import Encoder
-from zero.v1.models.diffuser_actor.utils.layers import ParallelAttention
-from zero.v1.models.diffuser_actor.utils.position_encodings import (
+from zero.v2.models.diffuser_actor.utils.encoder import Encoder
+from zero.v2.models.diffuser_actor.utils.layers import ParallelAttention
+from zero.v2.models.diffuser_actor.utils.position_encodings import (
     RotaryPositionEncoding3D,
     SinusoidalPosEmb
 )
-from zero.v1.models.diffuser_actor.utils.utils import (
+from zero.v2.models.diffuser_actor.utils.utils import (
     compute_rotation_matrix_from_ortho6d,
     get_ortho6d_from_rotation_matrix,
     normalise_quat,

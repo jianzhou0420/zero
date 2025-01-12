@@ -9,7 +9,7 @@ except:
 import numpy as np
 from functools import partial
 
-from zero.v1.models.lotus.PointTransformerV3.model import (
+from zero.v2.models.lotus.PointTransformerV3.model import (
     Point, PointModule, PointSequential, MLP, DropPath, PDNorm,
     Embedding, Block, SerializedPooling, SerializedUnpooling,
     PointTransformerV3, offset2bincount
