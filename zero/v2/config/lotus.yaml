@@ -26,7 +26,7 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 16
+  n_workers: 4
   pin_mem: True
 
 #/hpcfs/users/a1946536/
