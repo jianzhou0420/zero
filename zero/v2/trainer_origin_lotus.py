@@ -53,7 +53,7 @@ class TrainerLotus(pl.LightningModule):
         self.model = SimplePolicyPTV3CA(config.MODEL)
 
     def training_step(self, batch, batch_idx):  # 每次的batch_size都是不一样的应该说，每个小batch的每一个sample，sample的长度是不一样的
-        # print(batch['offset'])
+        print(batch['offset'])
         losses = self.model(batch, is_train=True)
         self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)
         if self.global_step % 10 == 0:
