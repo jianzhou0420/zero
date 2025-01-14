@@ -63,6 +63,7 @@ TRAIN_DATASET:
   pos_heatmap_no_robot: True
   real_robot: False
   euler_resolution: 5
+  tasks_to_use: ['close_jar']
 # VAL_DATASET:
 #   use_val: False
 #   data_dir: '/data/lotus/peract/test/keysteps_bbox_pcd/voxel1cm'
