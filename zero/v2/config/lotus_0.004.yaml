@@ -40,7 +40,7 @@ TRAIN_DATASET:
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/workspace/zero/zero/v2/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/workspace/zero/zero/v2/models/lotus/assets/taskvars_peract.json'
-  num_points: 4096
+  num_points: 5120
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
@@ -62,7 +62,7 @@ TRAIN_DATASET:
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False
-
+  euler_resolution: 5
 # VAL_DATASET:
 #   use_val: False
 #   data_dir: '/data/lotus/peract/test/keysteps_bbox_pcd/voxel1cm'

@@ -2,7 +2,7 @@
 
 from pytorch_lightning.callbacks import Callback
 from zero.v2.models.lotus.optim.misc import build_optimizer
-from zero.v2.dataset.dataset_lotus_voxelexp_copy import SimplePolicyDataset, ptv3_collate_fn
+from zero.v2.dataset.dataset_v2 import SimplePolicyDataset, ptv3_collate_fn
 from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime
@@ -111,36 +111,38 @@ class PrintLRCallback(Callback):
 
 
 if __name__ == '__main__':
+    # config
     parser = argparse.ArgumentParser()
     parser.add_argument('--loadckpt', type=str, default=None)
-    parser.add_argument('--voxel_size', type=float)
+    parser.add_argument('--voxel_size', type=float, default=None)
     args = parser.parse_args()
-    # if args.loadckpt is not None:
-    #     train_resume(args.loadckpt)
-    # else:
 
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file(f'/workspace/zero/zero/v2/config/lotus.yaml')
+    config.merge_from_file(f'/workspace/zero/zero/v2/config/lotus_0.005.yaml')
 
-    # config.TRAIN_DATASET.tasks_to_use = ['close_jar']
+    # config midification
+    config.TRAIN_DATASET.tasks_to_use = ['close_jar']
     trainer_model = TrainerLotus(config)
+
+    # tainer
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     train_dataloader = trainer_model.get_dataloader(config)
 
-    print_lr_callback = PrintLRCallback()
+    # print_lr_callback = PrintLRCallback()
     checkpoint_callback = ModelCheckpoint(
         every_n_epochs=500,
         save_top_k=-1,
         save_last=False,
         filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
     )
-    csvlogger1 = CSVLogger('/data/logs/test', name=f'voxel{args.voxel_size}')
+    csvlogger1 = CSVLogger('/data/logs/exp2', name=f'voxel{args.voxel_size}')
 
-    max_epochs = int(1500)
+    max_epochs = int(6500)
+
     print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
     print(f"len(train_dataloader): {len(train_dataloader)}")
     print(f"max_epochs: {max_epochs}")
-    trainer = pl.Trainer(callbacks=[checkpoint_callback, print_lr_callback],
+    trainer = pl.Trainer(callbacks=[checkpoint_callback],
                          max_epochs=max_epochs,
                          devices='auto',
                          strategy='auto',

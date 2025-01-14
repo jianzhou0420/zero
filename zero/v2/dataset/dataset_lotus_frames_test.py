@@ -1,14 +1,16 @@
-import sys
-import pickle
-import re
-from zero.v1.tools_scripts.draw_pointcloud import PointCloudDrawer
+'''
+copyied version of dataset_lotus.py and modified only for batch training
+'''
+
+from zero.v2.temporiry.test import ObsProcessLotus
+from zero.v2.tools_scripts.draw_pointcloud import PointCloudDrawer
 import time
-from zero.v1.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
-from zero.v1.models.lotus.utils.robot_box import RobotBox
-from zero.v1.models.lotus.utils.rotation_transform import (
+from zero.v2.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.v2.models.lotus.utils.robot_box import RobotBox
+from zero.v2.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
-from zero.v1.config.constants import (
+from zero.v2.config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
 
@@ -29,9 +31,6 @@ import msgpack_numpy
 msgpack_numpy.patch()
 
 # import open3d as o3d
-torch.manual_seed(42)
-np.random.seed(42)
-random.seed(42)
 
 
 def pad_tensors(tensors, lens=None, pad=0, max_len=None):
@@ -79,8 +78,9 @@ def gen_seq_masks(seq_lens, max_len=None):
     return masks
 
 
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+# it is stupid i know that but for now use it #TODO
+# Attention! Here we already removed the last scene
+frames = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 10, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 7, 14, 14, 14, 14, 14, 15, 14, 14, 14, 14, 12, 14, 14, 14, 12, 14, 13, 14, 14, 14, 12, 14, 14, 12, 21, 21, 22, 20, 21, 21, 21, 23, 21, 21, 19, 21, 21, 21, 19, 23, 21, 21, 22, 19, 19, 21, 21, 21, 24, 21, 18, 21, 21, 20, 17, 21, 22, 21, 21, 23, 21, 21, 20, 21, 20, 21, 5, 5, 5, 5, 5, 4, 5, 5, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 5, 5, 7, 4, 7, 4, 5, 5, 5, 4, 5, 5, 5, 4, 5, 4, 5, 4, 5, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 4, 4, 4, 4, 4, 6, 6, 2, 4, 4, 2, 2, 2, 4, 6, 6, 6, 2, 2, 4, 6, 2, 2, 4, 4, 4, 6, 6, 6, 2, 2, 4, 4, 6, 6, 6, 6, 2, 2, 2, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 6, 2, 2, 4, 6, 6, 6, 6, 6, 6, 2, 2, 2, 2, 4, 4, 4, 4, 6, 2, 4, 4, 6, 6, 6, 2, 4, 4, 6, 6, 6, 4, 4, 6, 2, 2, 6, 6, 6, 6, 2, 2, 2, 6, 6, 2, 2, 2, 4, 4, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 5, 5, 4, 5, 6, 6, 5, 5, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 11, 11, 11, 17, 23, 11, 11, 23, 11, 23, 23, 11, 11, 11, 24, 22, 11, 17, 17, 23, 23, 23, 22, 17, 23, 23, 11, 17, 23, 23, 11, 11, 11, 11, 17, 23, 23, 11, 23, 23, 11, 11, 23, 11, 11, 23, 23, 11, 11, 11, 11, 11, 17, 11, 11, 11, 11, 11, 17, 23, 23, 17, 17, 17, 17, 23, 23, 23, 11, 11, 17, 23, 23, 17, 17, 17, 23, 23, 11, 11, 11, 11, 17, 23, 23, 23, 11, 11, 11, 11, 11, 11, 17, 17, 17, 23, 23, 17, 17, 23, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 4, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 5, 5, 4, 5, 5, 4, 4, 4, 5, 4, 5, 5, 5, 5, 4, 4, 5, 4, 5, 4, 5, 5, 4, 5, 5, 5, 5, 4, 5, 4, 5, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
 
 
 class SimplePolicyDataset(Dataset):
@@ -93,15 +93,44 @@ class SimplePolicyDataset(Dataset):
         rm_pc_outliers=False, rm_pc_outliers_neighbors=25, euler_resolution=5,
         pos_type='cont', pos_bins=50, pos_bin_size=0.01,
         pos_heatmap_type='plain', pos_heatmap_no_robot=False,
-        aug_max_rot=45, real_robot=False, tasks_to_use=None, **kwargs
+        aug_max_rot=45, real_robot=False, **kwargs
     ):
 
-        # 0. Parameters
         assert instr_embed_type in ['last', 'all']
         assert xyz_shift in ['none', 'center', 'gripper']
         assert pos_type in ['cont', 'disc']
         assert rot_type in ['quat', 'rot6d', 'euler', 'euler_delta', 'euler_disc']
         assert rm_robot in ['none', 'gt', 'box', 'box_keep_gripper']
+
+        self.taskvar_instrs = json.load(open(taskvar_instr_file))
+        self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
+        if instr_embed_type == 'last':
+            self.instr_embeds = {instr: embeds[-1:] for instr, embeds in self.instr_embeds.items()}
+
+        if taskvar_file is not None:
+            self.taskvars = json.load(open(taskvar_file))
+        else:
+            self.taskvars = os.listdir(data_dir)
+
+        self.lmdb_envs, self.lmdb_txns = {}, {}
+        self.episodes = []
+        for taskvar in self.taskvars:
+            if not os.path.exists(os.path.join(data_dir, taskvar)):
+                continue
+            self.lmdb_envs[taskvar] = lmdb.open(os.path.join(data_dir, taskvar), readonly=True)
+            self.lmdb_txns[taskvar] = self.lmdb_envs[taskvar].begin()
+            if all_step_in_batch:
+                self.episodes.extend(
+                    [(taskvar, key) for key in self.lmdb_txns[taskvar].cursor().iternext(values=False)]
+                )
+            else:
+                for key, value in self.lmdb_txns[taskvar].cursor():
+                    value = msgpack.unpackb(value)
+                    if include_last_step:
+                        self.episodes.extend([(taskvar, key, t) for t in range(len(value['xyz']))])
+                    else:
+                        self.episodes.extend([(taskvar, key, t) for t in range(len(value['xyz']) - 1)])
+
         self.num_points = num_points
         self.xyz_shift = xyz_shift
         self.xyz_norm = xyz_norm
@@ -125,85 +154,33 @@ class SimplePolicyDataset(Dataset):
         self.pos_heatmap_no_robot = pos_heatmap_no_robot
         self.real_robot = real_robot
 
-        # 0.1. Load some pheripheral information
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
 
-        self.taskvar_instrs = json.load(open(taskvar_instr_file))
-        self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
-        if instr_embed_type == 'last':
-            self.instr_embeds = {instr: embeds[-1:] for instr, embeds in self.instr_embeds.items()}
+        self.frames = frames
+        self.lenth = sum(self.frames)
+        self.globalframe_to_episode = []
+        self.globanframe_to_frame = []
+        for i, frame in enumerate(self.frames):
+            self.globalframe_to_episode.extend([i] * frame)
+        for i, frame in enumerate(self.frames):
+            self.globanframe_to_frame.extend(list(range(frame)))
 
-        tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
-        if tasks_to_use is not None:
-            tasks_all = [task for task in tasks_all if task in tasks_to_use]
-            print(f"tasks_all: {tasks_all}")
-
-        # 1. episodes-wise list
-        self.g_episode_to_taskvar = []  # Which taskvar is each episode
-        self.g_episode_to_path = []  # retrieve all episodes path and put them in self.episodes
-        self.g_episode_to_l_episode = []  # Which episode in each taskvar
-        self.frames = []  # How many frames in each episode
-        for task_name in tasks_all:
-            task_folder_path = os.path.join(data_dir, task_name)
-            variation_list = sorted(os.listdir(task_folder_path), key=natural_sort_key)
-            for variation_folder in variation_list:
-                l_episode = 0
-                variation_folder_path = os.path.join(task_folder_path, variation_folder, 'episodes')
-                episodes_list = sorted(os.listdir(variation_folder_path), key=natural_sort_key)
-                for episode_folder in episodes_list:
-                    episode_folder_path = os.path.join(variation_folder_path, episode_folder)
-                    self.g_episode_to_path.append(episode_folder_path)
-                    variation_id = int(variation_folder.split('variation')[-1])
-                    taskvar = task_name + '_peract' + '+' + str(variation_id)
-                    self.g_episode_to_taskvar.append(taskvar)
-                    with open(os.path.join(episode_folder_path, 'data.pkl'), 'rb') as f:
-                        data = pickle.load(f)
-                    self.frames.append(len(data['key_frameids']))
-                    data_size = sys.getsizeof(data)
-                    self.g_episode_to_l_episode.append(l_episode)
-                    l_episode += 1
-
-        # 2. frame-wise list
-        self.g_frame_to_taskvar = []
-        self.g_frame_to_g_episode = []
-        self.g_frame_to_frame = []
-        self.g_frame_to_l_episode = []
-
-        for episode_id, frame in enumerate(self.frames):
-            self.g_frame_to_g_episode.extend([episode_id] * frame)
-            self.g_frame_to_taskvar.extend([self.g_episode_to_taskvar[episode_id]] * frame)
-            self.g_frame_to_frame.extend(list(range(frame)))
-            self.g_frame_to_l_episode.extend([episode_id] * frame)
-
-        # 3.container
+        # cache
         self.cache = dict()
-        # 4. determine some parameters
-        self.max_cache_length = 10 * 1024 * 1024 * 1024 // data_size
+        # draw 3d pointcloud
+        # self.drawer = PointCloudDrawer()
+        for i in range(len(self.episodes)):
+            self.check_cache(i)
 
-    def check_cache(self, g_episode):
-
-        if self.cache.get(g_episode) is None:
-
-            episode_path = self.g_episode_to_path[g_episode]
-            with open(os.path.join(episode_path, 'data.pkl'), 'rb') as f:
-                data = pickle.load(f)
-
-            if len(self.cache) >= self.max_cache_length:
-                first_key = next(iter(self.cache))
-                self.cache.pop(first_key)
-
-            self.cache[g_episode] = data
-            return data
-        else:
-            return self.cache[g_episode]
+        print('test')
+        self.obs_processor = ObsProcessLotus()
 
     def __exit__(self):
         for lmdb_env in self.lmdb_envs.values():
             lmdb_env.close()
 
     def __len__(self):
-        self.lenth = sum(self.frames)
         return self.lenth
 
     def _get_mask_with_label_ids(self, sem, label_ids):
@@ -281,20 +258,42 @@ class SimplePolicyDataset(Dataset):
         gt_rots = gt_rots.numpy()
         return gt_rots
 
-    def __getitem__(self, g_frame_idx):
+    def check_cache(self, episodes_idx):
+
+        if self.cache.get(episodes_idx) is None:
+
+            if self.all_step_in_batch:
+                taskvar, data_id = self.episodes[episodes_idx]
+            else:
+                taskvar, data_id, data_step = self.episodes[episodes_idx]
+            data = msgpack.unpackb(self.lmdb_txns[taskvar].get(data_id))
+            self.cache[episodes_idx] = data
+            return data
+        else:
+            return self.cache[episodes_idx]
+
+    def __getitem__(self, global_frame_idx):
         # get single frame
 
         # identify the frame info and output info
-        taskvar = self.g_frame_to_taskvar[g_frame_idx]
-        g_episode = self.g_frame_to_g_episode[g_frame_idx]
-        l_episode = self.g_episode_to_l_episode[g_episode]
-        frame_idx = self.g_frame_to_frame[g_frame_idx]
-        data = self.check_cache(g_episode)
+        episodes_idx = self.globalframe_to_episode[global_frame_idx]
+        frame_idx = self.globanframe_to_frame[global_frame_idx]
+        data = self.check_cache(episodes_idx)
+
+        if self.all_step_in_batch:
+            taskvar, data_id = self.episodes[episodes_idx]
+        else:
+            taskvar, data_id, data_step = self.episodes[episodes_idx]
 
         outs = {
-            'data_ids': [], 'pc_fts': [], 'step_ids': [],
-            'pc_centroids': [], 'pc_radius': [], 'ee_poses': [],
-            'txt_embeds': [], 'gt_actions': [],
+            'data_ids': [],
+            'pc_fts': [],
+            'step_ids': [],
+            'pc_centroids': [],
+            'pc_radius': [],
+            'ee_poses': [],
+            'txt_embeds': [],
+            'gt_actions': [],
         }
 
         if self.pos_type == 'disc':
@@ -302,30 +301,41 @@ class SimplePolicyDataset(Dataset):
 
         gt_rots = self.get_groundtruth_rotations(data['action'][:, 3:7])
 
-        num_steps = len(data['pc'])
+        num_steps = len(data['xyz'])
+
         t = frame_idx
-
-        if t == num_steps - 1:  # 因为我在self.frames里面没有算最后一帧，所以这里就不会选中最后一帧, 属于bug与特殊需求相互抵消了，哈哈哈哈哈哈
+        if frame_idx == len(data['xyz']):
             t -= 1
-            # print(f"t: {t}")
 
-        xyz, rgb = data['pc'][t].copy(), data['rgb'][t].copy()
+        xyz, rgb = data['xyz'][t], data['rgb'][t]
 
-        arm_links_info = (data['bbox'][t], data['pose'][t])
+        arm_links_info = (
+            {k: v[t] for k, v in data['bbox_info'].items()},
+            {k: v[t] for k, v in data['pose_info'].items()}
+        )
 
-        gt_action = copy.deepcopy(data['action'][t + 1])
-        current_pose = copy.deepcopy(data['action'][t])
+        gt_action = copy.deepcopy(data['action'][t + 1]) if t < num_steps - 1 else copy.deepcopy(data['action'][-1])
+
+        ee_pose = copy.deepcopy(data['action'][t])
         gt_rot = gt_rots[t]
 
-        # randomly select one instruction
+        # get instruction
         instr = random.choice(self.taskvar_instrs[taskvar])
         instr_embed = self.instr_embeds[instr]
-        # sampling points
-        # print(f"xyz: {xyz.shape}")
 
+        # remove table
+        xyz, rgb = self.obs_processor.remove_table(xyz, rgb)
+        # remove robot
+        xyz, rgb = self.obs_processor.remove_robot(xyz, rgb, arm_links_info)
+
+        # TODO: segmentation fault in cleps with num_workers>0
+        if self.rm_pc_outliers:
+            xyz, rgb = self._rm_pc_outliers(xyz, rgb)
+
+        # sampling points
         if len(xyz) > self.num_points:
             if self.sample_points_by_distance:
-                dists = np.sqrt(np.sum((xyz - current_pose[:3])**2, 1))
+                dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
                 probs = 1 / np.maximum(dists, 0.1)
                 probs = np.maximum(softmax(probs), 1e-30)
                 probs = probs / sum(probs)
@@ -343,6 +353,7 @@ class SimplePolicyDataset(Dataset):
 
         xyz = xyz[point_idxs]
         rgb = rgb[point_idxs]
+
         height = xyz[:, -1] - self.TABLE_HEIGHT
 
         if self.pos_heatmap_no_robot:
@@ -358,17 +369,18 @@ class SimplePolicyDataset(Dataset):
 
         # point cloud augmentation
         if self.augment_pc:
-            xyz, current_pose, gt_action, gt_rot = self._augment_pc(
-                xyz, current_pose, gt_action, gt_rot, self.aug_max_rot
+            xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
+                xyz, ee_pose, gt_action, gt_rot, self.aug_max_rot
             )
 
         # normalize point cloud
+
         if self.xyz_shift == 'none':
             centroid = np.zeros((3, ))
         elif self.xyz_shift == 'center':
             centroid = np.mean(xyz, 0)
         elif self.xyz_shift == 'gripper':
-            centroid = copy.deepcopy(current_pose[:3])
+            centroid = copy.deepcopy(ee_pose[:3])
 
         if self.xyz_norm:
             radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
@@ -378,7 +390,7 @@ class SimplePolicyDataset(Dataset):
         xyz = (xyz - centroid) / radius
         height = height / radius
         gt_action[:3] = (gt_action[:3] - centroid) / radius
-        current_pose[:3] = (current_pose[:3] - centroid) / radius
+        ee_pose[:3] = (ee_pose[:3] - centroid) / radius
         outs['pc_centroids'].append(centroid)
         outs['pc_radius'].append(radius)
 
@@ -386,6 +398,7 @@ class SimplePolicyDataset(Dataset):
 
         rgb = (rgb / 255.) * 2 - 1
         pc_ft = np.concatenate([xyz, rgb], 1)
+
         if self.use_height:
             pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
 
@@ -398,15 +411,14 @@ class SimplePolicyDataset(Dataset):
                 robot_point_idxs=robot_point_idxs
             )
             outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
-
-        outs['data_ids'].append(f'{taskvar}-{l_episode}-t{t}')
+        outs['data_ids'].append(f'{taskvar}-{data_id.decode("ascii")}-t{t}')
         outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
         outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
-        outs['ee_poses'].append(torch.from_numpy(current_pose).float())
+        outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
         outs['gt_actions'].append(torch.from_numpy(gt_action).float())
         outs['step_ids'].append(t)
 
-        return data, outs
+        return outs
 
 
 def base_collate_fn(data):
@@ -465,8 +477,8 @@ if __name__ == '__main__':
     import yacs.config
     from tqdm import trange
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_0.003.yaml')
-    config.TRAIN_DATASET.tasks_to_use = ['close_jar']
+    config.merge_from_file('/workspace/zero/zero/v2/config/lotus.yaml')
+
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
     # dataset
@@ -474,4 +486,7 @@ if __name__ == '__main__':
 
     length = len(dataset)
 
-    print(f"length: {length}")
+    for i in trange(length):
+
+        dataset[i]
+        print(dataset[i]['pc_fts'][0].shape)
