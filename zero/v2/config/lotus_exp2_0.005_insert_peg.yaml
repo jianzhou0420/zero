@@ -63,7 +63,7 @@ TRAIN_DATASET:
   pos_heatmap_no_robot: True
   real_robot: False
   euler_resolution: 5
-  tasks_to_use: ['close_jar']
+  tasks_to_use: ['insert_onto_square_peg']
 
 MODEL:
   model_class: 'SimplePolicyPTV3CA'
