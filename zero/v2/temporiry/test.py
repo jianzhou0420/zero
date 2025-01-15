@@ -69,11 +69,12 @@ class ObsProcessLotus:
     This class only include stage 2 and 3.
     '''
 
-    def __init__(self, rm_pc_outliers_neighbors=25):
+    def __init__(self, rm_pc_outliers_neighbors=25, selfgen=True):
         self.rm_pc_outliers_neighbors = 25
         self.rm_robot_type = 'box_keep_gripper'
         self.rotation_transform = RotationMatrixTransform()
         self.WORKSPACE = get_robot_workspace(real_robot=False, use_vlm=False)
+        self.selfgen = selfgen
 
     def pcd_to_voxel(self,
                      xyz: np.ndarray,
@@ -143,7 +144,7 @@ class ObsProcessLotus:
 
         # main
         # get all points belongs to robot
-        robot_box = RobotBox(arm_links_info, keep_gripper=keep_gripper, env_name='rlbench', selfgen=True)
+        robot_box = RobotBox(arm_links_info, keep_gripper=keep_gripper, env_name='rlbench', selfgen=self.selfgen)
 
         _, robot_point_ids = robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)
 
@@ -266,7 +267,7 @@ class ObsProcessLotus:
             robot_box = RobotBox(
                 arm_links_info=links_info,
                 env_name='rlbench',
-                selfgen=True
+                selfgen=self.selfgen
             )
             robot_point_idxs = np.array(
                 list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])

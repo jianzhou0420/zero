@@ -37,6 +37,7 @@ from termcolor import colored
 from zero.v2.trainer_lotus import TrainerLotus
 
 from zero.z_utils.process_voxel import process_pc
+from zero.v2.temporiry.test import ObsProcessLotus
 
 
 def task_file_to_task_class(task_file):
@@ -293,7 +294,7 @@ class Actioner(object):
         height = height / radius
         ee_pose[:3] = (ee_pose[:3] - centroid) / radius
 
-        rgb = (rgb / 255.) * 2 - 1
+        rgb = (rgb / 255. / 255) * 2 - 1
         pc_ft = np.concatenate([xyz, rgb], 1)
         if self.data_cfg.get('use_height', False):
             pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
@@ -310,41 +311,85 @@ class Actioner(object):
     def preprocess_obs(self, taskvar, step_id, obs):
         rgb = np.stack(obs['rgb'], 0)  # (N, H, W, C)
         xyz = np.stack(obs['pc'], 0)  # (N, H, W, C)
-        if 'gt_mask' in obs:
-            gt_sem = np.stack(obs['gt_mask'], 0)  # (N, H, W)
+        config = self.data_cfg
+        voxel_size = 0.005
+        arm_links_info = obs['arm_links_info']
+        action_current = obs['gripper']
+        op = ObsProcessLotus(selfgen=False)
+        xyz = xyz.reshape(-1, 3)
+        rgb = rgb.reshape(-1, 3) / 255 / 255
+
+        # restrict to the robot workspace
+        in_mask = op.workspace(xyz)
+        xyz, rgb = xyz[in_mask], rgb[in_mask]
+        # remove irrelevant objects
+        xyz, rgb = op.remove_robot(xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper')    # remove robot
+        xyz, rgb = op.remove_table(xyz, rgb)    # remove table
+        xyz, rgb = op.remove_outliers(xyz, rgb)  # remove outliers
+
+        # voxelization
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(xyz)
+        pcd.colors = o3d.utility.Vector3dVector(rgb)
+        voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=voxel_size)
+
+        # center of the voxel
+        xyz = []
+        rgb = []
+        for voxel in voxel_grid.get_voxels():
+            xyz.append(voxel.grid_index * voxel_grid.voxel_size + voxel_grid.origin)
+            rgb.append(voxel.color)
+        xyz = np.array(xyz)
+        rgb = np.array(rgb)
+
+        # dataset part process
+
+        # 1. some process
+        xyz, rgb = op.downsample(xyz, rgb, action_current, config.sample_points_by_distance, num_points=config.num_points,)
+
+        # robot point idxs
+        height = xyz[:, -1] - 0.7505
+        # point cloud augmentation
+
+        # normalize point cloud
+
+        # normalize
+        if self.data_cfg.xyz_shift == 'none':
+            centroid = np.zeros((3, ))
+        elif self.data_cfg.xyz_shift == 'center':
+            centroid = np.mean(xyz, 0)
+        elif self.data_cfg.xyz_shift == 'gripper':
+            centroid = copy.deepcopy(action_current[:3])
+        if self.data_cfg.xyz_norm:
+            radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
         else:
-            gt_sem = None
+            radius = 1
 
-        # select one instruction
-        instr = self.taskvar_instrs[taskvar][0]
-        instr_embed = self.instr_embeds[instr]
+        xyz = (xyz - centroid) / radius
+        height = height / radius
+        action_current[:3] = (action_current[:3] - centroid) / radius
+        # process the rgb
+        pc_ft = op.get_pc_ft(xyz, rgb, height, config.use_height)
 
-        pc_ft, pc_centroid, pc_radius, ee_pose = self.process_point_clouds(
-            xyz, rgb, gt_sem=gt_sem, ee_pose=copy.deepcopy(obs['gripper']),
-            arm_links_info=obs['arm_links_info'], taskvar=taskvar
-        )
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(xyz)
+        pcd.colors = o3d.utility.Vector3dVector(rgb)
+        o3d.visualization.draw_geometries([pcd])
 
+        # randomly select one instruction
+        instr_embed = self.instr_embeds[random.choice(self.taskvar_instrs[taskvar])]
         batch = {
             'pc_fts': torch.from_numpy(pc_ft).float(),
-            'pc_centroids': pc_centroid,
-            'pc_radius': pc_radius,
-            'ee_poses': torch.from_numpy(ee_pose).float().unsqueeze(0),
+            'pc_centroids': centroid,
+            'pc_radius': radius,
+            'ee_poses': torch.from_numpy(action_current).float().unsqueeze(0),
             'step_ids': torch.LongTensor([step_id]),
             'txt_embeds': torch.from_numpy(instr_embed).float(),
             'txt_lens': [instr_embed.shape[0]],
             'npoints_in_batch': [pc_ft.shape[0]],
             'offset': torch.LongTensor([pc_ft.shape[0]]),
         }
-        if self.config.MODEL.model_class == 'SimplePolicyPCT':
-            batch['pc_fts'] = batch['pc_fts'].unsqueeze(0)
-            batch['txt_masks'] = torch.from_numpy(
-                gen_seq_masks(batch['txt_lens'])
-            ).bool()
-            batch['txt_embeds'] = batch['txt_embeds'].unsqueeze(0)
 
-        # for k, v in batch.items():
-        #     if k not in ['pc_centroids', 'pc_radius', 'npoints_in_batch']:
-        #         print(k, v.size())
         return batch
 
     def predict(
@@ -585,11 +630,11 @@ def main():
 
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
-    args.exp_config = '/workspace/zero/zero/v2/config/lotus.yaml'
-    args.checkpoint = '/media/jian/ssd4t/logs/voxelNone/version_5/checkpoints/20250111_232034epoch=6499.ckpt'
-    args.expr_dir = '/media/jian/ssd4t/exp/exp2_singletask/eval/eval_2'
-    args.video_dir = '/media/jian/ssd4t/exp/exp2_singletask/eval/eval_2'
-    args.tasks_to_use = ['close_jar']
+    args.exp_config = '/workspace/zero/zero/v2/config/lotus_0.005.yaml'
+    args.checkpoint = '/media/jian/ssd4t/exp/exp1_voxelsize/Exp_100voxel0.005/voxel_0.005_20250111_140624epoch=1499.ckpt'
+    args.expr_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_2_voxel005'
+    args.video_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_2_voxel005'
+    args.tasks_to_use = ['place_shape_in_shape_sorter']
     seeds = [42]
     for i in seeds:
         args.seed = i
