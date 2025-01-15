@@ -13,7 +13,7 @@ TRAIN:
 
   train_batch_size: 36
   # val_batch_size: 1
-
+  epoches: 6500
   gradient_accumulation_steps: 1
   num_epochs: null
   num_train_steps: 37000 
