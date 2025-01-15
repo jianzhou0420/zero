@@ -36,7 +36,7 @@ TRAIN:
 #/hpcfs/users/a1946536/code/
 
 TRAIN_DATASET:
-  data_dir: '/data/selfgen/test/test/seed42/voxel0.005'
+  data_dir: '/data/selfgen/20250115/seed42/voxel0.005'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/workspace/zero/zero/v2/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/workspace/zero/zero/v2/models/lotus/assets/taskvars_peract.json'
