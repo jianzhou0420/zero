@@ -11,17 +11,13 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 12
-  # val_batch_size: 1
+  train_batch_size: 36
+  epoches: 1500
+  num_train_steps: 300000 
+  warmup_steps: 5000
 
   gradient_accumulation_steps: 1
   num_epochs: null
-  num_train_steps: 37000 
-  warmup_steps: 2000
-  log_steps: 1000
-  save_steps: 10000
-  val_steps: 10000
-
   optim: 'adamw'
   learning_rate: 0.0001
   lr_sched: 'cosine' # inverse_sqrt, linear, cosine, cosine_cycle
@@ -29,7 +25,7 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 16
+  n_workers: 0
   pin_mem: True
 
 #/hpcfs/users/a1946536/

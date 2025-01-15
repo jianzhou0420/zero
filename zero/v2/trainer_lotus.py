@@ -1,5 +1,6 @@
 # framework package
 
+from pytorch_lightning.profilers import SimpleProfiler
 from pytorch_lightning.callbacks import Callback
 from zero.v2.models.lotus.optim.misc import build_optimizer
 from zero.v2.dataset.dataset_v2 import SimplePolicyDataset, ptv3_collate_fn
@@ -92,6 +93,7 @@ class TrainerLotus(pl.LightningModule):
                 collate_fn=collate_fn,
                 drop_last=False,
                 prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
+                # persistent_workers=True
             )
             return loader
         # function
@@ -124,7 +126,6 @@ if __name__ == '__main__':
     # tainer
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     train_dataloader = trainer_model.get_dataloader(config)
-
     # print_lr_callback = PrintLRCallback()
     checkpoint_callback = ModelCheckpoint(
         every_n_epochs=500,
@@ -134,14 +135,15 @@ if __name__ == '__main__':
     )
     csvlogger1 = CSVLogger(f'/data/logs/{args.config}')
 
-    max_epochs = int(6500)
-
+    # max_epochs = int(6500)
+    profiler = SimpleProfiler()
     print(f"len(train_dataloader): {len(train_dataloader)}")
-    print(f"max_epochs: {max_epochs}")
+    print(f"max_epochs: {config.TRAIN.epoches}")
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
-                         max_epochs=max_epochs,
+                         max_epochs=config.TRAIN.epoches,
                          devices='auto',
                          strategy='auto',
-                         logger=csvlogger1,)
+                         logger=csvlogger1,
+                         profiler=profiler,)
 
     trainer.fit(trainer_model, train_dataloader)

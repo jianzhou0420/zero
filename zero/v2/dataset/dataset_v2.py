@@ -1,3 +1,4 @@
+from collections.abc import Mapping, Container
 from zero.v2.temporiry.test import ObsProcessLotus
 import sys
 import pickle
@@ -149,7 +150,7 @@ class SimplePolicyDataset(Dataset):
                     with open(os.path.join(episode_folder_path, 'data.pkl'), 'rb') as f:
                         data = pickle.load(f)
                     self.frames.append(len(data['data_ids']))
-                    data_size = sys.getsizeof(data)
+
                     self.g_episode_to_l_episode.append(l_episode)
                     l_episode += 1
 
@@ -167,10 +168,11 @@ class SimplePolicyDataset(Dataset):
 
         # 3.container
         self.cache = dict()
-        # 4. determine some parameters
-        self.max_cache_length = 10 * 1024 * 1024 * 1024 // data_size
+        self.max_cache_length = 1800
+        print(f"max_cache_length: {self.max_cache_length}")
+        for i in range(len(self.g_episode_to_path)):
+            self.check_cache(i)
 
-        #
         self.op = ObsProcessLotus()
 
     def check_cache(self, g_episode):
@@ -301,8 +303,8 @@ if __name__ == '__main__':
     random.seed(42)
 
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_0.005.yaml')
-    config.TRAIN_DATASET.tasks_to_use = ['close_jar']
+    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_exp1_0.005.yaml')
+    # config.TRAIN_DATASET.tasks_to_use = ['close_jar']
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
     # dataset
