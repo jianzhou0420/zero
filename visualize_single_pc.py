@@ -1,17 +1,24 @@
 import open3d as o3d
 import pickle
-
-file_path = '/media/jian/ssd4t/selfgen/seed42/voxel0.005/close_jar/variation0/episodes/episode0/data.pkl'
+import numpy as np
+file_path = '/media/jian/ssd4t/selfgen/20250115/seed42/voxel0.005/close_jar/variation0/episodes/episode0/data.pkl'
 
 with open(file_path, 'rb') as f:
     data = pickle.load(f)
 
 print(data.keys())
+pc_fts = data['pc_fts'][0]
 
-xyz = data['pc'][0]
-rgb = data['rgb'][0]
-pcd = o3d.geometry.PointCloud()
-pcd.points = o3d.utility.Vector3dVector(xyz)
-pcd.colors = o3d.utility.Vector3dVector(rgb)
+xyz = np.array(pc_fts[:, :3])
+rgb = np.array((pc_fts[:, 3:6] + 1) / 2)
 
-o3d.visualization.draw_geometries([pcd])
+
+# pcd = o3d.geometry.PointCloud()
+# pcd.points = o3d.utility.Vector3dVector(xyz)
+# pcd.colors = o3d.utility.Vector3dVector(rgb)
+
+# o3d.visualization.draw_geometries([pcd])
+
+
+print(data['pc_centroids'][0])
+print(data['pc_radius'][0])

@@ -2,7 +2,7 @@
 copyied version of dataset_lotus.py and modified only for batch training
 '''
 
-from zero.v2.temporiry.test import ObsProcessLotus
+from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
 from zero.v2.tools_scripts.draw_pointcloud import PointCloudDrawer
 import time
 from zero.v2.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob

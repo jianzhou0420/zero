@@ -241,12 +241,6 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
 
         # 1. Point Transformer V3
         point_outs = self.ptv3_model(ptv3_batch, return_dec_layers=True)
-        # test
-        # test = point_outs[0]
-        # print('type(point_outs)', type(test))
-        # print('point_outs[0].feat', type(test.feat))
-        # print('point_outs["feat"]', type(test['feat']))
-        # /test
 
         # 2. Action Head
         pred_actions = self.act_proj_head(  # 只用到了point_outs的最后一层

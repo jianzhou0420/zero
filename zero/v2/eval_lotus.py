@@ -37,7 +37,7 @@ from termcolor import colored
 from zero.v2.trainer_lotus import TrainerLotus
 
 from zero.z_utils.process_voxel import process_pc
-from zero.v2.temporiry.test import ObsProcessLotus
+from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
 
 
 def task_file_to_task_class(task_file):
@@ -317,7 +317,7 @@ class Actioner(object):
         action_current = obs['gripper']
         op = ObsProcessLotus(selfgen=False)
         xyz = xyz.reshape(-1, 3)
-        rgb = rgb.reshape(-1, 3) / 255 / 255
+        rgb = rgb.reshape(-1, 3) / 255
 
         # restrict to the robot workspace
         in_mask = op.workspace(xyz)
@@ -371,10 +371,10 @@ class Actioner(object):
         # process the rgb
         pc_ft = op.get_pc_ft(xyz, rgb, height, config.use_height)
 
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd.colors = o3d.utility.Vector3dVector(rgb)
-        o3d.visualization.draw_geometries([pcd])
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(xyz)
+        # pcd.colors = o3d.utility.Vector3dVector(rgb)
+        # o3d.visualization.draw_geometries([pcd])
 
         # randomly select one instruction
         instr_embed = self.instr_embeds[random.choice(self.taskvar_instrs[taskvar])]
@@ -422,7 +422,7 @@ class Actioner(object):
         action = action.numpy()
         action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
         # TODO: ensure the action height is above the table
-        action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
+        # action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
         out = {
             'action': action
@@ -439,17 +439,6 @@ class Actioner(object):
             )
 
         return out
-
-    def voxel_predict(self, task_str=None, variation=None, step_id=None, obs_state_dict=None,
-                      episode_id=None, instructions=None,
-                      ):
-        taskvar = f'{task_str}+{variation}'
-        # 1.voxelize
-        # 2.dataset process
-        # 3.model predict
-        # 4.reconstruct the action
-
-        pass
 
 
 def consumer_fn(args, batch_queue, result_queues):
@@ -488,7 +477,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         apply_rgb=True,
         apply_pc=True,
         apply_mask=True,
-        headless=True,
+        headless=False,
         image_size=args.image_size,
         cam_rand_factor=0,
     )
@@ -630,11 +619,14 @@ def main():
 
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
-    args.exp_config = '/workspace/zero/zero/v2/config/lotus_0.005.yaml'
-    args.checkpoint = '/media/jian/ssd4t/exp/exp1_voxelsize/Exp_100voxel0.005/voxel_0.005_20250111_140624epoch=1499.ckpt'
-    args.expr_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_2_voxel005'
-    args.video_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_2_voxel005'
-    args.tasks_to_use = ['place_shape_in_shape_sorter']
+    args.exp_config = '/workspace/zero/zero/v2/config/lotus.yaml'
+    args.checkpoint = '/media/jian/ssd4t/ckpt/20241225_004530epoch=1359.ckpt'
+
+    checkpoint_name = args.checkpoint.split('/')[-1]
+
+    args.expr_dir = f'/data/exp/EXPLOG/{checkpoint_name}/preds'
+    args.video_dir = f'/data/exp/EXPLOG/{checkpoint_name}/vidoes'
+    args.tasks_to_use = ['close_jar']
     seeds = [42]
     for i in seeds:
         args.seed = i

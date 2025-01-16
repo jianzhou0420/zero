@@ -1,5 +1,5 @@
 from collections.abc import Mapping, Container
-from zero.v2.temporiry.test import ObsProcessLotus
+from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
 import sys
 import pickle
 import re
@@ -231,8 +231,6 @@ class SimplePolicyDataset(Dataset):
         outs['data_ids'].append(data['data_ids'][t])
         outs['step_ids'].append(data['step_ids'][t])
         outs['pc_fts'].append(data['pc_fts'][t])
-        outs['pc_centroids'].append(data['pc_centroids'][t])
-        outs['pc_radius'].append(data['pc_radius'][t])
         outs['ee_poses'].append(data['ee_poses'][t])
         outs['txt_embeds'].append(data['txt_embeds'][t])
         outs['gt_actions'].append(data['gt_actions'][t])
@@ -260,9 +258,9 @@ def base_collate_fn(data):
         batch['txt_embeds'], lens=txt_lens, max_len=max(txt_lens)
     )
 
-    if len(batch['pc_centroids']) > 0:
-        batch['pc_centroids'] = np.stack(batch['pc_centroids'], 0)
-        batch['pc_radius'] = np.array(batch['pc_radius'])
+    # if len(batch['pc_centroids']) > 0:
+    #     batch['pc_centroids'] = np.stack(batch['pc_centroids'], 0)
+    #     batch['pc_radius'] = np.array(batch['pc_radius'])
 
     return batch
 

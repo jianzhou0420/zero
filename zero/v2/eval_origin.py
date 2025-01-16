@@ -1,3 +1,4 @@
+import datetime
 from typing import Tuple, Dict, List
 
 import os
@@ -85,7 +86,7 @@ class ServerArguments(tap.Tap):
     ckpt_step: int
     device: str = 'cuda'  # cpu, cuda
 
-    image_size: List[int] = [512, 512]
+    image_size: List[int] = [128, 128]
     max_tries: int = 10
     max_steps: int = 25
 
@@ -562,14 +563,17 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
 
 def main():
     # To use gpu in subprocess: https://pytorch.org/docs/stable/notes/multiprocessing.html
-
+    current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     mp.set_start_method('spawn')
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v2/config/lotus.yaml'
-    args.checkpoint = '/media/jian/ssd4t/logs/voxelNone/version_5/checkpoints/20250111_232034epoch=6499.ckpt'
-    args.expr_dir = '/media/jian/ssd4t/exp/exp2_singletask/eval/eval_2'
-    args.video_dir = '/media/jian/ssd4t/exp/exp2_singletask/eval/eval_2'
+    args.checkpoint = '/media/jian/ssd4t/ckpt/20241225_004530epoch=1359.ckpt'
+
+    checkpoint_name = args.checkpoint.split('/')[-1]
+
+    args.expr_dir = f'/data/exp/EXPLOG/{checkpoint_name}/{current_time}/preds'
+    args.video_dir = f'/data/exp/EXPLOG/{checkpoint_name}/{current_time}/vidoes'
     args.tasks_to_use = ['close_jar']
 
     pred_dir = os.path.join(args.expr_dir, 'preds', f'seed{args.seed}')

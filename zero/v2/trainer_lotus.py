@@ -55,6 +55,8 @@ class TrainerLotus(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):  # 每次的batch_size都是不一样的应该说，每个小batch的每一个sample，sample的长度是不一样的
 
+        del batch['pc_centroids'], batch['pc_radius']
+
         losses = self.model(batch, is_train=True)
         self.log('train_loss', losses['total'])
         if self.global_step % 10 == 0:
@@ -102,22 +104,13 @@ class TrainerLotus(pl.LightningModule):
         return train_loader
 
 
-class PrintLRCallback(Callback):
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        # Get the current optimizer's learning rate
-        optimizer = trainer.optimizers[0]  # Assuming single optimizer
-        current_lr = optimizer.param_groups[0]['lr']
-
-        # Print the learning rate
-        print(f"Step {trainer.global_step}: Learning Rate = {current_lr}")
-
-
 if __name__ == '__main__':
     # config
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default=None, required=True)
     args = parser.parse_args()
-    args.config = os.path.join('/workspace/zero/zero/v2/config/', args.config)
+    config_name = args.config
+    args.config = os.path.join('/workspace/zero/zero/v2/config/', config_name)
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(args.config)
 

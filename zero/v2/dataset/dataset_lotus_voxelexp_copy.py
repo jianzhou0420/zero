@@ -1,4 +1,4 @@
-from zero.v2.temporiry.test import ObsProcessLotus
+from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
 import sys
 import pickle
 import re
