@@ -89,12 +89,12 @@ class Voxelizer:
             rgb = rgb.reshape(-1, 3)
 
             # restrict to the robot workspace
-            in_mask = op.cut_workspace(xyz)
+            in_mask = op._points_in_workspace(xyz)
             xyz, rgb = xyz[in_mask], rgb[in_mask]
             # remove irrelevant objects
-            xyz, rgb = op.remove_robot(xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper')    # remove robot
-            xyz, rgb = op.remove_table(xyz, rgb)    # remove table
-            xyz, rgb = op.remove_outliers(xyz, rgb)  # remove outliers
+            xyz, rgb = op._remove_robot(xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper')    # remove robot
+            xyz, rgb = op._remove_table(xyz, rgb)    # remove table
+            xyz, rgb = op._remove_outliers(xyz, rgb)  # remove outliers
 
             # voxelization
             pcd = o3d.geometry.PointCloud()

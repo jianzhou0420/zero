@@ -85,14 +85,14 @@ class ObsProcessLotus:
         self.selfgen = selfgen
         self.config = config.TRAIN_DATASET
 
-    def remove_table(self, xyz, rgb):
+    def _remove_table(self, xyz, rgb):
         TABLE_HEIGHT = 0.7505
         table_mask = xyz[:, 2] > TABLE_HEIGHT
         xyz = xyz[table_mask]
         rgb = rgb[table_mask]
         return xyz, rgb
 
-    def remove_robot(self, xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper'):
+    def _remove_robot(self, xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper'):
         if rm_robot_type == 'box_keep_gripper':
             keep_gripper = True
         else:
@@ -121,9 +121,9 @@ class ObsProcessLotus:
     def downsample(self, xyz, rgb, action_current, sample_points_by_distance, num_points=4096, downsample_type='random'):
         if len(xyz) > num_points:  # downsample
             if sample_points_by_distance:
-                xyz, rgb = self.downsample_by_distance(xyz, rgb, action_current, num_points=num_points)
+                xyz, rgb = self._downsample_by_distance(xyz, rgb, action_current, num_points=num_points)
             else:
-                xyz, rgb = self.downsample_random(xyz, rgb, action_current, num_points=num_points)
+                xyz, rgb = self._downsample_random(xyz, rgb, action_current, num_points=num_points)
         else:
             if self.config.same_npoints_per_example:
                 point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
@@ -138,7 +138,7 @@ class ObsProcessLotus:
     def dict_pos_probs(self,):
         pass
 
-    def remove_outliers(self, xyz, rgb=None, return_idxs=False):
+    def _remove_outliers(self, xyz, rgb=None, return_idxs=False):
         # pcd = o3d.geometry.PointCloud()
         # pcd.points = o3d.utility.Vector3dVector(xyz)
         # pcd, idxs = pcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=2.0)
@@ -154,13 +154,13 @@ class ObsProcessLotus:
         else:
             return xyz, rgb
 
-    def downsample_random(self, xyz, rgb, action_current, num_points=4096):
+    def _downsample_random(self, xyz, rgb, action_current, num_points=4096):
         point_idxs = np.random.choice(len(xyz), num_points, replace=False)
         xyz = xyz[point_idxs]
         rgb = rgb[point_idxs]
         return xyz, rgb
 
-    def downsample_by_distance(self, xyz, rgb, action_current, num_points=4096):
+    def _downsample_by_distance(self, xyz, rgb, action_current, num_points=4096):
         dists = np.sqrt(np.sum((xyz - action_current[:3])**2, 1))
         probs = 1 / np.maximum(dists, 0.1)
         probs = np.maximum(softmax(probs), 1e-30)
@@ -292,7 +292,7 @@ class ObsProcessLotus:
         gt_rots = gt_rots.numpy()
         return gt_rots
 
-    def cut_workspace(self, xyz, rgb):
+    def _points_in_workspace(self, xyz, rgb):
         in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
             (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
             (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
@@ -324,10 +324,10 @@ class ObsProcessLotus:
         xyz = xyz.reshape(-1, 3)
 
         # apply process
-        xyz, rgb = self.cut_workspace(xyz, rgb)
-        xyz, rgb = self.remove_robot(xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper')    # remove robot
-        xyz, rgb = self.remove_table(xyz, rgb)    # remove table
-        xyz, rgb = self.remove_outliers(xyz, rgb)  # remove outliers
+        xyz, rgb = self._points_in_workspace(xyz, rgb)
+        xyz, rgb = self._remove_robot(xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper')    # remove robot
+        xyz, rgb = self._remove_table(xyz, rgb)    # remove table
+        xyz, rgb = self._remove_outliers(xyz, rgb)  # remove outliers
         xyz, rgb = self.voxelization(xyz, rgb, voxel_size)
 
         return xyz, rgb
@@ -418,11 +418,12 @@ class ObsProcessLotus:
         robot_point_idxs = np.array(list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1]))  # 需要放在pc缩减之后，augment之前
         height = xyz[:, -1] - 0.7505  # 相当于每个点对于桌面的高度，其实我觉得应该放在augment之后，不过先按照作者的思路来。
 
-        if is_train:  # 7.augment
-            angle = np.random.uniform(-1, 1) * self.config.aug_max_rot
-            xyz = self.augment_xyz(xyz, angle)
-            action_current = self.augment_action(action_current, angle)
-            action_next = self.augment_action(action_next, angle)
+        # if is_train:  # 7.augment
+        #     angle = np.random.uniform(-1, 1) * self.config.aug_max_rot
+        #     xyz = self.augment_xyz(xyz, angle)
+        #     action_current = self.augment_action(action_current, angle)
+        #     action_next = self.augment_action(action_next, angle)
+        #     pass
 
         # 8.normalize
         centroid = np.mean(xyz, axis=0)
@@ -540,7 +541,7 @@ class ObsProcessLotus:
 
         return tasks_list
 
-    def dataset_generation(self, origin_data_root, output_dir):
+    def dataset_generation(self, origin_data_root, output_dir, tasks_to_use=None):
         voxel_size = 0.005
         tasks_list = self.retrieve_all_episodes(origin_data_root)
         taskvar_instr_file = self.config.taskvar_instr_file
@@ -552,19 +553,24 @@ class ObsProcessLotus:
         total = sum([len(variation) for task in tasks_list for variation in task])    # nested sum
         pbar = tqdm(total=total)
         for task in tasks_list:
-            # if 'insert_onto_square_peg' not in task[0][0]:
-            #     continue
+            task_name = task[0][0].split('/')[9]
+            if tasks_to_use is not None and task_name not in tasks_to_use:
+                pbar.update(100)
+                continue
             for variation in task:
                 for episode in variation:
                     data_path = episode
-                    with open(data_path, 'rb') as f:
-                        data = pickle.load(f)
-
-                    # print(rgb.shape, xyz.shape)
-                    new_data = self.dataset_generation_single_episodes(data, voxel_size, episode, instr_embeds, taskvar_instrs, visualize=False)
                     sub = data_path.split('/seed42')
                     export_path = os.path.join(output_dir, sub[1][1:])
+                    if os.path.exists(export_path):
+                        pbar.update(1)
+                        continue
                     os.makedirs(os.path.dirname(export_path), exist_ok=True)
+                    with open(data_path, 'rb') as f:
+                        data = pickle.load(f)
+                    # print(rgb.shape, xyz.shape)
+                    new_data = self.dataset_generation_single_episodes(data, voxel_size, episode, instr_embeds, taskvar_instrs, visualize=False)
+
                     with open(export_path, 'wb') as f:
                         pickle.dump(new_data, f)
                     pbar.update(1)
@@ -577,6 +583,8 @@ if __name__ == '__main__':
     op = ObsProcessLotus(config, selfgen=True)
 
     origin_data_root = '/media/jian/ssd4t/selfgen/20250105/train_dataset/keysteps/seed42'
+    # from datetime import datetime
 
-    output_dir = '/media/jian/ssd4t/selfgen/test/test/seed42/test1111'
-    op.dataset_generation(origin_data_root, output_dir)
+    output_dir = f'/media/jian/ssd4t/selfgen/augmentexp/'
+    tasks_to_use = ['close_jar']
+    op.dataset_generation(origin_data_root, output_dir, tasks_to_use=tasks_to_use)

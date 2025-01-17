@@ -324,9 +324,9 @@ class SimplePolicyDataset(Dataset):
         instr_embed = self.instr_embeds[instr]
 
         # remove table
-        xyz, rgb = self.obs_processor.remove_table(xyz, rgb)
+        xyz, rgb = self.obs_processor._remove_table(xyz, rgb)
         # remove robot
-        xyz, rgb = self.obs_processor.remove_robot(xyz, rgb, arm_links_info)
+        xyz, rgb = self.obs_processor._remove_robot(xyz, rgb, arm_links_info)
 
         # TODO: segmentation fault in cleps with num_workers>0
         if self.rm_pc_outliers:

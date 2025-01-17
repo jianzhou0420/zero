@@ -162,7 +162,7 @@ class Actioner(object):
         self.taskvar_instrs = json.load(open(data_cfg.taskvar_instr_file))
 
         self.TABLE_HEIGHT = self.WORKSPACE['TABLE_HEIGHT']
-        self.op = ObsProcessLotus(selfgen=True, config=self.config)
+        self.op = ObsProcessLotus(selfgen=False, config=self.config)
 
     def _get_mask_with_label_ids(self, sem, label_ids):
         mask = sem == label_ids[0]
@@ -317,6 +317,13 @@ class Actioner(object):
         # pcd.colors = o3d.utility.Vector3dVector(rgb)
         # o3d.visualization.draw_geometries([pcd])
 
+        # test
+        pc_sum = sum(pc_ft, 0)
+        print('pc_centroids', pc_sum)
+        print('centroid', centroid)
+
+        # /test
+
         batch = {
             'pc_fts': torch.from_numpy(pc_ft).float(),
             'pc_centroids': centroid,
@@ -365,6 +372,13 @@ class Actioner(object):
             else:
                 action = actions[0]
         action[-1] = torch.sigmoid(action[-1]) > 0.5
+
+        # test action
+
+        print('action', action[:3])
+        action_next_xyz = action[:3] * batch['pc_radius'] + batch['pc_centroids']
+        print('action_next_xyz', action_next_xyz)
+        # /test
 
         # action = action.data.cpu().numpy()
         action = action.numpy()
@@ -568,7 +582,7 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v2/config/lotus_exp2_0.005_close_jar.yaml'
-    args.checkpoint = '/media/jian/ssd4t/lotus_exp2_0.005_close_jar.yamlepoch=6499.ckpt'
+    args.checkpoint = '/media/jian/ssd4t/logs/lotus_exp2_0.005_close_jar.yaml/lightning_logs/version_2/checkpoints/20250117_220633lotus_exp2_0.005_close_jar.yamlepoch=499.ckpt'
 
     checkpoint_name = args.checkpoint.split('/')[-1]
 

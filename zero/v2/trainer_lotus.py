@@ -120,7 +120,7 @@ if __name__ == '__main__':
     train_dataloader = trainer_model.get_dataloader(config)
     # print_lr_callback = PrintLRCallback()
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=500,
+        every_n_epochs=100,
         save_top_k=-1,
         save_last=False,
         filename=f'{current_time}' + config_name + '{epoch:03d}'  # Checkpoint filename

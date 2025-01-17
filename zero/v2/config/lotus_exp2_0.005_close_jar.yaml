@@ -11,7 +11,7 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 36
+  train_batch_size: 24
   # val_batch_size: 1
 
   gradient_accumulation_steps: 1
@@ -37,7 +37,7 @@ TRAIN:
 #/hpcfs/users/a1946536/code/
 
 TRAIN_DATASET:
-  data_dir: '/media/jian/ssd4t/selfgen/20250117/forsingletask'
+  data_dir: '/media/jian/ssd4t/selfgen/augmentexp'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/workspace/zero/zero/v2/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/workspace/zero/zero/v2/models/lotus/assets/taskvars_peract.json'
