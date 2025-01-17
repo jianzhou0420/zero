@@ -13,19 +13,17 @@ import torch
 import numpy as np
 from scipy.special import softmax
 from pyrep.errors import IKError, ConfigurationPathError
-# TODO: error when import in a different order: Error /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34’ not found or /lib/x86_64-linux-gnu/libstdc++.so.6: version `GLIBCXX_3.4.29' not found
-# TODO: always import torch first
 import open3d as o3d
 from sklearn.neighbors import LocalOutlierFactor
 from scipy.spatial.transform import Rotation as R
 
-from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
+from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 
-from zero.v2.config.default import get_config
+from zero.v1.config.default import get_config
 
-from zero.v2.config.constants import get_robot_workspace, get_rlbench_labels
+from zero.v1.config.constants import get_robot_workspace, get_rlbench_labels
 from zero.z_utils.robot_box import RobotBox
 import random
 from zero.env.rlbench_lotus.recorder import (
@@ -34,10 +32,7 @@ from zero.env.rlbench_lotus.recorder import (
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
-from zero.v2.trainer_lotus import TrainerLotus
-
-from zero.z_utils.process_voxel import process_pc
-from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
+from zero.v1.trainer_lotus import TrainerLotus
 
 
 def task_file_to_task_class(task_file):
@@ -82,11 +77,11 @@ def gen_seq_masks(seq_lens, max_len=None):
 
 
 class ServerArguments(tap.Tap):
-    expr_dir: str = '/media/jian/ssd4t/exp/exp2_singletask'
+    expr_dir: str = '/data/ckpt/'
     ckpt_step: int
     device: str = 'cuda'  # cpu, cuda
 
-    image_size: List[int] = [512, 512]
+    image_size: List[int] = [256, 256]
     max_tries: int = 10
     max_steps: int = 25
 
@@ -102,14 +97,14 @@ class ServerArguments(tap.Tap):
 
     best_disc_pos: str = 'max'  # max, ens1
 
-    record_video: bool = True
-    video_dir: str = '/media/jian/ssd4t/exp/exp2_singletask'
+    record_video: bool = False
+    video_dir: str = None
     not_include_robot_cameras: bool = False
     video_rotate_cam: bool = False
     video_resolution: int = 480
 
     real_robot: bool = False
-    tasks_to_use: List[str] = None
+
     ############################
     # sbatch
     ############################
@@ -117,7 +112,7 @@ class ServerArguments(tap.Tap):
     seed = 42
     num_workers = 1
     num_demos = 20
-    microstep_data_dir = '/data/lotus/peract/test/microsteps'
+    # microstep_data_dir = '/data/lotus/peract/test/microsteps'
 
 
 class Actioner(object):
@@ -204,7 +199,7 @@ class Actioner(object):
     def process_point_clouds(
         self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
     ):
-        # keep points in robot workspace
+        # 0. In worksapce
         xyz = xyz.reshape(-1, 3)
         in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
                   (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
@@ -216,7 +211,7 @@ class Actioner(object):
         if gt_sem is not None:
             gt_sem = gt_sem.reshape(-1)[in_mask]
 
-        # downsampling
+        # 1. voxelization
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
         pcd, _, trace = pcd.voxel_down_sample_and_trace(
@@ -274,10 +269,11 @@ class Actioner(object):
                 point_idxs = np.random.choice(xyz.shape[0], self.data_cfg.num_points, replace=True)
             else:
                 point_idxs = np.arange(xyz.shape[0])
+
         xyz = xyz[point_idxs]
         rgb = rgb[point_idxs]
         height = xyz[:, -1] - self.TABLE_HEIGHT
-
+        test = np.array(xyz).copy()
         # normalize
         if self.data_cfg.xyz_shift == 'none':
             centroid = np.zeros((3, ))
@@ -294,102 +290,51 @@ class Actioner(object):
         height = height / radius
         ee_pose[:3] = (ee_pose[:3] - centroid) / radius
 
-        rgb = (rgb / 255. / 255) * 2 - 1
+        rgb = (rgb / 255.) * 2 - 1
         pc_ft = np.concatenate([xyz, rgb], 1)
         if self.data_cfg.get('use_height', False):
             pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
 
         return pc_ft, centroid, radius, ee_pose
 
-    def voxel_process_point_cloud(self):
-        pass
-
-    def voxel_preprocess_obs(self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None):
-
-        pass
-
     def preprocess_obs(self, taskvar, step_id, obs):
         rgb = np.stack(obs['rgb'], 0)  # (N, H, W, C)
         xyz = np.stack(obs['pc'], 0)  # (N, H, W, C)
-        config = self.data_cfg
-        voxel_size = 0.005
-        arm_links_info = obs['arm_links_info']
-        action_current = obs['gripper']
-        op = ObsProcessLotus(selfgen=False)
-        xyz = xyz.reshape(-1, 3)
-        rgb = rgb.reshape(-1, 3) / 255
-
-        # restrict to the robot workspace
-        in_mask = op.workspace(xyz)
-        xyz, rgb = xyz[in_mask], rgb[in_mask]
-        # remove irrelevant objects
-        xyz, rgb = op.remove_robot(xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper')    # remove robot
-        xyz, rgb = op.remove_table(xyz, rgb)    # remove table
-        xyz, rgb = op.remove_outliers(xyz, rgb)  # remove outliers
-
-        # voxelization
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd.colors = o3d.utility.Vector3dVector(rgb)
-        voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=voxel_size)
-
-        # center of the voxel
-        xyz = []
-        rgb = []
-        for voxel in voxel_grid.get_voxels():
-            xyz.append(voxel.grid_index * voxel_grid.voxel_size + voxel_grid.origin)
-            rgb.append(voxel.color)
-        xyz = np.array(xyz)
-        rgb = np.array(rgb)
-
-        # dataset part process
-
-        # 1. some process
-        xyz, rgb = op.downsample(xyz, rgb, action_current, config.sample_points_by_distance, num_points=config.num_points,)
-
-        # robot point idxs
-        height = xyz[:, -1] - 0.7505
-        # point cloud augmentation
-
-        # normalize point cloud
-
-        # normalize
-        if self.data_cfg.xyz_shift == 'none':
-            centroid = np.zeros((3, ))
-        elif self.data_cfg.xyz_shift == 'center':
-            centroid = np.mean(xyz, 0)
-        elif self.data_cfg.xyz_shift == 'gripper':
-            centroid = copy.deepcopy(action_current[:3])
-        if self.data_cfg.xyz_norm:
-            radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
+        if 'gt_mask' in obs:
+            gt_sem = np.stack(obs['gt_mask'], 0)  # (N, H, W)
         else:
-            radius = 1
+            gt_sem = None
 
-        xyz = (xyz - centroid) / radius
-        height = height / radius
-        action_current[:3] = (action_current[:3] - centroid) / radius
-        # process the rgb
-        pc_ft = op.get_pc_ft(xyz, rgb, height, config.use_height)
+        # select one instruction
+        instr = self.taskvar_instrs[taskvar][0]
+        instr_embed = self.instr_embeds[instr]
 
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(xyz)
-        # pcd.colors = o3d.utility.Vector3dVector(rgb)
-        # o3d.visualization.draw_geometries([pcd])
+        pc_ft, pc_centroid, pc_radius, ee_pose = self.process_point_clouds(
+            xyz, rgb, gt_sem=gt_sem, ee_pose=copy.deepcopy(obs['gripper']),
+            arm_links_info=obs['arm_links_info'], taskvar=taskvar
+        )
 
-        # randomly select one instruction
-        instr_embed = self.instr_embeds[random.choice(self.taskvar_instrs[taskvar])]
         batch = {
             'pc_fts': torch.from_numpy(pc_ft).float(),
-            'pc_centroids': centroid,
-            'pc_radius': radius,
-            'ee_poses': torch.from_numpy(action_current).float().unsqueeze(0),
+            'pc_centroids': pc_centroid,
+            'pc_radius': pc_radius,
+            'ee_poses': torch.from_numpy(ee_pose).float().unsqueeze(0),
             'step_ids': torch.LongTensor([step_id]),
             'txt_embeds': torch.from_numpy(instr_embed).float(),
             'txt_lens': [instr_embed.shape[0]],
             'npoints_in_batch': [pc_ft.shape[0]],
             'offset': torch.LongTensor([pc_ft.shape[0]]),
         }
+        if self.config.MODEL.model_class == 'SimplePolicyPCT':
+            batch['pc_fts'] = batch['pc_fts'].unsqueeze(0)
+            batch['txt_masks'] = torch.from_numpy(
+                gen_seq_masks(batch['txt_lens'])
+            ).bool()
+            batch['txt_embeds'] = batch['txt_embeds'].unsqueeze(0)
 
+        # for k, v in batch.items():
+        #     if k not in ['pc_centroids', 'pc_radius', 'npoints_in_batch']:
+        #         print(k, v.size())
         return batch
 
     def predict(
@@ -422,7 +367,7 @@ class Actioner(object):
         action = action.numpy()
         action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
         # TODO: ensure the action height is above the table
-        # action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
+        action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
         out = {
             'action': action
@@ -521,7 +466,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         video_log_dir = os.path.join(args.video_dir, f'{task_str}+{variation}')
         os.makedirs(str(video_log_dir), exist_ok=True)
 
-    move = Mover(task, max_tries=args.max_tries)  # 这个是干什么的
+    move = Mover(task, max_tries=args.max_tries)
 
     if args.microstep_data_dir != '':
         episodes_dir = os.path.join(args.microstep_data_dir, task_str, f"variation{variation}", "episodes")
@@ -530,7 +475,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             episode_ids = os.listdir(episodes_dir)
             episode_ids.sort(key=lambda ep: int(ep[7:]))
             for idx, ep in enumerate(episode_ids):
-                try:  # 为什么eval的时候会需要demo？
+                try:
                     demo = env.get_demo(task_str, variation, idx, load_images=False)
                     demos.append(demo)
                 except Exception as e:
@@ -568,15 +513,15 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             }
             batch_queue.put((k_res, batch))
 
-            output = result_queue.get()  # 不用担心message归属问题，因为queue是专用的。
+            output = result_queue.get()
             action = output["action"]
 
             if action is None:
-                raise ValueError("Action is None!")
+                break
 
             # update the observation based on the predicted action
             try:
-                obs, reward, terminate, _ = move(action, verbose=True)
+                obs, reward, terminate, _ = move(action, verbose=False)
                 obs_state_dict = env.get_observation(obs)  # type: ignore
 
                 if reward == 1:
@@ -619,16 +564,16 @@ def main():
 
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
-    args.exp_config = '/workspace/zero/zero/v2/config/lotus.yaml'
+    args.exp_config = '/workspace/zero/zero/v1/config/lotus.yaml'
     args.checkpoint = '/media/jian/ssd4t/ckpt/20241225_004530epoch=1359.ckpt'
 
     checkpoint_name = args.checkpoint.split('/')[-1]
 
     args.expr_dir = f'/data/exp/EXPLOG/{checkpoint_name}/preds'
     args.video_dir = f'/data/exp/EXPLOG/{checkpoint_name}/vidoes'
-    args.tasks_to_use = ['close_jar']
+    # args.tasks_to_use = ['close_jar']
     seeds = [42]
-    for i in seeds:
+    for i in range(20):
         args.seed = i
         if not os.path.exists(args.checkpoint):
             print(args.checkpoint, 'not exists')
@@ -647,8 +592,6 @@ def main():
 
         taskvars = json.load(open(args.taskvar_file))
         taskvars = [taskvar for taskvar in taskvars if taskvar not in existed_taskvars]
-        if args.tasks_to_use != None:
-            taskvars = [task for task in taskvars if task.split('_peract')[0] in args.tasks_to_use]
         print('checkpoint', args.ckpt_step, '#taskvars', len(taskvars))
 
         batch_queue = mp.Queue(args.queue_size)

@@ -80,6 +80,7 @@ class Voxelizer:
             if t == data['pc'].shape[0] - 1:
                 continue
 
+            # input rgb xyz arm_links_info,config
             rgb = data['rgb'][t] / 255.0
             xyz = data['pc'][t]
             arm_links_info = (data['bbox'][t], data['pose'][t])
@@ -88,7 +89,7 @@ class Voxelizer:
             rgb = rgb.reshape(-1, 3)
 
             # restrict to the robot workspace
-            in_mask = op.workspace(xyz)
+            in_mask = op.cut_workspace(xyz)
             xyz, rgb = xyz[in_mask], rgb[in_mask]
             # remove irrelevant objects
             xyz, rgb = op.remove_robot(xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper')    # remove robot
@@ -115,7 +116,7 @@ class Voxelizer:
             action_current = copy.deepcopy(data['action'][t])
             action_next = copy.deepcopy(data['action'][t + 1])
 
-            gt_rot = op.get_groundtruth_rotations(data['action'][:, 3:7], euler_resolution=config.euler_resolution)[t]
+            gt_rot = op.get_groundtruth_rotations(data['action'][:, 3:7])[t]
 
             # 1. some process
             # xyz, rgb = op.remove_table(xyz, rgb)
@@ -132,7 +133,7 @@ class Voxelizer:
             centroid, radius, height, xyz, action_current, action_next = op.normalize_pc(config.xyz_shift, config.xyz_norm, xyz, action_current, action_next, gt_rot, height)
 
             # process the rgb
-            pc_ft = op.get_pc_ft(xyz, rgb, height, config.use_height)
+            pc_ft = op.process_pc(xyz, rgb, height, config.use_height)
 
             # (npoints, 3, 100)
             disc_pos_prob = get_disc_gt_pos_prob(

@@ -1,7 +1,7 @@
 from zero.v1.tools_scripts.draw_pointcloud import PointCloudDrawer
 from tqdm import trange
 from zero.v1.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
-from zero.v1.models.lotus.utils.robot_box import RobotBox
+from zero.v2.models.lotus.utils.robot_box import RobotBox
 from zero.v1.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
@@ -350,7 +350,8 @@ class SimplePolicyDataset(Dataset):
             if self.pos_heatmap_no_robot:
                 robot_box = RobotBox(
                     arm_links_info=arm_links_info,
-                    env_name='real' if self.real_robot else 'rlbench'
+                    env_name='real' if self.real_robot else 'rlbench',
+                    selfgen=False
                 )
                 robot_point_idxs = np.array(
                     list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])

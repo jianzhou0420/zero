@@ -36,7 +36,7 @@ TRAIN:
 #/hpcfs/users/a1946536/code/
 
 TRAIN_DATASET:
-  data_dir: '/data/selfgen/seed42/voxel0.005'
+  data_dir: '/media/jian/ssd4t/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
@@ -131,7 +131,7 @@ MODEL:
     add_coords_in_attn: 'none' # none, qk, qkv
 
   action_config:
-    voxel_size: 0.005 # 1cm
+    voxel_size: 0.01 # 1cm
     context_channels: 256
 
     txt_ft_size: 512

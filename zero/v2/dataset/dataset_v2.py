@@ -83,7 +83,7 @@ class SimplePolicyDataset(Dataset):
         rm_pc_outliers=False, rm_pc_outliers_neighbors=25, euler_resolution=5,
         pos_type='cont', pos_bins=50, pos_bin_size=0.01,
         pos_heatmap_type='plain', pos_heatmap_no_robot=False,
-        aug_max_rot=45, real_robot=False, tasks_to_use=None, **kwargs
+        aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, **kwargs
     ):
 
         # 0. Parameters
@@ -173,7 +173,7 @@ class SimplePolicyDataset(Dataset):
         for i in range(len(self.g_episode_to_path)):
             self.check_cache(i)
 
-        self.op = ObsProcessLotus()
+        self.op = ObsProcessLotus(config)
 
     def check_cache(self, g_episode):
 
@@ -234,7 +234,7 @@ class SimplePolicyDataset(Dataset):
         outs['ee_poses'].append(data['ee_poses'][t])
         outs['txt_embeds'].append(data['txt_embeds'][t])
         outs['gt_actions'].append(data['gt_actions'][t])
-        outs['disc_pos_probs'].append(data['disc_pos_probs'][t])
+        outs['disc_pos_probs'].append(torch.tensor(data['disc_pos_probs'][t]))
         # print('1')
 
         return outs

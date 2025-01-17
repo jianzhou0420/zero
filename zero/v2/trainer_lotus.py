@@ -78,7 +78,7 @@ class TrainerLotus(pl.LightningModule):
         return [optimizer], [scheduler_config]
 
     def get_dataset(self, config):
-        dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
+        dataset = SimplePolicyDataset(config=config, **config.TRAIN_DATASET)
         return dataset
 
     def get_dataloader(self, config):
@@ -113,7 +113,6 @@ if __name__ == '__main__':
     args.config = os.path.join('/workspace/zero/zero/v2/config/', config_name)
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(args.config)
-
     trainer_model = TrainerLotus(config)
 
     # tainer
@@ -124,9 +123,9 @@ if __name__ == '__main__':
         every_n_epochs=500,
         save_top_k=-1,
         save_last=False,
-        filename=f'{current_time}' + args.config + '{epoch:03d}'  # Checkpoint filename
+        filename=f'{current_time}' + config_name + '{epoch:03d}'  # Checkpoint filename
     )
-    csvlogger1 = CSVLogger(f'/data/logs/{args.config}')
+    csvlogger1 = CSVLogger(f'/data/logs/{config_name}')
 
     # max_epochs = int(6500)
     profiler = SimpleProfiler()

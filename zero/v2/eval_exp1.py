@@ -552,8 +552,8 @@ def main():
 
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
-    args.exp_config = '/workspace/zero/zero/v1/config/lotus_0.003.yaml'
-    args.checkpoint = '/media/jian/ssd4t/exp/exp1_voxelsize/Voxel003_20250108_115803epoch=1359.ckpt'
+    args.exp_config = '/workspace/zero/zero/v2/config/lotus_0.005.yaml'
+    args.checkpoint = '/media/jian/ssd4t/lotus_exp2_0.005_close_jar.yamlepoch=6499.ckpt'
     args.expr_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_1_voxel003'
     args.video_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_1_voxel003'
     # args.tasks_to_use = ['close_jar']

@@ -299,7 +299,7 @@ class SimplePolicyDataset(Dataset):
         centroid, radius, height, xyz, action_current, action_next = self.op.normalize_pc(self.xyz_shift, self.xyz_norm, xyz, action_current, action_next, gt_rot, height)
 
         # process the rgb
-        pc_ft = self.op.get_pc_ft(xyz, rgb, height, self.use_height)
+        pc_ft = self.op.process_pc(xyz, rgb, height, self.use_height)
 
         # (npoints, 3, 100)
         disc_pos_prob = get_disc_gt_pos_prob(

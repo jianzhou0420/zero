@@ -1,6 +1,5 @@
 import datetime
 import time
-from polarnet.utils.coord_transforms import convert_gripper_pose_world_to_image
 from rlbench.demo import Demo
 from typing import List, Dict, Optional, Sequence, Tuple, TypedDict, Union, Any
 import os
