@@ -2,7 +2,7 @@
 
 from pytorch_lightning.callbacks import Callback
 from zero.v2.models.lotus.optim.misc import build_optimizer
-from zero.v2.dataset.z_dataset_lotus_modified import SimplePolicyDataset, ptv3_collate_fn
+from zero.v2.dataset.dataset_origin import SimplePolicyDataset, ptv3_collate_fn
 from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime
@@ -114,35 +114,33 @@ class PrintLRCallback(Callback):
 
 
 if __name__ == '__main__':
-    pl.seed_everything(42)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--loadckpt', type=str, default=None)
-    parser.add_argument('--voxel_size', type=float)
+    parser.add_argument('--config', type=str, default=None, required=True)
     args = parser.parse_args()
-
+    config_name = args.config
+    args.config = os.path.join('/workspace/zero/zero/v2/config/', config_name)
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file(f'/workspace/zero/zero/v2/config/lotus.yaml')
-
-    # config.TRAIN_DATASET.tasks_to_use = ['close_jar']
+    config.merge_from_file(args.config)
     trainer_model = TrainerLotus(config)
+
+    # tainer
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     train_dataloader = trainer_model.get_dataloader(config)
-
+    # print_lr_callback = PrintLRCallback()
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=500,
+        every_n_epochs=100,
         save_top_k=-1,
         save_last=False,
-        filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
+        filename=f'{current_time}' + config_name + '{epoch:03d}'  # Checkpoint filename
     )
-    csvlogger1 = CSVLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
-    # tensorboardlogger1 = TensorBoardLogger(f'/data/logs/{config.exp_name}', name=f'voxel{args.voxel_size}')
+    csvlogger1 = CSVLogger(f'/data/logs/{config_name}')
 
-    max_epochs = int(1500)
-    print(f"config.TRAIN.num_train_steps: {config.TRAIN.num_train_steps}")
+    # max_epochs = int(6500)
+
     print(f"len(train_dataloader): {len(train_dataloader)}")
-    print(f"max_epochs: {max_epochs}")
+    print(f"max_epochs: {config.TRAIN.epoches}")
     trainer = pl.Trainer(callbacks=[checkpoint_callback],
-                         max_epochs=max_epochs,
+                         max_epochs=config.TRAIN.epoches,
                          devices='auto',
                          strategy='auto',
                          logger=csvlogger1,

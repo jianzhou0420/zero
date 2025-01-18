@@ -273,7 +273,7 @@ class Actioner(object):
         xyz = xyz[point_idxs]
         rgb = rgb[point_idxs]
         height = xyz[:, -1] - self.TABLE_HEIGHT
-        test = np.array(xyz).copy()
+
         # normalize
         if self.data_cfg.xyz_shift == 'none':
             centroid = np.zeros((3, ))

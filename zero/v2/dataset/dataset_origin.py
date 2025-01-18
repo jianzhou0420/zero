@@ -25,8 +25,6 @@ import msgpack
 import msgpack_numpy
 msgpack_numpy.patch()
 
-# import open3d as o3d
-
 
 def pad_tensors(tensors, lens=None, pad=0, max_len=None):
     """B x [T, ...] torch tensors"""
@@ -71,6 +69,9 @@ def gen_seq_masks(seq_lens, max_len=None):
     masks = np.arange(max_len).reshape(-1, max_len).repeat(batch_size, 0)
     masks = masks < seq_lens.reshape(-1, 1)
     return masks
+
+
+# import open3d as o3d
 
 
 class SimplePolicyDataset(Dataset):
@@ -147,8 +148,12 @@ class SimplePolicyDataset(Dataset):
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
 
-        # drawer
-        self.drawer = PointCloudDrawer()
+        self.new_data_ids = []
+        for i, episode in enumerate(self.data_ids):
+            if self.data_ids[i][0].split('_peract')[0] == 'close_jar':
+                self.new_data_ids.append(self.data_ids[i])
+        self.data_ids = self.new_data_ids
+        print(len(self.data_ids))
 
     def __exit__(self):
         for lmdb_env in self.lmdb_envs.values():
@@ -227,7 +232,7 @@ class SimplePolicyDataset(Dataset):
         return xyz, ee_pose, gt_action, gt_rot
 
     def get_groundtruth_rotations(self, ee_poses):
-        gt_rots = torch.from_numpy(ee_poses.copy())   # quaternions
+        gt_rots = torch.from_numpy(ee_poses)   # quaternions
         if self.rot_type == 'euler':    # [-1, 1]
             gt_rots = self.rotation_transform.quaternion_to_euler(gt_rots[1:]) / 180.
             gt_rots = torch.cat([gt_rots, gt_rots[-1:]], 0)
@@ -249,8 +254,6 @@ class SimplePolicyDataset(Dataset):
         return gt_rots
 
     def __getitem__(self, idx):
-        # len(self.data_ids) == 1754
-        debug_draw = False
         if self.all_step_in_batch:
             taskvar, data_id = self.data_ids[idx]
         else:
@@ -265,14 +268,12 @@ class SimplePolicyDataset(Dataset):
             'pc_centroids': [], 'pc_radius': [], 'ee_poses': [],
             'txt_embeds': [], 'gt_actions': [],
         }
-
         if self.pos_type == 'disc':
             outs['disc_pos_probs'] = []
 
         gt_rots = self.get_groundtruth_rotations(data['action'][:, 3:7])
 
         num_steps = len(data['xyz'])
-        test = []
         for t in range(num_steps):
             if (not self.all_step_in_batch) and t != data_step:
                 continue
@@ -371,7 +372,6 @@ class SimplePolicyDataset(Dataset):
                 centroid = np.mean(xyz, 0)
             elif self.xyz_shift == 'gripper':
                 centroid = copy.deepcopy(ee_pose[:3])
-
             if self.xyz_norm:
                 radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
             else:
@@ -388,7 +388,6 @@ class SimplePolicyDataset(Dataset):
 
             rgb = (rgb / 255.) * 2 - 1
             pc_ft = np.concatenate([xyz, rgb], 1)
-            test.append(pc_ft)
             if self.use_height:
                 pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
 
@@ -401,6 +400,7 @@ class SimplePolicyDataset(Dataset):
                     robot_point_idxs=robot_point_idxs
                 )
                 outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
+
             outs['data_ids'].append(f'{taskvar}-{data_id.decode("ascii")}-t{t}')
             outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
             outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
@@ -467,7 +467,7 @@ if __name__ == '__main__':
     import yacs.config
 
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_origin.yaml')
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 

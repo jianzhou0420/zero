@@ -313,9 +313,11 @@ class ObsProcessLotus:
             - voxel_size: float
         this function do the following:
 
-        1. remove table, robot, outliers
-        2. voxelization
-        3. get pc_ft
+        1. remove outside workspace
+        2. remove robot
+        3. remove table
+        4. voxelization
+        4. remove outliers
 
         return: pc_ft, action_current
 
@@ -327,26 +329,35 @@ class ObsProcessLotus:
         xyz, rgb = self._points_in_workspace(xyz, rgb)
         xyz, rgb = self._remove_robot(xyz, rgb, arm_links_info, rm_robot_type='box_keep_gripper')    # remove robot
         xyz, rgb = self._remove_table(xyz, rgb)    # remove table
-        xyz, rgb = self._remove_outliers(xyz, rgb)  # remove outliers
         xyz, rgb = self.voxelization(xyz, rgb, voxel_size)
+        xyz, rgb = self._remove_outliers(xyz, rgb)  # remove outliers
 
         return xyz, rgb
 
     def voxelization(self, xyz, rgb, voxel_size):
        # voxelization as downsample
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(xyz)
+        # pcd.colors = o3d.utility.Vector3dVector(rgb)
+        # voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=voxel_size)
+
+        # # center of the voxel
+        # xyz = []
+        # rgb = []
+        # for voxel in voxel_grid.get_voxels():
+        #     xyz.append(voxel.grid_index * voxel_grid.voxel_size + voxel_grid.origin)
+        #     rgb.append(voxel.color)
+        # xyz = np.array(xyz)
+        # rgb = np.array(rgb)
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd.colors = o3d.utility.Vector3dVector(rgb)
-        voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=voxel_size)
+        pcd, _, trace = pcd.voxel_down_sample_and_trace(
+            voxel_size, np.min(xyz, 0), np.max(xyz, 0)
+        )
+        xyz = np.asarray(pcd.points)
+        trace = np.array([v[0] for v in trace])
+        rgb = rgb[trace]
 
-        # center of the voxel
-        xyz = []
-        rgb = []
-        for voxel in voxel_grid.get_voxels():
-            xyz.append(voxel.grid_index * voxel_grid.voxel_size + voxel_grid.origin)
-            rgb.append(voxel.color)
-        xyz = np.array(xyz)
-        rgb = np.array(rgb)
         return xyz, rgb
 
     def action_next_pos_prob(self, xyz, gt_pos, pos_bin_size=0.01, pos_bins=50, heatmap_type='plain', robot_point_idxs=None):
@@ -407,8 +418,8 @@ class ObsProcessLotus:
         6. downsample
         7. augment
         8. normalize
-
         '''
+
         voxel_size = 0.005
         # 1.remove outside workspace 2.remove robot 3.remove table 4.remove outliers 5.voxelization
         xyz, rgb = self.process_pc(xyz, rgb, arm_links_info, voxel_size)
@@ -438,7 +449,7 @@ class ObsProcessLotus:
         # post-process
         # 1.convert action_next's quaternion to discrete euler
             action_next_rot = quaternion_to_discrete_euler(action_next[3:-1], self.config.euler_resolution)
-
+            action_next = np.concatenate([action_next[:3], action_next_rot, action_next[-1:]], axis=0)  # attention rot_type changed
         # 2.get gt_pos_prob 是最后再做的，约等于转换以下action_next
             disc_pos_prob = self.action_next_pos_prob(
                 xyz, action_next[:3], pos_bins=self.config.pos_bins,
@@ -450,9 +461,6 @@ class ObsProcessLotus:
             disc_pos_prob = None
 
         pc_ft = np.concatenate((xyz, rgb, height[:, None]), axis=1)
-
-        if is_train:
-            action_next = np.concatenate([action_next[:3], action_next_rot, action_next[-1:]], axis=0)  # attention rot_type changed
 
         return pc_ft, action_current, action_next, centroid, radius, disc_pos_prob
 
@@ -585,6 +593,6 @@ if __name__ == '__main__':
     origin_data_root = '/media/jian/ssd4t/selfgen/20250105/train_dataset/keysteps/seed42'
     # from datetime import datetime
 
-    output_dir = f'/media/jian/ssd4t/selfgen/augmentexp/'
+    output_dir = f'/media/jian/ssd4t/selfgen/voxellizationexp_outlier/'
     tasks_to_use = ['close_jar']
     op.dataset_generation(origin_data_root, output_dir, tasks_to_use=tasks_to_use)

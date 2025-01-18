@@ -318,9 +318,9 @@ class Actioner(object):
         # o3d.visualization.draw_geometries([pcd])
 
         # test
-        pc_sum = sum(pc_ft, 0)
-        print('pc_centroids', pc_sum)
-        print('centroid', centroid)
+        # pc_sum = sum(pc_ft, 0)
+        # print('pc_centroids', pc_sum)
+        # print('centroid', centroid)
 
         # /test
 
@@ -582,7 +582,7 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/workspace/zero/zero/v2/config/lotus_exp2_0.005_close_jar.yaml'
-    args.checkpoint = '/media/jian/ssd4t/logs/lotus_exp2_0.005_close_jar.yaml/lightning_logs/version_2/checkpoints/20250117_220633lotus_exp2_0.005_close_jar.yamlepoch=499.ckpt'
+    args.checkpoint = '/media/jian/ssd4t/logs/lotus_exp2_0.005_close_jar.yaml/lightning_logs/version_2/checkpoints/20250117_220633lotus_exp2_0.005_close_jar.yamlepoch=799.ckpt'
 
     checkpoint_name = args.checkpoint.split('/')[-1]
 
