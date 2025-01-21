@@ -3,7 +3,7 @@ import yacs.config
 import pickle
 
 import json
-from zero.v2.dataprocess.utils import natural_sort_key, get_mask_with_robot_box
+from zero.v3.dataprocess.utils import natural_sort_key, get_mask_with_robot_box
 import os
 import einops
 import copy

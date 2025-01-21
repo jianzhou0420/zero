@@ -36,7 +36,7 @@ import einops
 import json
 from scipy.spatial.transform import Rotation as R
 
-from zero.v2.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
+from zero.v3.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
 
 
 def get_obs(obs):

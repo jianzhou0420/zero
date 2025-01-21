@@ -1,9 +1,14 @@
-SEED: 2024
-output_dir: 'data/experiments/gembench/simple_policy_ptv3/debug'
-tfboard_log_dir: null # 'data/TFBoard/xxx'
-checkpoint: null
-checkpoint_strict_load: False # true, false
 
+############################################
+# suplementary configs for data management
+############################################
+pl_flag: True
+exp_name: 
+
+TRAIN_DATASET: data_dir: 'test'
+############################################
+# Trainning configs
+############################################
 TRAIN:
   resume_training: True
   resume_encoder_only: False
@@ -33,11 +38,9 @@ TRAIN:
   n_workers: 4
   pin_mem: True
 
-#/hpcfs/users/a1946536/
-#/hpcfs/users/a1946536/code/
 
 TRAIN_DATASET:
-  data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
+  # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/workspace/zero/zero/v2/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/workspace/zero/zero/v2/models/lotus/assets/taskvars_peract.json'
@@ -135,8 +138,3 @@ MODEL:
 
 
 
-############################################
-# suplementary configs from the sbatch script
-############################################
-world_size: 1
-pl_flag: True

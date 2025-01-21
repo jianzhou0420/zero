@@ -30,7 +30,7 @@ spec:
                 git pull
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
-                python /workspace/zero/zero/v2/trainer_lotus.py --config lotus_exp2_0.005_close_jar.yaml
+                python /workspace/zero/zero/v3/trainer_lotus.py --config lotus_exp2_0.005_close_jar.yaml
 
 
           resources:

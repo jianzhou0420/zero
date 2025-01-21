@@ -23,7 +23,7 @@ import copy
 from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
 
 
-from zero.v2.dataprocess.utils import natural_sort_key, get_mask_with_robot_box
+from zero.v3.dataprocess.utils import natural_sort_key, get_mask_with_robot_box
 
 
 class Voxelizer:
