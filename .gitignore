@@ -22,3 +22,6 @@ dist/
 *.egg-info/
 
 zero/v1/env/gym-aloha/
+zero/data
+zero/exp
+
