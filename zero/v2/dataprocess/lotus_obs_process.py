@@ -807,7 +807,7 @@ class ObsProcessLotus:
 
 
 if __name__ == '__main__':
-    config_path = '/workspace/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
+    config_path = '/data/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(config_path)
     op = ObsProcessLotus(config, selfgen=True)

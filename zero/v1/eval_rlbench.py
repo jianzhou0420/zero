@@ -144,7 +144,7 @@ class Evaluator:
 
 
 ckpt_path = '/media/jian/data/20241124_025004epoch=049.ckpt'
-config_path = '/workspace/zero/zero/v1/config/zero_test.yaml'
+config_path = '/data/zero/zero/v1/config/zero_test.yaml'
 
 
 evaluator = Evaluator(ckpt_path)

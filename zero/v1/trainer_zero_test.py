@@ -115,7 +115,7 @@ class TrainerTesterJazz(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    with open('/workspace/zero/zero/v1/config/zero_test.yaml') as file:
+    with open('/data/zero/zero/v1/config/zero_test.yaml') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
 
     trainer_pl = TrainerTesterJazz(config)

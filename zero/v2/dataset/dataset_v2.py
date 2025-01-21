@@ -307,7 +307,7 @@ if __name__ == '__main__':
     import yacs.config
     import pickle
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_exp_augment_angle.yaml')
+    config.merge_from_file('/data/zero/zero/v2/config/lotus_exp_augment_angle.yaml')
 
     dataset = SimplePolicyDataset(config=config, **config.TRAIN_DATASET)
 

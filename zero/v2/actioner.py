@@ -89,7 +89,7 @@ class ServerArguments(tap.Tap):
     seed: int = 2024  # seed for RLBench
     num_workers: int = 1
     queue_size: int = 20
-    taskvar_file: str = '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
+    taskvar_file: str = '/data/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
     num_demos: int = 20
     num_ensembles: int = 1
 

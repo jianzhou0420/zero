@@ -101,7 +101,7 @@ class TrainerLotus(pl.LightningModule):
 if __name__ == '__main__':
     def train(voxel_size):
         config = yacs.config.CfgNode(new_allowed=True)
-        config.merge_from_file(f'/workspace/zero/zero/v1/config/lotus.yaml')
+        config.merge_from_file(f'/data/zero/zero/v1/config/lotus.yaml')
 
         config.TRAIN_DATASET.tasks_to_use = ['close_jar']
         trainer_model = TrainerLotus(config)

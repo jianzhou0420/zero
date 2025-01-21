@@ -385,7 +385,7 @@ if __name__ == '__main__':
     random.seed(42)
 
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_0.003.yaml')
+    config.merge_from_file('/data/zero/zero/v2/config/lotus_0.003.yaml')
     config.TRAIN_DATASET.tasks_to_use = ['close_jar']
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 

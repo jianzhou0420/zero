@@ -9,7 +9,7 @@ import torch
 
 class PushTAgent:
     def __init__(self):
-        with open('/workspace/zero/zero/v1/config/zero_test.yaml') as file:
+        with open('/data/zero/zero/v1/config/zero_test.yaml') as file:
             config = yaml.load(file, Loader=yaml.FullLoader)
 
         self.model = TrainerTesterJazz.load_from_checkpoint('/media/jian/data/ckpt/lightning_logs/version_2/checkpoints/last.ckpt', config_first_layer=config)

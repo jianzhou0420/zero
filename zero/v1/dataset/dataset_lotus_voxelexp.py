@@ -50,7 +50,7 @@ class test(Dataset):
                  tasks_to_use=None,
                  ):
         # TODO:Complete the parameters
-        taskvar_instr_file = '/workspace/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
+        taskvar_instr_file = '/data/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
         instr_embed_file = '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
         self.rot_type = 'euler_disc'
         self.euler_resolution = 5

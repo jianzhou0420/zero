@@ -26,11 +26,11 @@ spec:
           command: ["/bin/bash", "-c"]
           args: 
               - |
-                cd /workspace/zero
+                cd /data/zero
                 git pull
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
-                python /workspace/zero/zero/v3/trainer_lotus.py --config lotus_exp1_0.005.yaml
+                python /data/zero/zero/v3/trainer_lotus.py --config lotus_exp1_0.005.yaml
 
 
           resources:

@@ -272,7 +272,7 @@ class RLBenchDataset(Dataset):
 
 if __name__ == '__main__':
     from zero.v1.trainer_3d_da import Trainer3DDA, get_gripper_loc_bounds
-    with open('/workspace/zero/zero/v1/config/Diffuser_actor_3d.yaml') as file:
+    with open('/data/zero/zero/v1/config/Diffuser_actor_3d.yaml') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     config['variations'] = tuple(range(200))
     config['gripper_location_boundaries'] = get_gripper_loc_bounds(

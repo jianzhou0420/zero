@@ -93,7 +93,7 @@ class ServerArguments(tap.Tap):
     seed: int = 2024  # seed for RLBench
     num_workers: int = 1
     queue_size: int = 20
-    taskvar_file: str = '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
+    taskvar_file: str = '/data/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
     num_demos: int = 20
     num_ensembles: int = 1
 
@@ -552,7 +552,7 @@ def main():
 
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
-    args.exp_config = '/workspace/zero/zero/v1/config/lotus_0.003.yaml'
+    args.exp_config = '/data/zero/zero/v1/config/lotus_0.003.yaml'
     args.checkpoint = '/media/jian/ssd4t/exp/exp1_voxelsize/Voxel003_20250108_115803epoch=1359.ckpt'
     args.expr_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_1_voxel003'
     args.video_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_1_voxel003'

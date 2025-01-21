@@ -90,7 +90,7 @@ class ServerArguments(tap.Tap):
     seed: int = 2024  # seed for RLBench
     num_workers: int = 1
     queue_size: int = 20
-    taskvar_file: str = '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
+    taskvar_file: str = '/data/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
     num_demos: int = 20
     num_ensembles: int = 1
 
@@ -583,7 +583,7 @@ def main():
     for ckpt_num in check_point_number:
         args = ServerArguments().parse_args(known_only=True)
         args.remained_args = args.extra_args
-        args.exp_config = '/workspace/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
+        args.exp_config = '/data/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
         args.checkpoint = f'/media/jian/ssd4t/logs/lotus_exp2_0.01_close_jar.yaml/lightning_logs/version_1/checkpoints/20250118_164143lotus_exp2_0.01_close_jar.yamlepoch={ckpt_num}.ckpt'
 
         checkpoint_name = args.checkpoint.split('/')[-1]

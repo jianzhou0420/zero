@@ -220,7 +220,7 @@ class ObsProcessLotus:
 
 
 if __name__ == '__main__':
-    config_path = '/workspace/zero/zero/v3/config/after_shock.yaml'
+    config_path = '/data/zero/zero/v3/config/after_shock.yaml'
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(config_path)
     op = ObsProcessLotus(config, selfgen=True)

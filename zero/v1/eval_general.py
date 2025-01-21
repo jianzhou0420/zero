@@ -122,8 +122,8 @@ class EvalGeneral():
 
 if __name__ == '__main__':
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
-    ckpt_path = '/workspace/zero/zero/v1/lightning_logs/version_0/checkpoints/epoch=0-step=0.ckpt'
+    config.merge_from_file('/data/zero/zero/v1/config/lotus.yaml')
+    ckpt_path = '/data/zero/zero/v1/lightning_logs/version_0/checkpoints/epoch=0-step=0.ckpt'
     model = TrainerLotus.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
     eval_general = EvalGeneral(model)
     eval_general.evaluate_tasks_all()

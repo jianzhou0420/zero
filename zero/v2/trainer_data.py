@@ -111,8 +111,8 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default=None, required=False)
     args = parser.parse_args()
     config_name = args.config
-    # args.config = os.path.join('/workspace/zero/zero/v2/config/', config_name)
-    args.config = '/workspace/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
+    # args.config = os.path.join('/data/zero/zero/v2/config/', config_name)
+    args.config = '/data/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
     config_name = 'test'
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(args.config)

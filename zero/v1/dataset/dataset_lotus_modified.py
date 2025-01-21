@@ -431,7 +431,7 @@ if __name__ == '__main__':
     import yacs.config
     from tqdm import trange
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v1/config/lotus.yaml')
+    config.merge_from_file('/data/zero/zero/v1/config/lotus.yaml')
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
