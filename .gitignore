@@ -4,6 +4,7 @@
 *.pyd
 __pycache__/
 
+
 # Virtual environment
 venv/
 .env/
@@ -21,6 +22,8 @@ build/
 dist/
 *.egg-info/
 
+# debug outpus
+*.pkl
 zero/v1/env/gym-aloha/
 zero/data
 zero/exp

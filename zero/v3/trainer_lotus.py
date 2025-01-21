@@ -2,9 +2,9 @@
 
 from pytorch_lightning.profilers import SimpleProfiler
 from pytorch_lightning.callbacks import Callback
-from zero.v2.models.lotus.optim.misc import build_optimizer
-from zero.v2.dataset.dataset_v4 import SimplePolicyDataset, ptv3_collate_fn
-from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
+from zero.v3.models.lotus.optim.misc import build_optimizer
+from zero.v3.dataset.dataset_v4 import SimplePolicyDataset, ptv3_collate_fn
+from zero.v3.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime
 import yaml
@@ -53,7 +53,7 @@ class TrainerLotus(pl.LightningModule):
         self.config = config
         self.model = SimplePolicyPTV3CA(config.MODEL)
 
-    def training_step(self, batch, batch_idx):  # 每次的batch_size都是不一样的应该说，每个小batch的每一个sample，sample的长度是不一样的
+    def training_step(self, batch, batch_idx):
 
         # del batch['pc_centroids'], batch['pc_radius']
 

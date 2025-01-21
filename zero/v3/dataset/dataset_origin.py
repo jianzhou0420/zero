@@ -1,12 +1,12 @@
 import open3d as o3d
-from zero.v2.tools_scripts.draw_pointcloud import PointCloudDrawer
+from zero.v3.tools_scripts.draw_pointcloud import PointCloudDrawer
 from tqdm import trange
-from zero.v2.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
-from zero.v2.models.lotus.utils.robot_box import RobotBox
-from zero.v2.models.lotus.utils.rotation_transform import (
+from zero.v3.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.v3.models.lotus.utils.robot_box import RobotBox
+from zero.v3.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
-from zero.v2.config.constants import (
+from zero.v3.config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
 

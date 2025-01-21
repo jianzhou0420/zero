@@ -18,4 +18,6 @@ authors = [
     { name = "Jaz", email = "jianzhou0420@outlook.com" },
 ]
 
-
+[tool.setuptools.packages.find]
+include=["zero","zero.*"]
+exclude=["data","data.*"]
