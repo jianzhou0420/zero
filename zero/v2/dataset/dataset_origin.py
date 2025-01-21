@@ -1,3 +1,4 @@
+import open3d as o3d
 from zero.v2.tools_scripts.draw_pointcloud import PointCloudDrawer
 from tqdm import trange
 from zero.v2.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
@@ -232,6 +233,7 @@ class SimplePolicyDataset(Dataset):
         return xyz, ee_pose, gt_action, gt_rot
 
     def get_groundtruth_rotations(self, ee_poses):
+        ee_poses = copy.deepcopy(ee_poses)
         gt_rots = torch.from_numpy(ee_poses)   # quaternions
         if self.rot_type == 'euler':    # [-1, 1]
             gt_rots = self.rotation_transform.quaternion_to_euler(gt_rots[1:]) / 180.
@@ -282,6 +284,13 @@ class SimplePolicyDataset(Dataset):
                 continue
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
+            # xyz = copy.deepcopy(xyz)
+            # rgb = copy.deepcopy(rgb)
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector(rgb / 255)
+            # o3d.visualization.draw_geometries([pcd])
+
             # # real robot point cloud is very noisy, requiring noise point cloud removal
             # # segmentation fault if n_workers>0
             # if self.real_robot:
@@ -408,6 +417,14 @@ class SimplePolicyDataset(Dataset):
             outs['gt_actions'].append(torch.from_numpy(gt_action).float())
             outs['step_ids'].append(t)
 
+            # xyz = pc_ft[:, :3]
+            # rgb = np.zeros_like(xyz)
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector(rgb)
+            # o3d.visualization.draw_geometries([pcd])
+            # action_current_list.append(ee_pose)
+            # action_next_list.append(gt_action)
         return outs
 
 
@@ -465,16 +482,25 @@ def ptv3_collate_fn(data):
 
 if __name__ == '__main__':
     import yacs.config
-
+    import pickle
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file('/workspace/zero/zero/v2/config/lotus_origin.yaml')
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
+    outs = {
+        'data_ids': [], 'pc_fts': [], 'step_ids': [],
+        'pc_centroids': [], 'pc_radius': [], 'ee_poses': [],
+        'txt_embeds': [], 'gt_actions': [], 'disc_pos_probs': []
+    }
     episode_length = []
     dataset_length = len(dataset)
     print(dataset_length)
     for i in trange(dataset_length):
-        dataset[i]
-        print(dataset[i])
-        break
+
+        data = dataset[i]
+        for key in data.keys():
+            outs[key].extend(data[key])
+
+    with open('data_origin.pickle', 'wb') as f:
+        pickle.dump(outs, f)

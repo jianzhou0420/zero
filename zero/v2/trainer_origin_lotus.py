@@ -56,8 +56,8 @@ class TrainerLotus(pl.LightningModule):
         # print(batch['offset'])
         losses = self.model(batch, is_train=True)
         self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        if self.global_step % 10 == 0:
-            print(f"train_loss: {losses['total']}")
+        # if self.global_step % 10 == 0:
+        #     print(f"train_loss: {losses['total']}")
         # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
         return losses['total']
 

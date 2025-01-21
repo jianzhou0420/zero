@@ -3,7 +3,7 @@
 from pytorch_lightning.profilers import SimpleProfiler
 from pytorch_lightning.callbacks import Callback
 from zero.v2.models.lotus.optim.misc import build_optimizer
-from zero.v2.dataset.dataset_v4 import SimplePolicyDataset, ptv3_collate_fn
+from zero.v2.dataset.dataset_v3 import SimplePolicyDataset, ptv3_collate_fn
 from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime
@@ -58,7 +58,8 @@ class TrainerLotus(pl.LightningModule):
         # del batch['pc_centroids'], batch['pc_radius']
 
         losses = self.model(batch, is_train=True)
-        self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)        # if self.global_step % 10 == 0:
+        self.log('train_loss', losses['total'])
+        # if self.global_step % 10 == 0:
         #     print(f"train_loss: {losses['total']}")
         # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
         return losses['total']
@@ -94,8 +95,8 @@ class TrainerLotus(pl.LightningModule):
                 collate_fn=collate_fn,
                 drop_last=False,
                 prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
-                shuffle=False,
-                persistent_workers=True
+                shuffle=False
+                # persistent_workers=True
             )
             return loader
         # function
@@ -107,11 +108,12 @@ class TrainerLotus(pl.LightningModule):
 if __name__ == '__main__':
     # config
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default=None, required=True)
+    parser.add_argument('--config', type=str, default=None, required=False)
     args = parser.parse_args()
     config_name = args.config
-    args.config = os.path.join('/workspace/zero/zero/v2/config/', config_name)
-
+    # args.config = os.path.join('/workspace/zero/zero/v2/config/', config_name)
+    args.config = '/workspace/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
+    config_name = 'test'
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(args.config)
     trainer_model = TrainerLotus(config)

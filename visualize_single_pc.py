@@ -2,7 +2,7 @@ import open3d as o3d
 import pickle
 import numpy as np
 import torch
-file_path = '/media/jian/ssd4t/selfgen/test/test/seed42/test1111/close_jar/variation0/episodes/episode0/data.pkl'
+file_path = '/media/jian/ssd4t/selfgen/123456/close_jar/variation0/episodes/episode0/data.pkl'
 
 with open(file_path, 'rb') as f:
     data = pickle.load(f)
@@ -13,7 +13,8 @@ for t in range(len(data['pc_fts'])):
     pc_fts = data['pc_fts'][t]
 
     xyz = np.array(pc_fts[:, :3])
-    rgb = np.array((pc_fts[:, 3:6] + 1) / 2)
+    # rgb = np.array((pc_fts[:, 3:6] + 1) / 2)
+    rgb = np.zeros_like(xyz)
 
     print('pc_fts', pc_fts)
     print('pc_centroids', data['pc_centroids'][t])

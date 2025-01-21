@@ -1,5 +1,3 @@
-from tqdm import trange
-import open3d as o3d
 from collections.abc import Mapping, Container
 from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
 import sys
@@ -33,6 +31,15 @@ import msgpack_numpy
 msgpack_numpy.patch()
 
 # import open3d as o3d
+
+
+def random_rotate_z(pc, angle=None):
+    # Randomly rotate around z-axis
+    if angle is None:
+        angle = np.random.uniform() * 2 * np.pi
+    cosval, sinval = np.cos(angle), np.sin(angle)
+    R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
+    return np.dot(pc, np.transpose(R))
 
 
 def pad_tensors(tensors, lens=None, pad=0, max_len=None):
@@ -85,7 +92,7 @@ class SimplePolicyDataset(Dataset):
         rm_pc_outliers=False, rm_pc_outliers_neighbors=25, euler_resolution=5,
         pos_type='cont', pos_bins=50, pos_bin_size=0.01,
         pos_heatmap_type='plain', pos_heatmap_no_robot=False,
-        aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, **kwargs
+        aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, is_single_frame=True, **kwargs
     ):
 
         # 0. Parameters
@@ -116,7 +123,7 @@ class SimplePolicyDataset(Dataset):
         self.pos_heatmap_type = pos_heatmap_type
         self.pos_heatmap_no_robot = pos_heatmap_no_robot
         self.real_robot = real_robot
-
+        self.is_single_frame = is_single_frame
         # 0.1. Load some pheripheral information
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
@@ -176,6 +183,7 @@ class SimplePolicyDataset(Dataset):
             self.check_cache(i)
 
         self.op = ObsProcessLotus(config)
+        self.config = config
 
     def check_cache(self, g_episode):
 
@@ -194,15 +202,197 @@ class SimplePolicyDataset(Dataset):
         else:
             return self.cache[g_episode]
 
+    def _get_mask_with_robot_box(self, xyz, arm_links_info, rm_robot_type):
+        if rm_robot_type == 'box_keep_gripper':
+            keep_gripper = True
+        else:
+            keep_gripper = False
+        robot_box = RobotBox(
+            arm_links_info, keep_gripper=keep_gripper,
+            env_name='rlbench', selfgen=True
+        )
+        _, robot_point_ids = robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)
+        robot_point_ids = np.array(list(robot_point_ids))
+        mask = np.ones((xyz.shape[0], ), dtype=bool)
+        if len(robot_point_ids) > 0:
+            mask[robot_point_ids] = False
+        return mask
+
+    def _rotate_gripper(self, gripper_rot, angle):
+        rot = R.from_euler('z', angle, degrees=False)
+        gripper_rot = R.from_quat(gripper_rot)
+        gripper_rot = (rot * gripper_rot).as_quat()
+        return gripper_rot
+
+    def _augment_pc(self, xyz, action_current, action_next, aug_max_rot):
+        # rotate around z-axis
+        angle = np.random.uniform(-1, 1) * aug_max_rot
+        xyz = random_rotate_z(xyz, angle=angle)
+        action_current[:3] = random_rotate_z(action_current[:3], angle=angle)
+        action_current[3:-1] = self._rotate_gripper(action_current[3:-1], angle)
+
+        action_next[:3] = random_rotate_z(action_next[:3], angle=angle)
+        action_next[3:-1] = self._rotate_gripper(action_next[3:-1], angle)
+
+        if self.rot_type == 'quat':
+            gt_rot = action_next[3:-1]
+        elif self.rot_type == 'euler':
+            gt_rot = self.rotation_transform.quaternion_to_euler(
+                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy() / 180.
+        elif self.rot_type == 'euler_disc':
+            gt_rot = quaternion_to_discrete_euler(action_next[3:-1], self.euler_resolution)
+        elif self.rot_type == 'rot6d':
+            gt_rot = self.rotation_transform.quaternion_to_ortho6d(
+                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy()
+
+        # add small noises (+-2mm)
+        pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
+        xyz = pc_noises + xyz
+
+        return xyz, action_current, action_next, gt_rot
+
     def __exit__(self):
         for lmdb_env in self.lmdb_envs.values():
             lmdb_env.close()
 
     def __len__(self):
-        self.lenth = sum(self.frames)
-        return self.lenth
+        if self.is_single_frame:
+            return sum(self.frames)
+        else:
+            return len(self.frames)
 
     def __getitem__(self, g_frame_idx):
+        # 0. get single frame
+        if self.is_single_frame:
+            return self.get_single_frame(g_frame_idx)
+        else:
+            return self.get_entire_episode(g_frame_idx)
+
+    def get_entire_episode(self, g_idx):
+        outs = {
+            'data_ids': [],
+            'pc_fts': [],
+            'step_ids': [],
+            'pc_centroids': [],
+            'pc_radius': [],
+            'ee_poses': [],
+            'txt_embeds': [],
+            'gt_actions': [],
+            'disc_pos_probs': []
+        }
+
+        # 0.1 identify the frame info and output info
+        taskvar = self.g_frame_to_taskvar[g_idx]
+        g_episode = self.g_frame_to_g_episode[g_idx]
+        l_episode = self.g_episode_to_l_episode[g_episode]
+        frame_idx = self.g_frame_to_frame[g_idx]
+
+        # 0.2 get data of specific frame
+        data = self.check_cache(g_episode)
+        num_frames = len(data['data_ids'])
+
+        # 1.get specific frame data
+        for t in range(num_frames):
+            data_ids = data['data_ids'][t]
+            xyz = copy.deepcopy(data['xyz'][t])
+            rgb = copy.deepcopy(data['rgb'][t])
+            action_current = copy.deepcopy(data['action_current'][t])
+            action_next = copy.deepcopy(data['action_next'][t])
+            arm_links_info = copy.deepcopy(data['arm_links_info'][t])
+            instr_embed = copy.deepcopy(self.instr_embeds[random.choice(self.taskvar_instrs[taskvar])])
+
+            # preprocess have done the following:
+            # 1. voxelization
+            # 2. remove outside workspace points
+            # 3. remove table points
+            # over
+
+            # 4. remove robot points
+            mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.config.TRAIN_DATASET.rm_robot)
+            xyz = xyz[mask]
+            rgb = rgb[mask]
+
+            # 5. downsampling
+            if len(xyz) > self.config.TRAIN_DATASET.num_points:
+                if self.config.TRAIN_DATASET.sample_points_by_distance:
+                    dists = np.sqrt(np.sum((xyz - action_current[:3])**2, 1))
+                    probs = 1 / np.maximum(dists, 0.1)
+                    probs = np.maximum(softmax(probs), 1e-30)
+                    probs = probs / sum(probs)
+                    # probs = 1 / dists
+                    # probs = probs / np.sum(probs)
+                    point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False, p=probs)
+                else:
+                    point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False)
+            else:
+                if self.config.TRAIN_DATASET.same_npoints_per_example:
+                    point_idxs = np.random.choice(xyz.shape[0], self.config.TRAIN_DATASET.num_points, replace=True)
+                else:
+                    point_idxs = np.arange(xyz.shape[0])
+            xyz = xyz[point_idxs]
+            rgb = rgb[point_idxs]
+            # 6. remove outliers
+            # /end of 6
+            height = xyz[:, -1] - self.TABLE_HEIGHT
+
+            robot_box = RobotBox(
+                arm_links_info=arm_links_info,
+                env_name='rlbench', selfgen=True
+            )
+            robot_point_idxs = np.array(
+                list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])
+            )
+            # 7. augment pc
+            xyz, action_current, action_next, gt_rot = self._augment_pc(
+                xyz, action_current, action_next,
+                self.aug_max_rot,)
+
+            # 8.normalize
+            if self.config.TRAIN_DATASET.xyz_shift == 'none':
+                centroid = np.zeros((3, ))
+            elif self.config.TRAIN_DATASET.xyz_shift == 'center':
+                centroid = np.mean(xyz, 0)
+            elif self.config.TRAIN_DATASET.xyz_shift == 'gripper':
+                centroid = copy.deepcopy(action_current[:3])
+
+            if self.config.TRAIN_DATASET.xyz_norm:
+                radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
+            else:
+                radius = 1
+
+            xyz = (xyz - centroid) / radius
+            height = height / radius
+            action_current[:3] = (action_current[:3] - centroid) / radius
+            action_next[:3] = (action_next[:3] - centroid) / radius
+            outs['pc_centroids'].append(centroid)
+            outs['pc_radius'].append(radius)
+
+            action_next = np.concatenate([action_next[:3], gt_rot, action_next[-1:]], 0)
+
+            rgb = (rgb / 255) * 2 - 1
+            pc_ft = np.concatenate([xyz, rgb], 1)
+            if self.use_height:
+                pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
+
+            if self.pos_type == 'disc':
+                # (npoints, 3, 100)
+                disc_pos_prob = get_disc_gt_pos_prob(
+                    xyz, action_next[:3], pos_bins=self.pos_bins,
+                    pos_bin_size=self.pos_bin_size,
+                    heatmap_type=self.pos_heatmap_type,
+                    robot_point_idxs=robot_point_idxs
+                )
+                outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob).to(torch.float32))
+
+            outs['data_ids'].append(data_ids)
+            outs['pc_fts'].append(torch.from_numpy(pc_ft).to(torch.float32))
+            outs['txt_embeds'].append(torch.from_numpy(instr_embed).to(torch.float32))
+            outs['ee_poses'].append(torch.from_numpy(action_current).to(torch.float32))
+            outs['gt_actions'].append(torch.from_numpy(action_next).to(torch.float32))
+            outs['step_ids'].append(t)
+        return outs
+
+    def get_single_frame(self, g_idx):
         # 0. get single frame
         outs = {
             'data_ids': [],
@@ -217,15 +407,17 @@ class SimplePolicyDataset(Dataset):
         }
 
         # 0.1 identify the frame info and output info
-        taskvar = self.g_frame_to_taskvar[g_frame_idx]
-        g_episode = self.g_frame_to_g_episode[g_frame_idx]
+        taskvar = self.g_frame_to_taskvar[g_idx]
+        g_episode = self.g_frame_to_g_episode[g_idx]
         l_episode = self.g_episode_to_l_episode[g_episode]
-        frame_idx = self.g_frame_to_frame[g_frame_idx]
+        frame_idx = self.g_frame_to_frame[g_idx]
 
         # 0.2 get data of specific frame
         data = self.check_cache(g_episode)
         num_frames = len(data['data_ids'])
         t = frame_idx
+        if frame_idx == num_frames:  # 最后一帧已经被去掉了
+            t = frame_idx - 1
 
         # 1.get specific frame data
         outs['data_ids'].append(data['data_ids'][t])
@@ -238,15 +430,6 @@ class SimplePolicyDataset(Dataset):
         outs['pc_centroids'].append(data['pc_centroids'][t])
         outs['pc_radius'].append(data['pc_radius'][t])
         # print('1')
-        # pc_ft = outs['pc_fts'][t]
-        # xyz = pc_ft[:, :3]
-        # rgb = (pc_ft[:, 3:-1] + 1) / 2
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(xyz)
-        # pcd.colors = o3d.utility.Vector3dVector(rgb)
-        # o3d.visualization.draw_geometries([pcd])
-        # action_current_list.append(data['ee_poses'][t].to(torch.float32).numpy())
-        # action_next_list.append(data['gt_actions'][t].to(torch.float32).numpy())
         # print(t)
         return outs
 
@@ -305,25 +488,19 @@ def ptv3_collate_fn(data):
 
 if __name__ == '__main__':
     import yacs.config
-    import pickle
+    from tqdm import trange
+    # seed everything
+    torch.manual_seed(42)
+    np.random.seed(42)
+    random.seed(42)
+
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_exp_augment_angle.yaml')
+    config.merge_from_file('/workspace/zero/zero/v2/config/after_shock.yaml')
+    # config.TRAIN_DATASET.tasks_to_use = ['close_jar']
+    dataset = SimplePolicyDataset(config=config, is_single_frame=False, **config.TRAIN_DATASET)
 
-    dataset = SimplePolicyDataset(config=config, **config.TRAIN_DATASET)
-
-    outs = {
-        'data_ids': [], 'pc_fts': [], 'step_ids': [],
-        'pc_centroids': [], 'pc_radius': [], 'ee_poses': [],
-        'txt_embeds': [], 'gt_actions': [], 'disc_pos_probs': []
-    }
-    episode_length = []
-    dataset_length = len(dataset)
-    print(dataset_length)
-    for i in trange(dataset_length):
-
-        data = dataset[i]
-        for key in data.keys():
-            outs[key].extend(data[key])
-
-    with open('data_mine.pickle', 'wb') as f:
-        pickle.dump(outs, f)
+    data = []
+    for i in range(len(dataset)):
+        data.append(dataset[i])
+    with open('data.pkl', 'wb') as f:
+        pickle.dump(data, f)

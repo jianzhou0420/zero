@@ -1,5 +1,3 @@
-from tqdm import trange
-import open3d as o3d
 from collections.abc import Mapping, Container
 from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
 import sys
@@ -85,7 +83,7 @@ class SimplePolicyDataset(Dataset):
         rm_pc_outliers=False, rm_pc_outliers_neighbors=25, euler_resolution=5,
         pos_type='cont', pos_bins=50, pos_bin_size=0.01,
         pos_heatmap_type='plain', pos_heatmap_no_robot=False,
-        aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, **kwargs
+        aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, is_single_frame=True, **kwargs
     ):
 
         # 0. Parameters
@@ -116,7 +114,7 @@ class SimplePolicyDataset(Dataset):
         self.pos_heatmap_type = pos_heatmap_type
         self.pos_heatmap_no_robot = pos_heatmap_no_robot
         self.real_robot = real_robot
-
+        self.is_single_frame = is_single_frame
         # 0.1. Load some pheripheral information
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
@@ -199,10 +197,57 @@ class SimplePolicyDataset(Dataset):
             lmdb_env.close()
 
     def __len__(self):
-        self.lenth = sum(self.frames)
-        return self.lenth
+        if self.is_single_frame:
+            return sum(self.frames)
+        else:
+            return len(self.frames)
 
     def __getitem__(self, g_frame_idx):
+        # 0. get single frame
+        if self.is_single_frame:
+            return self.get_single_frame(g_frame_idx)
+        else:
+            return self.get_entire_episode(g_frame_idx)
+
+    def get_entire_episode(self, g_idx):
+        outs = {
+            'data_ids': [],
+            'pc_fts': [],
+            'step_ids': [],
+            'pc_centroids': [],
+            'pc_radius': [],
+            'ee_poses': [],
+            'txt_embeds': [],
+            'gt_actions': [],
+            'disc_pos_probs': []
+        }
+
+        # 0.1 identify the frame info and output info
+        taskvar = self.g_frame_to_taskvar[g_idx]
+        g_episode = self.g_frame_to_g_episode[g_idx]
+        l_episode = self.g_episode_to_l_episode[g_episode]
+        frame_idx = self.g_frame_to_frame[g_idx]
+
+        # 0.2 get data of specific frame
+        data = self.check_cache(g_episode)
+        num_frames = len(data['data_ids'])
+
+        # 1.get specific frame data
+        for t in range(num_frames):
+            outs['data_ids'].append(data['data_ids'][t])
+            outs['step_ids'].append(data['step_ids'][t])
+            outs['pc_fts'].append(data['pc_fts'][t])
+            outs['ee_poses'].append(data['ee_poses'][t])
+            outs['txt_embeds'].append(data['txt_embeds'][t])
+            outs['gt_actions'].append(data['gt_actions'][t])
+            outs['disc_pos_probs'].append(data['disc_pos_probs'][t])
+            outs['pc_centroids'].append(data['pc_centroids'][t])
+            outs['pc_radius'].append(data['pc_radius'][t])
+        # print('1')
+        # print(t)
+        return outs
+
+    def get_single_frame(self, g_idx):
         # 0. get single frame
         outs = {
             'data_ids': [],
@@ -217,15 +262,17 @@ class SimplePolicyDataset(Dataset):
         }
 
         # 0.1 identify the frame info and output info
-        taskvar = self.g_frame_to_taskvar[g_frame_idx]
-        g_episode = self.g_frame_to_g_episode[g_frame_idx]
+        taskvar = self.g_frame_to_taskvar[g_idx]
+        g_episode = self.g_frame_to_g_episode[g_idx]
         l_episode = self.g_episode_to_l_episode[g_episode]
-        frame_idx = self.g_frame_to_frame[g_frame_idx]
+        frame_idx = self.g_frame_to_frame[g_idx]
 
         # 0.2 get data of specific frame
         data = self.check_cache(g_episode)
         num_frames = len(data['data_ids'])
         t = frame_idx
+        if frame_idx == num_frames:  # 最后一帧已经被去掉了
+            t = frame_idx - 1
 
         # 1.get specific frame data
         outs['data_ids'].append(data['data_ids'][t])
@@ -238,15 +285,6 @@ class SimplePolicyDataset(Dataset):
         outs['pc_centroids'].append(data['pc_centroids'][t])
         outs['pc_radius'].append(data['pc_radius'][t])
         # print('1')
-        # pc_ft = outs['pc_fts'][t]
-        # xyz = pc_ft[:, :3]
-        # rgb = (pc_ft[:, 3:-1] + 1) / 2
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(xyz)
-        # pcd.colors = o3d.utility.Vector3dVector(rgb)
-        # o3d.visualization.draw_geometries([pcd])
-        # action_current_list.append(data['ee_poses'][t].to(torch.float32).numpy())
-        # action_next_list.append(data['gt_actions'][t].to(torch.float32).numpy())
         # print(t)
         return outs
 
@@ -305,25 +343,26 @@ def ptv3_collate_fn(data):
 
 if __name__ == '__main__':
     import yacs.config
-    import pickle
-    config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_exp_augment_angle.yaml')
+    from tqdm import trange
+    # seed everything
+    torch.manual_seed(42)
+    np.random.seed(42)
+    random.seed(42)
 
+    config = yacs.config.CfgNode(new_allowed=True)
+    config.merge_from_file('/workspace/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml')
+    # config.TRAIN_DATASET.tasks_to_use = ['close_jar']
     dataset = SimplePolicyDataset(config=config, **config.TRAIN_DATASET)
 
-    outs = {
-        'data_ids': [], 'pc_fts': [], 'step_ids': [],
-        'pc_centroids': [], 'pc_radius': [], 'ee_poses': [],
-        'txt_embeds': [], 'gt_actions': [], 'disc_pos_probs': []
-    }
-    episode_length = []
-    dataset_length = len(dataset)
-    print(dataset_length)
-    for i in trange(dataset_length):
+    # dataset
+    data1, out1 = dataset[0]
 
-        data = dataset[i]
-        for key in data.keys():
-            outs[key].extend(data[key])
+    from zero.v1.dataset.dataset_lotus_voxelexp_copy import SimplePolicyDataset
+    dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 
-    with open('data_mine.pickle', 'wb') as f:
-        pickle.dump(outs, f)
+    data2, out2 = dataset[0]
+
+    test = (out1['pc_fts'][0] == out2['pc_fts'][0]).all()
+    print(test)
+
+    print(f"test: {test}")

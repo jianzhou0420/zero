@@ -1,4 +1,3 @@
-from zero.v2.dataprocess.ObsProcessLotus import ObsProcessLotus
 from typing import Tuple, Dict, List
 
 import os
@@ -111,9 +110,8 @@ class ServerArguments(tap.Tap):
     ############################
     ckpt_step = 220000
     seed = 42
-    num_workers = 4
+    num_workers = 1
     num_demos = 20
-
     # microstep_data_dir = '/data/lotus/peract/test/microsteps'
 
 
@@ -162,7 +160,6 @@ class Actioner(object):
         self.taskvar_instrs = json.load(open(data_cfg.taskvar_instr_file))
 
         self.TABLE_HEIGHT = self.WORKSPACE['TABLE_HEIGHT']
-        self.op = ObsProcessLotus(selfgen=False, config=self.config)
 
     def _get_mask_with_label_ids(self, sem, label_ids):
         mask = sem == label_ids[0]
@@ -202,7 +199,7 @@ class Actioner(object):
     def process_point_clouds(
         self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
     ):
-        # keep points in robot workspace
+        # 0. In worksapce
         xyz = xyz.reshape(-1, 3)
         in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
                   (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
@@ -214,7 +211,7 @@ class Actioner(object):
         if gt_sem is not None:
             gt_sem = gt_sem.reshape(-1)[in_mask]
 
-        # downsampling
+        # 1. voxelization
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
         pcd, _, trace = pcd.voxel_down_sample_and_trace(
@@ -272,6 +269,7 @@ class Actioner(object):
                 point_idxs = np.random.choice(xyz.shape[0], self.data_cfg.num_points, replace=True)
             else:
                 point_idxs = np.arange(xyz.shape[0])
+
         xyz = xyz[point_idxs]
         rgb = rgb[point_idxs]
         height = xyz[:, -1] - self.TABLE_HEIGHT
@@ -300,35 +298,27 @@ class Actioner(object):
         return pc_ft, centroid, radius, ee_pose
 
     def preprocess_obs(self, taskvar, step_id, obs):
-        rgb = np.stack(obs['rgb'], 0).reshape(-1, 3)  # (N, H, W, C)
-        xyz = np.stack(obs['pc'], 0).reshape(-1, 3)  # (N, H, W, C)
-        arm_links_info = obs['arm_links_info']
-        action_current = obs['gripper']
+        rgb = np.stack(obs['rgb'], 0)  # (N, H, W, C)
+        xyz = np.stack(obs['pc'], 0)  # (N, H, W, C)
+        if 'gt_mask' in obs:
+            gt_sem = np.stack(obs['gt_mask'], 0)  # (N, H, W)
+        else:
+            gt_sem = None
 
-        # language embedding
-        instr_embed = self.instr_embeds[random.choice(self.taskvar_instrs[taskvar])]
+        # select one instruction
+        instr = self.taskvar_instrs[taskvar][0]
+        instr_embed = self.instr_embeds[instr]
 
-        # process point clouds
-        pc_ft, action_current, action_next, centroid, radius, disc_pos_prob = self.op.pc_action_standard_process(
-            xyz, rgb, arm_links_info, action_current, action_next=None, is_train=False)
-
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(xyz)
-        # pcd.colors = o3d.utility.Vector3dVector(rgb)
-        # o3d.visualization.draw_geometries([pcd])
-
-        # test
-        # pc_sum = sum(pc_ft, 0)
-        # print('pc_centroids', pc_sum)
-        # print('centroid', centroid)
-
-        # /test
+        pc_ft, pc_centroid, pc_radius, ee_pose = self.process_point_clouds(
+            xyz, rgb, gt_sem=gt_sem, ee_pose=copy.deepcopy(obs['gripper']),
+            arm_links_info=obs['arm_links_info'], taskvar=taskvar
+        )
 
         batch = {
             'pc_fts': torch.from_numpy(pc_ft).float(),
-            'pc_centroids': centroid,
-            'pc_radius': radius,
-            'ee_poses': torch.from_numpy(action_current).float().unsqueeze(0),
+            'pc_centroids': pc_centroid,
+            'pc_radius': pc_radius,
+            'ee_poses': torch.from_numpy(ee_pose).float().unsqueeze(0),
             'step_ids': torch.LongTensor([step_id]),
             'txt_embeds': torch.from_numpy(instr_embed).float(),
             'txt_lens': [instr_embed.shape[0]],
@@ -373,18 +363,12 @@ class Actioner(object):
                 action = actions[0]
         action[-1] = torch.sigmoid(action[-1]) > 0.5
 
-        # test action
-
-        print('action', action[:3])
-        action_next_xyz = action[:3] * batch['pc_radius'] + batch['pc_centroids']
-        print('action_next_xyz', action_next_xyz)
-        # /test
-
         # action = action.data.cpu().numpy()
         action = action.numpy()
         action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
+
         # TODO: ensure the action height is above the table
-        # action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
+        action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
         out = {
             'action': action
@@ -401,256 +385,3 @@ class Actioner(object):
             )
 
         return out
-
-
-def consumer_fn(args, batch_queue, result_queues):
-    print('consumer start')
-    # build model
-    set_random_seed(args.seed)
-    actioner = Actioner(args)
-
-    while True:
-        data = batch_queue.get()
-        if data is None:
-            print('Received None value -> Producers finished.')
-            break
-
-        # run one batch
-        k_prod, batch = data
-        out = actioner.predict(**batch)
-        result_queues[k_prod].put(out)
-
-
-def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_queue, producer_queue):
-    task_str, variation = taskvar.split('+')
-    variation = int(variation)
-
-    set_random_seed(args.seed)
-
-    if args.microstep_data_dir != '':
-        episodes_dir = os.path.join(args.microstep_data_dir, task_str, f"variation{variation}", "episodes")
-        if not os.path.exists(str(episodes_dir)):
-            print(f'{taskvar} does not need to be evaluated.')
-            producer_queue.put((proc_id, k_res))
-            return
-
-    env = RLBenchEnv(
-        data_path=args.microstep_data_dir,
-        apply_rgb=True,
-        apply_pc=True,
-        apply_mask=True,
-        headless=True,
-        image_size=args.image_size,
-        cam_rand_factor=0,
-    )
-
-    env.env.launch()
-    task_type = task_file_to_task_class(task_str)
-    task = env.env.get_task(task_type)
-    task.set_variation(variation)  # type: ignore
-
-    if args.record_video:
-        # Add a global camera to the scene
-        cam_placeholder = Dummy('cam_cinematic_placeholder')
-        cam_resolution = [args.video_resolution, args.video_resolution]
-        cam = VisionSensor.create(cam_resolution)
-        cam.set_pose(cam_placeholder.get_pose())
-        cam.set_parent(cam_placeholder)
-
-        if args.video_rotate_cam:
-            global_cam_motion = CircleCameraMotion(cam, Dummy('cam_cinematic_base'), 0.005)
-        else:
-            global_cam_motion = StaticCameraMotion(cam)
-
-        cams_motion = {"global": global_cam_motion}
-
-        if not args.not_include_robot_cameras:
-            # Env cameras
-            cam_left = VisionSensor.create(cam_resolution)
-            cam_right = VisionSensor.create(cam_resolution)
-            cam_wrist = VisionSensor.create(cam_resolution)
-
-            left_cam_motion = AttachedCameraMotion(cam_left, task._scene._cam_over_shoulder_left)
-            right_cam_motion = AttachedCameraMotion(cam_right, task._scene._cam_over_shoulder_right)
-            wrist_cam_motion = AttachedCameraMotion(cam_wrist, task._scene._cam_wrist)
-
-            cams_motion["left"] = left_cam_motion
-            cams_motion["right"] = right_cam_motion
-            cams_motion["wrist"] = wrist_cam_motion
-        tr = TaskRecorder(cams_motion, fps=30)
-        task._scene.register_step_callback(tr.take_snap)
-
-        video_log_dir = os.path.join(args.video_dir, f'{task_str}+{variation}')
-        os.makedirs(str(video_log_dir), exist_ok=True)
-
-    move = Mover(task, max_tries=args.max_tries)
-
-    if args.microstep_data_dir != '':
-        episodes_dir = os.path.join(args.microstep_data_dir, task_str, f"variation{variation}", "episodes")
-        demos = []
-        if os.path.exists(str(episodes_dir)):
-            episode_ids = os.listdir(episodes_dir)
-            episode_ids.sort(key=lambda ep: int(ep[7:]))
-            for idx, ep in enumerate(episode_ids):
-                try:
-                    demo = env.get_demo(task_str, variation, idx, load_images=False)
-                    demos.append(demo)
-                except Exception as e:
-                    print('\tProblem to load demo_id:', idx, ep)
-                    print(e)
-        if len(demos) == 0:
-            print(f'{taskvar} does not need to be evaluated.')
-            return
-    else:
-        demos = None
-
-    num_demos = len(demos) if demos is not None else args.num_demos
-
-    success_rate = 0.0
-    for demo_id in range(num_demos):
-        reward = None
-
-        if demos is None:
-            instructions, obs = task.reset()
-        else:
-            instructions, obs = task.reset_to_demo(demos[demo_id])
-
-        obs_state_dict = env.get_observation(obs)  # type: ignore
-        move.reset(obs_state_dict['gripper'])
-
-        for step_id in range(args.max_steps):
-            # fetch the current observation, and predict one action
-            batch = {
-                'task_str': task_str,
-                'variation': variation,
-                'step_id': step_id,
-                'obs_state_dict': obs_state_dict,
-                'episode_id': demo_id,
-                'instructions': instructions,
-            }
-            batch_queue.put((k_res, batch))
-
-            output = result_queue.get()
-            action = output["action"]
-
-            if action is None:
-                break
-
-            # update the observation based on the predicted action
-            try:
-                obs, reward, terminate, _ = move(action, verbose=False)
-                obs_state_dict = env.get_observation(obs)  # type: ignore
-
-                if reward == 1:
-                    success_rate += 1 / num_demos
-                    break
-                if terminate:
-                    print("The episode has terminated!")
-            except (IKError, ConfigurationPathError, InvalidActionError) as e:
-                print(taskvar, demo_id, step_id, e)
-                reward = 0
-                break
-
-        if args.record_video:  # and reward < 1:
-            tr.save(os.path.join(video_log_dir, f"{demo_id}_SR{reward}"))
-
-        print(
-            taskvar, "Demo", demo_id, 'Step', step_id + 1,
-            "Reward", reward, "Accumulated SR: %.2f" % (success_rate * 100),
-            'Estimated SR: %.2f' % (success_rate * num_demos / (demo_id + 1) * 100)
-        )
-
-    write_to_file(
-        pred_file,
-        {
-            'checkpoint': args.checkpoint,
-            'task': task_str, 'variation': variation,
-            'num_demos': num_demos, 'sr': success_rate
-        }
-    )
-
-    env.env.shutdown()
-    print(colored(f'Taskvar: {taskvar} SR: {success_rate:.2f}', 'black', 'on_yellow'))
-    producer_queue.put((proc_id, k_res))
-
-
-def main():
-    # To use gpu in subprocess: https://pytorch.org/docs/stable/notes/multiprocessing.html
-
-    check_point_number = ['199', '399', '599', '799', '999', '1199', '1599', '1999', '2499',]
-
-    mp.set_start_method('spawn')
-    for ckpt_num in check_point_number:
-        args = ServerArguments().parse_args(known_only=True)
-        args.remained_args = args.extra_args
-        args.exp_config = '/workspace/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
-        args.checkpoint = f'/media/jian/ssd4t/logs/lotus_exp2_0.01_close_jar.yaml/lightning_logs/version_1/checkpoints/20250118_164143lotus_exp2_0.01_close_jar.yamlepoch={ckpt_num}.ckpt'
-
-        checkpoint_name = args.checkpoint.split('/')[-1]
-
-        args.expr_dir = f'/data/exp/EXPLOG/{checkpoint_name}/preds'
-        args.video_dir = f'/data/exp/EXPLOG/{checkpoint_name}/vidoes'
-        args.tasks_to_use = ['close_jar']
-
-        # seeds = [42]
-
-        if not os.path.exists(args.checkpoint):
-            print(args.checkpoint, 'not exists')
-            return
-
-        pred_dir = os.path.join(args.expr_dir, 'preds', f'seed{args.seed}')
-        os.makedirs(pred_dir, exist_ok=True)
-        pred_file = os.path.join(pred_dir, 'results.jsonl')
-        existed_taskvars = set()
-        if os.path.exists(pred_file):
-            with jsonlines.open(pred_file, 'r') as f:
-                for item in f:
-                    item_step = int(os.path.basename(item['checkpoint']).split('.')[0].split('_')[-1])
-                    if item_step == args.ckpt_step:
-                        existed_taskvars.add(f"{item['task']}+{item['variation']}")
-
-        taskvars = json.load(open(args.taskvar_file))
-        taskvars = [taskvar for taskvar in taskvars if taskvar not in existed_taskvars]
-        print('checkpoint', args.ckpt_step, '#taskvars', len(taskvars))
-
-        # taskvar_to_use
-        taskvars = [taskvar for taskvar in taskvars if taskvar.split('_peract')[0] in args.tasks_to_use]
-
-        batch_queue = mp.Queue(args.queue_size)
-        result_queues = [mp.Queue(args.queue_size) for _ in range(args.num_workers)]
-        producer_queue = mp.Queue(args.queue_size)
-
-        consumer = mp.Process(target=consumer_fn, args=(args, batch_queue, result_queues))
-        consumer.start()
-
-        producers = {}
-        i, k_res = 0, 0
-        while i < len(taskvars):
-            taskvar = taskvars[i]
-            if len(producers) < args.num_workers:
-                print('start', i, taskvar)
-                producer = mp.Process(
-                    target=producer_fn,
-                    args=(i, k_res, args, taskvar, pred_file, batch_queue, result_queues[k_res], producer_queue),
-                    name=taskvar
-                )
-                producer.start()
-                producers[i] = producer
-                i += 1
-                k_res += 1
-            else:
-                proc_id, k_res = producer_queue.get()
-                producers[proc_id].join()
-                del producers[proc_id]
-                # producers[0].join()
-                # producers = producers[1:]
-
-        for p in producers.values():
-            p.join()
-
-        batch_queue.put(None)
-        consumer.join()
-
-
-if __name__ == '__main__':
-    main()

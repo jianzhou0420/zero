@@ -17,13 +17,13 @@ import open3d as o3d
 from sklearn.neighbors import LocalOutlierFactor
 from scipy.spatial.transform import Rotation as R
 
-from zero.v1.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
+from zero.v2.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 
-from zero.v1.config.default import get_config
+from zero.v2.config.default import get_config
 
-from zero.v1.config.constants import get_robot_workspace, get_rlbench_labels
+from zero.v2.config.constants import get_robot_workspace, get_rlbench_labels
 from zero.z_utils.robot_box import RobotBox
 import random
 from zero.env.rlbench_lotus.recorder import (
@@ -32,7 +32,7 @@ from zero.env.rlbench_lotus.recorder import (
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
-from zero.v1.trainer_lotus import TrainerLotus
+from zero.v2.trainer_lotus import TrainerLotus
 
 
 def task_file_to_task_class(task_file):
@@ -81,7 +81,7 @@ class ServerArguments(tap.Tap):
     ckpt_step: int
     device: str = 'cuda'  # cpu, cuda
 
-    image_size: List[int] = [256, 256]
+    image_size: List[int] = [512, 512]
     max_tries: int = 10
     max_steps: int = 25
 
@@ -89,7 +89,7 @@ class ServerArguments(tap.Tap):
     seed: int = 2024  # seed for RLBench
     num_workers: int = 1
     queue_size: int = 20
-    taskvar_file: str = '/workspace/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
+    taskvar_file: str = '/workspace/zero/zero/v2/models/lotus/assets/taskvars_peract.json'
     num_demos: int = 20
     num_ensembles: int = 1
 
@@ -110,7 +110,7 @@ class ServerArguments(tap.Tap):
     ############################
     ckpt_step = 220000
     seed = 42
-    num_workers = 1
+    num_workers = 4
     num_demos = 20
     # microstep_data_dir = '/data/lotus/peract/test/microsteps'
 
@@ -366,6 +366,7 @@ class Actioner(object):
         # action = action.data.cpu().numpy()
         action = action.numpy()
         action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
+
         # TODO: ensure the action height is above the table
         action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
@@ -422,7 +423,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         apply_rgb=True,
         apply_pc=True,
         apply_mask=True,
-        headless=False,
+        headless=True,
         image_size=args.image_size,
         cam_rand_factor=0,
     )
@@ -560,21 +561,23 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
 def main():
     # To use gpu in subprocess: https://pytorch.org/docs/stable/notes/multiprocessing.html
 
+    check_point_number = ['199', '399', '599', '799', '999', '1199', '1599', '1999', '2499',]
+
     mp.set_start_method('spawn')
+    for ckpt_num in check_point_number:
+        args = ServerArguments().parse_args(known_only=True)
+        args.remained_args = args.extra_args
+        args.exp_config = '/workspace/zero/zero/v2/config/after_shock.yaml'
+        args.checkpoint = f'/media/jian/ssd4t/logs/after_shock.yaml/lightning_logs/version_10/checkpoints/20250120_025303after_shock.yamlepoch={ckpt_num}.ckpt'
 
-    args = ServerArguments().parse_args(known_only=True)
-    args.remained_args = args.extra_args
-    args.exp_config = '/workspace/zero/zero/v1/config/lotus.yaml'
-    args.checkpoint = '/media/jian/ssd4t/ckpt/20241225_004530epoch=1359.ckpt'
+        checkpoint_name = args.checkpoint.split('/')[-1]
 
-    checkpoint_name = args.checkpoint.split('/')[-1]
+        args.expr_dir = f'/data/exp/EXPLOG/{checkpoint_name}/preds'
+        args.video_dir = f'/data/exp/EXPLOG/{checkpoint_name}/vidoes'
+        args.tasks_to_use = ['close_jar']
 
-    args.expr_dir = f'/data/exp/EXPLOG/{checkpoint_name}/preds'
-    args.video_dir = f'/data/exp/EXPLOG/{checkpoint_name}/vidoes'
-    # args.tasks_to_use = ['close_jar']
-    seeds = [42]
-    for i in range(20):
-        args.seed = i
+        # seeds = [42]
+
         if not os.path.exists(args.checkpoint):
             print(args.checkpoint, 'not exists')
             return
@@ -593,6 +596,9 @@ def main():
         taskvars = json.load(open(args.taskvar_file))
         taskvars = [taskvar for taskvar in taskvars if taskvar not in existed_taskvars]
         print('checkpoint', args.ckpt_step, '#taskvars', len(taskvars))
+
+        # taskvar_to_use
+        taskvars = [taskvar for taskvar in taskvars if taskvar.split('_peract')[0] in args.tasks_to_use]
 
         batch_queue = mp.Queue(args.queue_size)
         result_queues = [mp.Queue(args.queue_size) for _ in range(args.num_workers)]
