@@ -82,8 +82,8 @@ class ServerArguments(tap.Tap):
     device: str = 'cuda'  # cpu, cuda
 
     image_size: List[int] = [512, 512]
-    max_tries: int = 10
-    max_steps: int = 25
+    max_tries: int = 5
+    max_steps: int = 15
 
     microstep_data_dir: str = ''
     seed: int = 2024  # seed for RLBench
@@ -111,7 +111,7 @@ class ServerArguments(tap.Tap):
     ckpt_step = 220000
     seed = 42
     num_workers = 4
-    num_demos = 20
+    num_demos = 10
     # microstep_data_dir = '/data/lotus/peract/test/microsteps'
 
 
@@ -279,17 +279,12 @@ class Actioner(object):
     def process_point_clouds(
         self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
     ):
+        # obs process ###################
         # 0. In worksapce
+        # gt_sem = None
         xyz = xyz.reshape(-1, 3)
-        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
-                  (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
-                  (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
-        if self.data_cfg.rm_table:
-            in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
-        xyz = xyz[in_mask]
-        rgb = rgb.reshape(-1, 3)[in_mask]
-        if gt_sem is not None:
-            gt_sem = gt_sem.reshape(-1)[in_mask]
+        rgb = rgb.reshape(-1, 3)
+        gt_sem = gt_sem.reshape(-1)
 
         # 1. voxelization
         pcd = o3d.geometry.PointCloud()
@@ -302,6 +297,17 @@ class Actioner(object):
         rgb = rgb[trace]
         if gt_sem is not None:
             gt_sem = gt_sem[trace]
+
+        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
+                  (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
+                  (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+        if self.data_cfg.rm_table:
+            in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
+        xyz = xyz[in_mask]
+        rgb = rgb[in_mask]
+        if gt_sem is not None:
+            gt_sem = gt_sem.reshape(-1)[in_mask]
+        ################### dataset process ###################
 
         if self.args.real_robot:
             for _ in range(1):
@@ -651,8 +657,8 @@ def main():
 
     checkpoint_name = args.checkpoint.split('/')[-1]
 
-    args.expr_dir = f'/data/zero/data/exp/EXPLOG/{checkpoint_name}/preds'
-    args.video_dir = f'/data/zero/data/exp/EXPLOG/{checkpoint_name}/vidoes'
+    args.expr_dir = f'/data/zero/exp/EXPLOG/{checkpoint_name}/preds'
+    args.video_dir = f'/data/zero/exp/EXPLOG/{checkpoint_name}/vidoes'
     args.tasks_to_use = ['close_jar']
 
     if not os.path.exists(args.checkpoint):

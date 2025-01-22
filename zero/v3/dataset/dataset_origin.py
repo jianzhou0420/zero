@@ -1,5 +1,4 @@
 import open3d as o3d
-from zero.v3.tools_scripts.draw_pointcloud import PointCloudDrawer
 from tqdm import trange
 from zero.v3.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 from zero.v3.models.lotus.utils.robot_box import RobotBox

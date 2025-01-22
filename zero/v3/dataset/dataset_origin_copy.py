@@ -258,138 +258,7 @@ class SimplePolicyDataset(Dataset):
         else:
             return self.get_entire_episode(g_frame_idx)
 
-    def get_entire_episode(self, g_episode):
-        outs = {
-            'data_ids': [],
-            'pc_fts': [],
-            'step_ids': [],
-            'pc_centroids': [],
-            'pc_radius': [],
-            'ee_poses': [],
-            'txt_embeds': [],
-            'gt_actions': [],
-            'disc_pos_probs': []
-        }
-
-        # 0.1 identify the frame info and output info
-        taskvar = self.g_episode_to_taskvar[g_episode]
-
-        # 0.2 get data of specific frame
-        data = self.check_cache(g_episode)
-        num_frames = len(data['data_ids'])
-
-        # 1.get specific frame data
-        for t in range(num_frames):
-            data_ids = data['data_ids'][t]
-            xyz = copy.deepcopy(data['xyz'][t])
-            rgb = copy.deepcopy(data['rgb'][t])
-            action_current = copy.deepcopy(data['action_current'][t])
-            action_next = copy.deepcopy(data['action_next'][t])
-            arm_links_info = copy.deepcopy(data['arm_links_info'][t])
-            instr = random.choice(self.taskvar_instrs[taskvar])
-            instr_embed = copy.deepcopy(self.instr_embeds[instr])
-            # print(f"taskvar: {taskvar}, instr: {instr}")
-            # print('instr', instr)
-            # if taskvar.split('+')[-1] == '0':
-            print('g_episode', g_episode)
-            print('task_var', taskvar)
-            # if taskvar.split('+')[-1] == '6':
-            #     print('task_var', taskvar)
-
-            # preprocess have done the following:
-            # 1. voxelization
-            # 2. remove outside workspace points
-            # 3. remove table points
-            # over
-            # 4. remove robot points
-
-            mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.config.TRAIN_DATASET.rm_robot)
-            xyz = xyz[mask]
-            rgb = rgb[mask]
-
-            # 5. downsampling
-            if len(xyz) > self.config.TRAIN_DATASET.num_points:
-                if self.config.TRAIN_DATASET.sample_points_by_distance:
-                    dists = np.sqrt(np.sum((xyz - action_current[:3])**2, 1))
-                    probs = 1 / np.maximum(dists, 0.1)
-                    probs = np.maximum(softmax(probs), 1e-30)
-                    probs = probs / sum(probs)
-                    # probs = 1 / dists
-                    # probs = probs / np.sum(probs)
-                    point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False, p=probs)
-                else:
-                    point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False)
-            else:
-                if self.config.TRAIN_DATASET.same_npoints_per_example:
-                    point_idxs = np.random.choice(xyz.shape[0], self.config.TRAIN_DATASET.num_points, replace=True)
-                else:
-                    point_idxs = np.arange(xyz.shape[0])
-            xyz = xyz[point_idxs]
-            rgb = rgb[point_idxs]
-
-            # 6. remove outliers
-            # /end of 6
-            height = xyz[:, -1] - self.TABLE_HEIGHT
-
-            robot_box = RobotBox(
-                arm_links_info=arm_links_info,
-                env_name='rlbench', selfgen=True
-            )
-            robot_point_idxs = np.array(
-                list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])
-            )
-            # 7. augment pc
-            xyz, action_current, action_next, gt_rot = self._augment_pc(
-                xyz, action_current, action_next,
-                self.aug_max_rot,)
-
-            # 8.normalize
-            if self.config.TRAIN_DATASET.xyz_shift == 'none':
-                centroid = np.zeros((3, ))
-            elif self.config.TRAIN_DATASET.xyz_shift == 'center':
-                centroid = np.mean(xyz, 0)
-            elif self.config.TRAIN_DATASET.xyz_shift == 'gripper':
-                centroid = copy.deepcopy(action_current[:3])
-
-            if self.config.TRAIN_DATASET.xyz_norm:
-                radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
-            else:
-                radius = 1
-
-            xyz = (xyz - centroid) / radius
-            height = height / radius
-            action_current[:3] = (action_current[:3] - centroid) / radius
-            action_next[:3] = (action_next[:3] - centroid) / radius
-            outs['pc_centroids'].append(centroid)
-            outs['pc_radius'].append(radius)
-
-            action_next = np.concatenate([action_next[:3], gt_rot, action_next[-1:]], 0)
-
-            rgb = (rgb / 255) * 2 - 1
-            pc_ft = np.concatenate([xyz, rgb], 1)
-            if self.use_height:
-                pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
-
-            if self.pos_type == 'disc':
-                # (npoints, 3, 100)
-                disc_pos_prob = get_disc_gt_pos_prob(
-                    xyz, action_next[:3], pos_bins=self.pos_bins,
-                    pos_bin_size=self.pos_bin_size,
-                    heatmap_type=self.pos_heatmap_type,
-                    robot_point_idxs=robot_point_idxs
-                )
-                outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob).to(torch.float32))
-
-            outs['data_ids'].append(data_ids)
-            outs['pc_fts'].append(torch.from_numpy(pc_ft).to(torch.float32))
-            outs['txt_embeds'].append(torch.from_numpy(instr_embed).to(torch.float32))
-            outs['ee_poses'].append(torch.from_numpy(action_current).to(torch.float32))
-            outs['gt_actions'].append(torch.from_numpy(action_next).to(torch.float32))
-            outs['step_ids'].append(t)
-        return outs
-
-    def get_single_frame(self, g_idx):
-        # 0. get single frame
+    def get_entire_episode(self, g_idx):
         outs = {
             'data_ids': [],
             'pc_fts': [],
@@ -411,22 +280,129 @@ class SimplePolicyDataset(Dataset):
         # 0.2 get data of specific frame
         data = self.check_cache(g_episode)
         num_frames = len(data['data_ids'])
-        t = frame_idx
-        if frame_idx == num_frames:  # 最后一帧已经被去掉了
-            t = frame_idx - 1
 
         # 1.get specific frame data
-        outs['data_ids'].append(data['data_ids'][t])
-        outs['step_ids'].append(data['step_ids'][t])
-        outs['pc_fts'].append(data['pc_fts'][t])
-        outs['ee_poses'].append(data['ee_poses'][t])
-        outs['txt_embeds'].append(data['txt_embeds'][t])
-        outs['gt_actions'].append(data['gt_actions'][t])
-        outs['disc_pos_probs'].append(data['disc_pos_probs'][t])
-        outs['pc_centroids'].append(data['pc_centroids'][t])
-        outs['pc_radius'].append(data['pc_radius'][t])
-        # print('1')
-        # print(t)
+        for t in range(num_frames):
+            data_ids = data['data_ids'][t]
+            xyz = copy.deepcopy(data['xyz'][t])
+            rgb = copy.deepcopy(data['rgb'][t])
+            ee_pose = copy.deepcopy(data['action_current'][t])
+            gt_action = copy.deepcopy(data['action_next'][t])
+            arm_links_info = copy.deepcopy(data['arm_links_info'][t])
+            instr_embed = copy.deepcopy(self.instr_embeds[random.choice(self.taskvar_instrs[taskvar])])
+
+            xyz, rgb = data['xyz'][t], data['rgb'][t]
+
+            # # real robot point cloud is very noisy, requiring noise point cloud removal
+            # # segmentation fault if n_workers>0
+            # if self.real_robot:
+            #     pcd = o3d.geometry.PointCloud()
+            #     pcd.points = o3d.utility.Vector3dVector(xyz)
+            #     pcd.colors = o3d.utility.Vector3dVector(rgb)
+            #     pcd, outlier_masks = pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=0.2)
+            #     xyz = xyz[outlier_masks]
+            #     rgb = rgb[outlier_masks]
+
+            # randomly select one instruction
+            instr = random.choice(self.taskvar_instrs[taskvar])
+            instr_embed = self.instr_embeds[instr]
+
+            # remove background points (table, robot arm)
+            if self.rm_table:
+                mask = xyz[..., 2] > self.TABLE_HEIGHT
+                xyz = xyz[mask]
+                rgb = rgb[mask]
+            if self.rm_robot.startswith('box'):
+                mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.rm_robot)
+                xyz = xyz[mask]
+                rgb = rgb[mask]
+
+            # TODO: segmentation fault in cleps with num_workers>0
+            if self.rm_pc_outliers:
+                xyz, rgb = self._rm_pc_outliers(xyz, rgb)
+
+            # sampling points
+            if len(xyz) > self.num_points:
+                if self.sample_points_by_distance:
+                    dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
+                    probs = 1 / np.maximum(dists, 0.1)
+                    probs = np.maximum(softmax(probs), 1e-30)
+                    probs = probs / sum(probs)
+                    # probs = 1 / dists
+                    # probs = probs / np.sum(probs)
+                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False, p=probs)
+                else:
+                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+            else:
+                if self.same_npoints_per_example:
+                    point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
+                else:
+                    max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
+                    point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+
+            xyz = xyz[point_idxs]
+            rgb = rgb[point_idxs]
+            height = xyz[:, -1] - self.TABLE_HEIGHT
+
+            if self.pos_heatmap_no_robot:
+                robot_box = RobotBox(
+                    arm_links_info=arm_links_info,
+                    env_name='rlbench', selfgen=True
+                )
+                robot_point_idxs = np.array(
+                    list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])
+                )
+            else:
+                robot_point_idxs = None
+
+            # point cloud augmentation
+            if self.augment_pc:
+                xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
+                    xyz, ee_pose, gt_action, self.aug_max_rot
+                )
+
+            # normalize point cloud
+            if self.xyz_shift == 'none':
+                centroid = np.zeros((3, ))
+            elif self.xyz_shift == 'center':
+                centroid = np.mean(xyz, 0)
+            elif self.xyz_shift == 'gripper':
+                centroid = copy.deepcopy(ee_pose[:3])
+            if self.xyz_norm:
+                radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
+            else:
+                radius = 1
+
+            xyz = (xyz - centroid) / radius
+            height = height / radius
+            gt_action[:3] = (gt_action[:3] - centroid) / radius
+            ee_pose[:3] = (ee_pose[:3] - centroid) / radius
+            outs['pc_centroids'].append(centroid)
+            outs['pc_radius'].append(radius)
+
+            gt_action = np.concatenate([gt_action[:3], gt_rot, gt_action[-1:]], 0)
+
+            rgb = (rgb / 255.) * 2 - 1
+            pc_ft = np.concatenate([xyz, rgb], 1)
+            if self.use_height:
+                pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
+
+            if self.pos_type == 'disc':
+                # (npoints, 3, 100)
+                disc_pos_prob = get_disc_gt_pos_prob(
+                    xyz, gt_action[:3], pos_bins=self.pos_bins,
+                    pos_bin_size=self.pos_bin_size,
+                    heatmap_type=self.pos_heatmap_type,
+                    robot_point_idxs=robot_point_idxs
+                )
+                outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
+
+            outs['data_ids'].append(data_ids)
+            outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
+            outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
+            outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
+            outs['gt_actions'].append(torch.from_numpy(gt_action).float())
+            outs['step_ids'].append(t)
         return outs
 
 
@@ -495,6 +471,7 @@ if __name__ == '__main__':
     # config.TRAIN_DATASET.tasks_to_use = ['close_jar']
     dataset = SimplePolicyDataset(config=config, is_single_frame=False, **config.TRAIN_DATASET)
 
-    data = []
     for i in range(len(dataset)):
-        dataset[i]
+        data = dataset[i]
+
+        break

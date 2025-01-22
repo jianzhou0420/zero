@@ -21,6 +21,8 @@ from zero.v3.models.lotus.utils.rotation_transform import (
 )
 from sklearn.neighbors import LocalOutlierFactor
 import random
+
+
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
@@ -85,11 +87,19 @@ class ObsProcessLotus:
         self.selfgen = selfgen
         self.config = config
 
+        if self.config == None:
+            default_config_path = '/data/zero/zero/v3/config/after_shock.yaml'
+            self.config = yacs.config.CfgNode(new_allowed=True)
+            self.config.merge_from_file(default_config_path)
+
+        print(self.config)
+        print('Config loaded')
+
     ##########################################
     ########## Public Functions ##############
     ##########################################
 
-    def dataset_generation_single_episodes(self, data, episode_path, instr_embeds, taskvar_instrs, visualize=False):
+    def dataset_preprocess_single_episode(self, data, episode_path):
         ''' 
         receive data from selfgen_one_step, this function process single episode data
         input = {
@@ -124,9 +134,9 @@ class ObsProcessLotus:
         }
 
         all_names = episode_path.split('/')
-        task_name = all_names[9]
-        variation_name = all_names[10].split('variation')[-1]
-        episode_name = all_names[12]
+        task_name = all_names[6]
+        variation_name = all_names[7].split('variation')[-1]
+        episode_name = all_names[9]
         taskvar = f'{task_name}_peract+{variation_name}'
         '''
         1. remove outside workspace
@@ -144,6 +154,16 @@ class ObsProcessLotus:
             action_next = copy.deepcopy(data['action'][t + 1])
 
             gt_rot = gt_rots[t]
+
+            # 1.remove ouside workspace
+            in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
+                      (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
+                      (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+            # 2. remove table
+            in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
+            xyz = xyz[in_mask]
+            rgb = rgb[in_mask]
+
             # 3. voxelization
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(xyz)
@@ -153,15 +173,6 @@ class ObsProcessLotus:
             xyz = np.asarray(pcd.points)
             trace = np.array([v[0] for v in trace])
             rgb = rgb[trace]
-
-            # 1.remove ouside workspace
-            in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
-                (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
-                (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
-            # 2. remove table
-            in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
-            xyz = xyz[in_mask]
-            rgb = rgb[in_mask]
 
             xyz = np.array(xyz, dtype=np.float32)
             rgb = np.array(rgb, dtype=np.float32)
@@ -184,19 +195,14 @@ class ObsProcessLotus:
 
         return outs
 
-    def dataset_generation(self, origin_data_root, output_dir, tasks_to_use=None):
+    def dataset_preprocess(self, origin_data_root, output_dir, tasks_to_use=None):
 
         tasks_list = self._retrieve_all_episodes(origin_data_root)
-        taskvar_instr_file = self.config.TRAIN_DATASET.taskvar_instr_file
-        instr_embed_file = self.config.TRAIN_DATASET.instr_embed_file
-        taskvar_instrs = json.load(open(taskvar_instr_file))
-        instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
-        if self.config.TRAIN_DATASET.instr_embed_type == 'last':
-            instr_embeds = {instr: embeds[-1:] for instr, embeds in instr_embeds.items()}
         total = sum([len(variation) for task in tasks_list for variation in task])    # nested sum
         pbar = tqdm(total=total)
         for task in tasks_list:
-            task_name = task[0][0].split('/')[9]
+            # test = task[0][0].split('/')
+            task_name = task[0][0].split('/')[6]
             if tasks_to_use is not None and task_name not in tasks_to_use:
                 pbar.update(100)
                 continue
@@ -212,22 +218,83 @@ class ObsProcessLotus:
                     with open(data_path, 'rb') as f:
                         data = pickle.load(f)
                     # print(rgb.shape, xyz.shape)
-                    new_data = self.dataset_generation_single_episodes(data, episode, instr_embeds, taskvar_instrs, visualize=False)
+                    new_data = self.dataset_preprocess_single_episode(data, episode)
 
                     with open(export_path, 'wb') as f:
                         pickle.dump(new_data, f)
                     pbar.update(1)
 
+    ##########################################
+    ########## Private Functions #############
+    ##########################################
+
+    def _get_groundtruth_rotations(self, action,):
+        gt_rots = torch.from_numpy(action.copy())   # quaternions
+        rot_type = self.config.TRAIN_DATASET.rot_type
+        euler_resolution = self.config.TRAIN_DATASET.euler_resolution
+        if rot_type == 'euler':    # [-1, 1]
+            gt_rots = self.rotation_transform.quaternion_to_euler(gt_rots[1:]) / 180.
+            gt_rots = torch.cat([gt_rots, gt_rots[-1:]], 0)
+        elif rot_type == 'euler_disc':  # 3D
+            gt_rots = [quaternion_to_discrete_euler(x, euler_resolution) for x in gt_rots[1:]]
+            gt_rots = torch.from_numpy(np.stack(gt_rots + gt_rots[-1:]))
+        elif rot_type == 'euler_delta':
+            gt_eulers = self.rotation_transform.quaternion_to_euler(gt_rots)
+            gt_rots = (gt_eulers[1:] - gt_eulers[:-1]) % 360
+            gt_rots[gt_rots > 180] -= 360
+            gt_rots = gt_rots / 180.
+            gt_rots = torch.cat([gt_rots, torch.zeros(1, 3)], 0)
+        elif rot_type == 'rot6d':
+            gt_rots = self.rotation_transform.quaternion_to_ortho6d(gt_rots)
+            gt_rots = torch.cat([gt_rots, gt_rots[-1:]], 0)
+        else:
+            gt_rots = torch.cat([gt_rots, gt_rots[-1:]], 0)
+        gt_rots = gt_rots.numpy()
+        return gt_rots
+
+    def _retrieve_all_episodes(self, root_path):
+        tasks_list = []
+        all_tasks = sorted(os.listdir(root_path), key=natural_sort_key)
+        for task in all_tasks:
+            variations_list = []
+            tasks_list.append(variations_list)
+            task_path = os.path.join(root_path, task)
+            all_variations = sorted(os.listdir(task_path), key=natural_sort_key)
+            for variation in all_variations:
+                episodes_list = []
+                variations_list.append(episodes_list)
+                single_variation_path = os.path.join(task_path, variation, 'episodes')
+                all_episodes = sorted(os.listdir(single_variation_path), key=natural_sort_key)
+                for episode in all_episodes:
+                    single_episode_path = os.path.join(single_variation_path, episode, 'data.pkl')
+                    episodes_list.append(single_episode_path)
+
+        return tasks_list
+
+    ##########################################
+    ##########     Functions   ###############
+    ##########################################
+
+    def inside_workspace_mask(self, xyz):
+        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
+            (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
+            (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+        return in_mask
+
 
 if __name__ == '__main__':
-    config_path = '/data/zero/zero/v3/config/after_shock.yaml'
+    # mixed args
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', type=str, default='exp1_0.005')
+    args = parser.parse_args()
+    config_path = os.path.join('/data/zero/zero/v3/config', args.config + '.yaml')
+
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(config_path)
+
     op = ObsProcessLotus(config, selfgen=True)
 
-    origin_data_root = '/media/jian/ssd4t/selfgen/20250105/train_dataset/keysteps/seed42'
     # from datetime import datetime
 
-    output_dir = f'/media/jian/ssd4t/selfgen/after_shock3/'
-    tasks_to_use = ['close_jar']
-    op.dataset_generation(origin_data_root, output_dir, tasks_to_use=tasks_to_use)
+    op.dataset_preprocess(config.selfgen_dir, config.preprocess_dir, tasks_to_use=config.tasks_to_use)

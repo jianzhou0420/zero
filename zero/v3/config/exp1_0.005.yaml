@@ -4,11 +4,9 @@
 ############################################
 pl_flag: True
 exp_name: 'after_shock'
-preprocess_dir: '/data/zero/data/preprocess/after_shock3'
+preprocess_dir: '/data/zero/data/preprocess/exp0.005'
 selfgen_dir: '/data/zero/data/selfgen/seed42'
-tasks_to_use: ['close_jar']
-
-
+tasks_to_use: ['insert_onto_square_peg']
 ############################################
 # Trainning configs
 ############################################
@@ -20,7 +18,6 @@ TRAIN:
     decoder: False
 
   train_batch_size: 4
-  # val_batch_size: 1
 
   gradient_accumulation_steps: 1
   num_epochs: null
@@ -43,7 +40,7 @@ TRAIN:
 
 
 TRAIN_DATASET:
-  # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
+  data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/zero/v2/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/zero/v2/models/lotus/assets/taskvars_peract.json'
@@ -70,7 +67,7 @@ TRAIN_DATASET:
   pos_heatmap_no_robot: True
   real_robot: False
   euler_resolution: 5
-
+  tasks_to_use: ['close_jar']
 
 MODEL:
   model_class: 'SimplePolicyPTV3CA'
@@ -111,7 +108,7 @@ MODEL:
     add_coords_in_attn: 'none' # none, qk, qkv
 
   action_config:
-    voxel_size: 0.01 # 1cm
+    voxel_size: 0.005
     context_channels: 256
 
     txt_ft_size: 512

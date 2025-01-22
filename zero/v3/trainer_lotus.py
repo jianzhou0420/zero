@@ -3,7 +3,7 @@
 from pytorch_lightning.profilers import SimpleProfiler
 from pytorch_lightning.callbacks import Callback
 from zero.v3.models.lotus.optim.misc import build_optimizer
-from zero.v3.dataset.dataset_v4 import SimplePolicyDataset, ptv3_collate_fn
+from zero.v3.dataset.dataset_origin_copy import SimplePolicyDataset, ptv3_collate_fn
 from zero.v3.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime
@@ -18,7 +18,6 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 import torch.distributed as dist
 from typing import List, Dict, Tuple, Union, Iterator
-from argparse import Namespace
 import math
 import os
 from pytorch_lightning.strategies import DDPStrategy
@@ -27,8 +26,7 @@ import warnings
 
 warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
 
-# utils package
-#
+
 torch.set_float32_matmul_precision('medium')
 
 

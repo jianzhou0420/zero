@@ -15,9 +15,6 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-import torch.distributed as dist
-from typing import List, Dict, Tuple, Union, Iterator
-from argparse import Namespace
 import math
 import os
 from pytorch_lightning.strategies import DDPStrategy
