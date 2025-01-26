@@ -76,21 +76,19 @@ def gen_seq_masks(seq_lens, max_len=None):
     return masks
 
 
-class ServerArguments(tap.Tap):
+class EvalArgs(tap.Tap):
     expr_dir: str = '/data/ckpt/'
-    ckpt_step: int
+
     device: str = 'cuda'  # cpu, cuda
 
     image_size: List[int] = [512, 512]
-    max_tries: int = 10
-    max_steps: int = 25
+    max_tries: int = 5
+    max_steps: int = 15
 
     microstep_data_dir: str = ''
-    seed: int = 2024  # seed for RLBench
     num_workers: int = 1
     queue_size: int = 20
     taskvar_file: str = '/data/zero/zero/v3/models/lotus/assets/taskvars_peract.json'
-    num_demos: int = 20
     num_ensembles: int = 1
 
     save_obs_outs_dir: str = None
@@ -111,7 +109,11 @@ class ServerArguments(tap.Tap):
     ckpt_step = 220000
     seed = 42
     num_workers = 4
-    num_demos = 20
+    num_demos = 10
+    config: str = None
+    name: str = None
+    checkpoint: str = None
+    tasks_to_use: List[str] = None
     # microstep_data_dir = '/data/lotus/peract/test/microsteps'
 
 
@@ -124,14 +126,9 @@ class Actioner(object):
         self.WORKSPACE = get_robot_workspace(real_robot=args.real_robot)
         self.device = torch.device(args.device)
 
-        config = get_config(args.exp_config, args.remained_args)
+        config = get_config(args.config, args.remained_args)
         self.config = config
         self.config.defrost()
-        self.config.TRAIN_DATASET.sample_points_by_distance = self.config.TRAIN_DATASET.get('sample_points_by_distance', False)
-        self.config.TRAIN_DATASET.rm_pc_outliers = self.config.TRAIN_DATASET.get('rm_pc_outliers', False)
-        self.config.TRAIN_DATASET.rm_pc_outliers_neighbors = self.config.TRAIN_DATASET.get('rm_pc_outliers_neighbors', 10)
-        self.config.TRAIN_DATASET.same_npoints_per_example = self.config.TRAIN_DATASET.get('same_npoints_per_example', False)
-        self.config.MODEL.action_config.best_disc_pos = args.best_disc_pos
 
         if args.checkpoint is not None:
             config.checkpoint = args.checkpoint
@@ -639,21 +636,15 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
 
 
 def main():
-
-    # check_point_number = ['2499', '3499', '4499', '5499', '6499']
-
     mp.set_start_method('spawn')
     # for ckpt_num in check_point_number:
-    args = ServerArguments().parse_args(known_only=True)
+    args = EvalArgs().parse_args(known_only=True)
     args.remained_args = args.extra_args
-    args.exp_config = '/data/zero/zero/v3/config/after_shock.yaml'
-    args.checkpoint = '/media/jian/ssd4t/logs/after_shock.yaml/lightning_logs/version_11/checkpoints/20250121_235201after_shock.yamlepoch=2499.ckpt'
-
     checkpoint_name = args.checkpoint.split('/')[-1]
 
-    args.expr_dir = f'/data/zero/data/exp/EXPLOG/{checkpoint_name}/preds'
-    args.video_dir = f'/data/zero/data/exp/EXPLOG/{checkpoint_name}/vidoes'
-    args.tasks_to_use = ['close_jar']
+    args.expr_dir = f'/data/zero/3_Eval/eval_log/{checkpoint_name}/preds'
+    args.video_dir = f'/data/zero/3_Eval/videos/{checkpoint_name}/videos'
+    # args.tasks_to_use = ['insert_onto_square_peg']
 
     if not os.path.exists(args.checkpoint):
         print(args.checkpoint, 'not exists')
@@ -675,7 +666,8 @@ def main():
     print('checkpoint', args.ckpt_step, '#taskvars', len(taskvars))
 
     # taskvar_to_use
-    taskvars = [taskvar for taskvar in taskvars if taskvar.split('_peract')[0] in args.tasks_to_use]
+    if args.tasks_to_use is not None:
+        taskvars = [taskvar for taskvar in taskvars if taskvar.split('_peract')[0] in args.tasks_to_use]
 
     batch_queue = mp.Queue(args.queue_size)
     result_queues = [mp.Queue(args.queue_size) for _ in range(args.num_workers)]

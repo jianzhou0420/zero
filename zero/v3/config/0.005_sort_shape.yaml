@@ -3,10 +3,10 @@
 # suplementary configs for data management
 ############################################
 pl_flag: True
-exp_name: 'insert_peg'
+exp_name: '0.005_sort_shape'
 selfgen_dir: '/data/zero/1_Data/A_Selfgen/seed42'
-preprocess_dir: '/data/zero/1_Data/B_Preprocess/insert_0.01'
-tasks_to_use: ['insert_onto_square_peg']
+preprocess_dir: '/data/zero/1_Data/B_Preprocess/0.005_sort_shape'
+tasks_to_use: ['place_shape_in_shape_sorter']
 log_dir: '/data/zero/2_Train'
 
 ############################################
@@ -24,8 +24,8 @@ TRAIN:
 
   gradient_accumulation_steps: 1
   num_epochs: null
-  epoches: 6500
-  num_train_steps: 37000 
+  epoches: 1600
+  num_train_steps: 20000
   warmup_steps: 2000
   log_steps: 1000
   save_steps: 10000
@@ -47,7 +47,13 @@ TRAIN_DATASET:
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/zero/v3/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/zero/v3/models/lotus/assets/taskvars_peract.json'
-  num_points: 4096
+  num_points: 100000
+
+# mean: 7919.463855421687
+# std 1069.1473574707757
+# max 10141
+# min 4537
+
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
@@ -111,7 +117,7 @@ MODEL:
     add_coords_in_attn: 'none' # none, qk, qkv
 
   action_config:
-    voxel_size: 0.01 # 1cm
+    voxel_size: 0.005 # 1cm
     context_channels: 256
 
     txt_ft_size: 512

@@ -20,4 +20,6 @@ authors = [
 
 [tool.setuptools.packages.find]
 include=["zero","zero.*"]
-exclude=["data","data.*"]
+exclude=["1_Data","1_Data.*",
+         "2_Train","2_Train.*",
+         "3_Eval","3_Eval.*"]

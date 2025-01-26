@@ -6,7 +6,7 @@ import re
 from zero.v3.dataprocess.utils import natural_sort_key
 
 
-eval_dir = '/media/jian/ssd4t/exp/EXPLOG'
+eval_dir = '/data/zero/3_Eval/eval_log'
 dir_list = sorted(os.listdir(eval_dir), key=natural_sort_key)
 
 
@@ -38,7 +38,12 @@ for dir_name in dir_list:
         'total_success': [],
         'sr': []
     }
-    result_path = os.path.join(eval_dir, dir_name, 'preds/preds/seed42/', 'results.jsonl')
+    result_path = os.path.join(eval_dir, dir_name, 'preds/seed42/', 'results.jsonl')
+    if not os.path.exists(result_path):
+        if not os.path.exists(os.path.join(eval_dir, dir_name, 'preds/preds/seed42/', 'results.jsonl')):
+            continue
+        else:
+            result_path = os.path.join(eval_dir, dir_name, 'preds/preds/seed42/', 'results.jsonl')
     data = []
     with open(result_path, 'r') as f:
         for line in f:

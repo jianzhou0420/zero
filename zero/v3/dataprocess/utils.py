@@ -1,4 +1,4 @@
-from zero.v2.models.lotus.utils.robot_box import RobotBox
+from zero.v3.models.lotus.utils.robot_box import RobotBox
 from rlbench.demo import Demo
 from typing import List, Dict, Optional, Sequence, Tuple, TypedDict, Union, Any
 from typing import List, Tuple

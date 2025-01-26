@@ -288,7 +288,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='exp1_0.005')
     args = parser.parse_args()
-    config_path = os.path.join('/data/zero/zero/v3/config', args.config + '.yaml')
+    config_path = os.path.join('/data/zero/zero/v3/config', args.config)
 
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(config_path)

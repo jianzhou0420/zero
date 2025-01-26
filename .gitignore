@@ -25,6 +25,8 @@ dist/
 # debug outpus
 *.pkl
 zero/v1/env/gym-aloha/
-zero/data
-zero/exp
 
+
+1_Data/
+2_Train/
+3_Eval/
