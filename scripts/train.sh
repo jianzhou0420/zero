@@ -7,7 +7,7 @@ conda activate zero
 # python /data/zero/zero/v3/trainer_lotus.py --config $config_path --name $name
 
 
-name=0.005_sort_shape
-config_path=/data/zero/zero/v3/config/0.005_sort_shape.yaml
+name=sort_shape_edge
+config_path=/media/jian/ssd4t/zero/zero/v3/config/sort_shape_edge.yaml
 
 python /data/zero/zero/v3/trainer_lotus.py --config $config_path --name $name

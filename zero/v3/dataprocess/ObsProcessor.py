@@ -1,17 +1,16 @@
+import cv2
 from tqdm import tqdm
 import yacs.config
 import pickle
 
 import json
-from zero.v3.dataprocess.utils import natural_sort_key, get_mask_with_robot_box
+from zero.v3.dataprocess.utils import natural_sort_key
 import os
 import einops
 import copy
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
 import numpy as np
-import open3d
-from zero.v3.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 from zero.v3.models.lotus.utils.robot_box import RobotBox
 from scipy.special import softmax
 import torch
@@ -19,9 +18,9 @@ import torch
 from zero.v3.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
-from sklearn.neighbors import LocalOutlierFactor
-import random
 
+import random
+from zero.v3.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -87,13 +86,21 @@ class ObsProcessLotus:
         self.selfgen = selfgen
         self.config = config
 
+        # debug
+        taskvar_instr_file = '/data/zero/zero/v3/models/lotus/assets/taskvars_instructions_peract.json'
+        instr_embed_file = '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
+        self.taskvar_instrs = json.load(open(taskvar_instr_file))
+        self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
+        self.TABLE_HEIGHT = 0.7505
+        # /debug
+
         if self.config == None:
             default_config_path = '/data/zero/zero/v3/config/after_shock.yaml'
             self.config = yacs.config.CfgNode(new_allowed=True)
             self.config.merge_from_file(default_config_path)
 
-        print(self.config)
-        print('Config loaded')
+        # print(self.config)
+        # print('Config loaded')
 
     ##########################################
     ########## Public Functions ##############
@@ -129,8 +136,6 @@ class ObsProcessLotus:
             'action_next': [],
             'data_ids': [],
             'arm_links_info': []
-
-
         }
 
         all_names = episode_path.split('/')
@@ -195,6 +200,104 @@ class ObsProcessLotus:
 
         return outs
 
+    def dataset_preprocess_single_episode_edge_detection(self, data, episode_path):
+        ''' 
+        receive data from selfgen_one_step, this function process single episode data
+        input = {
+            'key_frameids': [],
+            'rgb': [],  # (T, N, H, W, 3)
+            'pc': [],  # (T, N, H, W, 3)
+            'action': [],  # (T, A)
+            'bbox': [],  # [T of dict]
+            'pose': []  # [T of dict]
+        }
+
+      outs = {
+            'data_ids': [], 
+            'pc_fts': [], 
+            'step_ids': [],
+            'pc_centroids': [],
+            'pc_radius': [], 
+            'ee_poses': [],
+            'txt_embeds': [], 
+            'gt_actions': [],
+        }
+        '''
+        outs = {
+            'xyz': [],
+            'rgb': [],
+            'action_current': [],
+            'action_next': [],
+            'data_ids': [],
+            'arm_links_info': []
+        }
+
+        all_names = episode_path.split('/')
+        task_name = all_names[6]
+        variation_name = all_names[7].split('variation')[-1]
+        episode_name = all_names[9]
+
+        '''
+        1. remove outside workspace
+        2. remove table
+        3. voxelization
+        '''
+
+        for t in range(len(data['key_frameids']) - 1):  # last frame dont train
+            # 0.retrieve data
+            pc = data['pc'][t]
+            images = data['rgb'][t]
+
+            arm_links_info = (data['bbox'][t], data['pose'][t])
+            action_current = copy.deepcopy(data['action'][t])
+            action_next = copy.deepcopy(data['action'][t + 1])
+
+            # 1.edge detection
+            idxs = []
+            for image in images:
+                canny_edges = cv2.Canny(image, 150, 200)
+                idxs.append(canny_edges > 0)
+            all_points = []
+            all_points_rgb = []
+
+            for i, idx in enumerate(idxs):
+                single_image_points = pc[i][idx]
+                single_image_points_rgb = images[i][idx]
+                all_points.append(single_image_points)
+                all_points_rgb.append(single_image_points_rgb)
+
+            xyz = np.vstack(all_points)
+            rgb = np.vstack(all_points_rgb)
+
+            # 2.remove ouside workspace
+            in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
+                      (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
+                      (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+            # 3. remove table
+            in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
+            xyz = xyz[in_mask]
+            rgb = rgb[in_mask]
+
+            xyz = np.array(xyz, dtype=np.float32)
+            rgb = np.array(rgb, dtype=np.float32)
+            action_current = np.array(action_current, dtype=np.float32)
+            action_next = np.array(action_next, dtype=np.float32)
+            # arm_links_info = np.array(arm_links_info, dtype=np.float32)
+
+            outs['xyz'].append(xyz)
+            outs['rgb'].append(rgb)
+            outs['action_current'].append(action_current)
+            outs['action_next'].append(action_next)
+            outs['data_ids'].append(f'{task_name}-{variation_name}-{episode_name}-t{t}')
+            outs['arm_links_info'].append(arm_links_info)
+
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector((rgb / 255))
+            # o3d.visualization.draw_geometries([pcd])
+
+        return outs
+
     def dataset_preprocess(self, origin_data_root, output_dir, tasks_to_use=None):
 
         tasks_list = self._retrieve_all_episodes(origin_data_root)
@@ -218,12 +321,156 @@ class ObsProcessLotus:
                     with open(data_path, 'rb') as f:
                         data = pickle.load(f)
                     # print(rgb.shape, xyz.shape)
-                    new_data = self.dataset_preprocess_single_episode(data, episode)
+                    new_data = self.dataset_preprocess_single_episode_edge_detection(data, episode)
 
                     with open(export_path, 'wb') as f:
                         pickle.dump(new_data, f)
                     pbar.update(1)
 
+    def dataset_dataloader_process(self, data):
+        '''
+        This Function is for debugging,
+        '''
+        outs = {
+            'data_ids': [],
+            'pc_fts': [],
+            'step_ids': [],
+            'pc_centroids': [],
+            'pc_radius': [],
+            'ee_poses': [],
+            'txt_embeds': [],
+            'gt_actions': [],
+            'disc_pos_probs': []
+        }
+
+        # 0.1 identify the frame info and output info
+
+        num_frames = len(data['data_ids'])
+        taskvar = 'place_shape_in_shape_sorter_peract+0'
+        # 1.get specific frame data
+        for t in range(num_frames):
+            data_ids = data['data_ids'][t]
+            xyz = copy.deepcopy(data['xyz'][t])
+            rgb = copy.deepcopy(data['rgb'][t])
+            ee_pose = copy.deepcopy(data['action_current'][t])
+            gt_action = copy.deepcopy(data['action_next'][t])
+            arm_links_info = copy.deepcopy(data['arm_links_info'][t])
+
+            xyz, rgb = data['xyz'][t], data['rgb'][t]
+
+            # # real robot point cloud is very noisy, requiring noise point cloud removal
+            # # segmentation fault if n_workers>0
+            # if self.real_robot:
+            #     pcd = o3d.geometry.PointCloud()
+            #     pcd.points = o3d.utility.Vector3dVector(xyz)
+            #     pcd.colors = o3d.utility.Vector3dVector(rgb)
+            #     pcd, outlier_masks = pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=0.2)
+            #     xyz = xyz[outlier_masks]
+            #     rgb = rgb[outlier_masks]
+
+            # randomly select one instruction
+            instr = random.choice(self.taskvar_instrs[taskvar])
+            instr_embed = copy.deepcopy(self.instr_embeds[instr])
+            # print(taskvar)
+            # print(instr)
+
+            # remove background points (table, robot arm)
+            if self.config.TRAIN_DATASET.rm_table:
+                mask = xyz[..., 2] > self.TABLE_HEIGHT
+                xyz = xyz[mask]
+                rgb = rgb[mask]
+            if self.config.TRAIN_DATASET.rm_robot.startswith('box'):
+                mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.config.TRAIN_DATASET.rm_robot)
+                xyz = xyz[mask]
+                rgb = rgb[mask]
+
+            # TODO: segmentation fault in cleps with num_workers>0
+            if self.config.TRAIN_DATASET.rm_pc_outliers:
+                xyz, rgb = self._rm_pc_outliers(xyz, rgb)
+
+            # sampling points
+            if len(xyz) > self.config.TRAIN_DATASET.num_points:
+                if self.config.TRAIN_DATASET.sample_points_by_distance:
+                    dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
+                    probs = 1 / np.maximum(dists, 0.1)
+                    probs = np.maximum(softmax(probs), 1e-30)
+                    probs = probs / sum(probs)
+                    # probs = 1 / dists
+                    # probs = probs / np.sum(probs)
+                    point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False, p=probs)
+                else:
+                    point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False)
+            else:
+                if self.config.TRAIN_DATASET.same_npoints_per_example:
+                    point_idxs = np.random.choice(xyz.shape[0], self.config.TRAIN_DATASET.num_points, replace=True)
+                else:
+                    max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
+                    point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+
+            xyz = xyz[point_idxs]
+            rgb = rgb[point_idxs]
+            height = xyz[:, -1] - self.TABLE_HEIGHT
+
+            if self.config.TRAIN_DATASET.pos_heatmap_no_robot:
+                robot_box = RobotBox(
+                    arm_links_info=arm_links_info,
+                    env_name='rlbench', selfgen=True
+                )
+                robot_point_idxs = np.array(
+                    list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])
+                )
+            else:
+                robot_point_idxs = None
+
+            # point cloud augmentation
+            if self.config.TRAIN_DATASET.augment_pc:
+                xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
+                    xyz, ee_pose, gt_action, self.config.TRAIN_DATASET.aug_max_rot
+                )
+
+            # normalize point cloud
+            if self.config.TRAIN_DATASET.xyz_shift == 'none':
+                centroid = np.zeros((3, ))
+            elif self.config.TRAIN_DATASET.xyz_shift == 'center':
+                centroid = np.mean(xyz, 0)
+            elif self.config.TRAIN_DATASET.xyz_shift == 'gripper':
+                centroid = copy.deepcopy(ee_pose[:3])
+            if self.config.TRAIN_DATASET.xyz_norm:
+                radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
+            else:
+                radius = 1
+
+            xyz = (xyz - centroid) / radius
+            height = height / radius
+            gt_action[:3] = (gt_action[:3] - centroid) / radius
+            ee_pose[:3] = (ee_pose[:3] - centroid) / radius
+            outs['pc_centroids'].append(centroid)
+            outs['pc_radius'].append(radius)
+
+            gt_action = np.concatenate([gt_action[:3], gt_rot, gt_action[-1:]], 0)
+
+            rgb = (rgb / 255.) * 2 - 1
+            pc_ft = np.concatenate([xyz, rgb], 1)
+            if self.config.TRAIN_DATASET.use_height:
+                pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
+
+            if self.config.TRAIN_DATASET.pos_type == 'disc':
+                # (npoints, 3, 100)
+                disc_pos_prob = get_disc_gt_pos_prob(
+                    xyz, gt_action[:3], pos_bins=self.config.TRAIN_DATASET.pos_bins,
+                    pos_bin_size=self.config.TRAIN_DATASET.pos_bin_size,
+                    heatmap_type=self.config.TRAIN_DATASET.pos_heatmap_type,
+                    robot_point_idxs=robot_point_idxs
+                )
+                outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
+
+            outs['data_ids'].append(data_ids)
+            outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
+            outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
+            outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
+            outs['gt_actions'].append(torch.from_numpy(gt_action).float())
+            outs['step_ids'].append(t)
+        return outs
     ##########################################
     ########## Private Functions #############
     ##########################################
@@ -271,22 +518,85 @@ class ObsProcessLotus:
 
         return tasks_list
 
+    def _get_mask_with_robot_box(self, xyz, arm_links_info, rm_robot_type):
+        if rm_robot_type == 'box_keep_gripper':
+            keep_gripper = True
+        else:
+            keep_gripper = False
+        robot_box = RobotBox(
+            arm_links_info, keep_gripper=keep_gripper,
+            env_name='rlbench', selfgen=True
+        )
+        _, robot_point_ids = robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)
+        robot_point_ids = np.array(list(robot_point_ids))
+        mask = np.ones((xyz.shape[0], ), dtype=bool)
+        if len(robot_point_ids) > 0:
+            mask[robot_point_ids] = False
+        return mask
+
+    def _augment_pc(self, xyz, action_current, action_next, aug_max_rot):
+        # rotate around z-axis
+        angle = np.random.uniform(-1, 1) * aug_max_rot
+        xyz = random_rotate_z(xyz, angle=angle)
+        action_current[:3] = random_rotate_z(action_current[:3], angle=angle)
+        action_current[3:-1] = self._rotate_gripper(action_current[3:-1], angle)
+
+        action_next[:3] = random_rotate_z(action_next[:3], angle=angle)
+        action_next[3:-1] = self._rotate_gripper(action_next[3:-1], angle)
+
+        if self.config.TRAIN_DATASET.rot_type == 'quat':
+            gt_rot = action_next[3:-1]
+        elif self.config.TRAIN_DATASET.rot_type == 'euler':
+            gt_rot = self.rotation_transform.quaternion_to_euler(
+                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy() / 180.
+        elif self.config.TRAIN_DATASET.rot_type == 'euler_disc':
+            gt_rot = quaternion_to_discrete_euler(action_next[3:-1], self.config.TRAIN_DATASET.euler_resolution)
+        elif self.config.TRAIN_DATASET.rot_type == 'rot6d':
+            gt_rot = self.rotation_transform.quaternion_to_ortho6d(
+                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy()
+
+        # add small noises (+-2mm)
+        pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
+        xyz = pc_noises + xyz
+
+        return xyz, action_current, action_next, gt_rot
+
+    def _rotate_gripper(self, gripper_rot, angle):
+        rot = R.from_euler('z', angle, degrees=False)
+        gripper_rot = R.from_quat(gripper_rot)
+        gripper_rot = (rot * gripper_rot).as_quat()
+        return gripper_rot
+
     ##########################################
     ##########     Functions   ###############
     ##########################################
 
-    def inside_workspace_mask(self, xyz):
+    def inside_workspace(self, xyz, rgb):
         in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
             (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
             (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
-        return in_mask
+        return xyz[in_mask], rgb[in_mask]
+
+    def visualize_pc(self, xyz, rgb):
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(xyz)
+        pcd.colors = o3d.utility.Vector3dVector(rgb)
+        o3d.visualization.draw_geometries([pcd])
+
+    def remove_table(self, xyz, rgb):
+        in_mask = xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT']
+        return xyz[in_mask], rgb[in_mask]
+
+    def remove_robot(self, xyz, rgb):
+        mask = self._get_mask_with_robot_box(xyz, self.rm_robot_type)
+        return xyz[mask], rgb[mask]
 
 
 if __name__ == '__main__':
     # mixed args
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='exp1_0.005')
+    parser.add_argument('--config', type=str, default='exp1_0.005', required=True)
     args = parser.parse_args()
     config_path = os.path.join('/data/zero/zero/v3/config', args.config)
 

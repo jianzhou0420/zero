@@ -33,6 +33,7 @@ from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
 from zero.v3.trainer_lotus import TrainerLotus
+import cv2
 
 
 def task_file_to_task_class(task_file):
@@ -277,6 +278,26 @@ class Actioner(object):
         self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
     ):
         # 0. In worksapce
+        # 1.edge detection
+        idxs = []
+        for image in rgb[:]:
+            canny_edges = cv2.Canny(image, 150, 200)
+            idxs.append(canny_edges > 0)
+        all_points = []
+        all_points_rgb = []
+        all_gt_sem = []
+        for i, idx in enumerate(idxs):
+            single_image_points = xyz[i][idx]
+            single_image_points_rgb = rgb[i][idx]
+            single_image_gt_sem = gt_sem[i][idx]
+            all_points.append(single_image_points)
+            all_points_rgb.append(single_image_points_rgb)
+            all_gt_sem.append(single_image_gt_sem)
+
+        xyz = np.vstack(all_points)
+        rgb = np.vstack(all_points_rgb)
+        gt_sem = np.hstack(all_gt_sem)
+
         xyz = xyz.reshape(-1, 3)
         in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
                   (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
