@@ -237,8 +237,8 @@ class SimplePolicyDataset(Dataset):
                 torch.from_numpy(action_next[3:-1][None, :]))[0].numpy()
 
         # add small noises (+-2mm)
-        pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
-        xyz = pc_noises + xyz
+        # pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
+        # xyz = pc_noises + xyz
 
         return xyz, action_current, action_next, gt_rot
 
@@ -290,16 +290,6 @@ class SimplePolicyDataset(Dataset):
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
 
-            # # real robot point cloud is very noisy, requiring noise point cloud removal
-            # # segmentation fault if n_workers>0
-            # if self.real_robot:
-            #     pcd = o3d.geometry.PointCloud()
-            #     pcd.points = o3d.utility.Vector3dVector(xyz)
-            #     pcd.colors = o3d.utility.Vector3dVector(rgb)
-            #     pcd, outlier_masks = pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=0.2)
-            #     xyz = xyz[outlier_masks]
-            #     rgb = rgb[outlier_masks]
-
             # randomly select one instruction
             instr = random.choice(self.taskvar_instrs[taskvar])
             instr_embed = copy.deepcopy(self.instr_embeds[instr])
@@ -320,24 +310,11 @@ class SimplePolicyDataset(Dataset):
             if self.rm_pc_outliers:
                 xyz, rgb = self._rm_pc_outliers(xyz, rgb)
 
-            # sampling points
-            if len(xyz) > self.num_points:
-                if self.sample_points_by_distance:
-                    dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
-                    probs = 1 / np.maximum(dists, 0.1)
-                    probs = np.maximum(softmax(probs), 1e-30)
-                    probs = probs / sum(probs)
-                    # probs = 1 / dists
-                    # probs = probs / np.sum(probs)
-                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False, p=probs)
-                else:
-                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+            if self.same_npoints_per_example:
+                point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
             else:
-                if self.same_npoints_per_example:
-                    point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
-                else:
-                    max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
-                    point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+                max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
+                point_idxs = np.random.permutation(len(xyz))[:max_npoints]
 
             xyz = xyz[point_idxs]
             rgb = rgb[point_idxs]
@@ -402,10 +379,10 @@ class SimplePolicyDataset(Dataset):
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
             outs['gt_actions'].append(torch.from_numpy(gt_action).float())
             outs['step_ids'].append(t)
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(xyz)
-            pcd.colors = o3d.utility.Vector3dVector((rgb + 1) / 2)
-            o3d.visualization.draw_geometries([pcd])
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector((rgb + 1) / 2)
+            # o3d.visualization.draw_geometries([pcd])
 
         return outs
 

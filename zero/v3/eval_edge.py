@@ -96,7 +96,7 @@ class EvalArgs(tap.Tap):
 
     best_disc_pos: str = 'max'  # max, ens1
 
-    record_video: bool = False
+    record_video: bool = True
     video_dir: str = None
     not_include_robot_cameras: bool = False
     video_rotate_cam: bool = False
@@ -194,86 +194,6 @@ class Actioner(object):
             rgb = rgb[idxs]
         return xyz, rgb
 
-    def process_point_clouds_mine(
-            self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
-    ):
-
-        xyz = xyz.reshape(-1, 3)
-        rgb = xyz.reshape(-1, 3)
-
-        action_current = ee_pose
-
-        # 3. voxelization
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd, _, trace = pcd.voxel_down_sample_and_trace(
-            self.config.MODEL.action_config.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
-        )
-        xyz = np.asarray(pcd.points)
-        trace = np.array([v[0] for v in trace])
-        rgb = rgb[trace]
-
-        # 1.remove ouside workspace
-        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
-            (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
-            (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
-        # 2. remove table
-        in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
-        xyz = xyz[in_mask]
-        rgb = rgb[in_mask]
-
-        mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.config.TRAIN_DATASET.rm_robot)
-        xyz = xyz[mask]
-        rgb = rgb[mask]
-
-        # 5. downsampling
-        if len(xyz) > self.config.TRAIN_DATASET.num_points:
-            if self.config.TRAIN_DATASET.sample_points_by_distance:
-                dists = np.sqrt(np.sum((xyz - action_current[:3])**2, 1))
-                probs = 1 / np.maximum(dists, 0.1)
-                probs = np.maximum(softmax(probs), 1e-30)
-                probs = probs / sum(probs)
-                # probs = 1 / dists
-                # probs = probs / np.sum(probs)
-                point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False, p=probs)
-            else:
-                point_idxs = np.random.choice(len(xyz), self.config.TRAIN_DATASET.num_points, replace=False)
-        else:
-            if self.config.TRAIN_DATASET.same_npoints_per_example:
-                point_idxs = np.random.choice(xyz.shape[0], self.config.TRAIN_DATASET.num_points, replace=True)
-            else:
-                point_idxs = np.arange(xyz.shape[0])
-        xyz = xyz[point_idxs]
-        rgb = rgb[point_idxs]
-
-        # 6. remove outliers
-        # /end of 6
-        height = xyz[:, -1] - self.TABLE_HEIGHT
-
-        # 8.normalize
-        if self.config.TRAIN_DATASET.xyz_shift == 'none':
-            centroid = np.zeros((3, ))
-        elif self.config.TRAIN_DATASET.xyz_shift == 'center':
-            centroid = np.mean(xyz, 0)
-        elif self.config.TRAIN_DATASET.xyz_shift == 'gripper':
-            centroid = copy.deepcopy(action_current[:3])
-
-        if self.config.TRAIN_DATASET.xyz_norm:
-            radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
-        else:
-            radius = 1
-
-        xyz = (xyz - centroid) / radius
-        height = height / radius
-        action_current[:3] = (action_current[:3] - centroid) / radius
-
-        rgb = (rgb / 255) * 2 - 1
-        pc_ft = np.concatenate([xyz, rgb], 1)
-        if self.use_height:
-            pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
-
-        return pc_ft, centroid, radius, ee_pose
-
     def process_point_clouds(
         self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
     ):
@@ -308,18 +228,6 @@ class Actioner(object):
         rgb = rgb.reshape(-1, 3)[in_mask]
         if gt_sem is not None:
             gt_sem = gt_sem.reshape(-1)[in_mask]
-
-        # 1. voxelization
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd, _, trace = pcd.voxel_down_sample_and_trace(
-            self.config.MODEL.action_config.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
-        )
-        xyz = np.asarray(pcd.points)
-        trace = np.array([v[0] for v in trace])
-        rgb = rgb[trace]
-        if gt_sem is not None:
-            gt_sem = gt_sem[trace]
 
         if self.args.real_robot:
             for _ in range(1):

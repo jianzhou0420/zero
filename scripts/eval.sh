@@ -11,13 +11,13 @@ tasks_to_use=("place_shape_in_shape_sorter")
 # conda activate zero
 
 
-for item in 299 599 799 999 1399 1599
+for item in 1599 1199
 do
 
-    python /data/zero/zero/v3/eval_verify.py \
-    --config /data/zero/zero/v3/config/0.005_sort_shape.yaml \
+    python /data/zero/zero/v3/eval_edge.py \
+    --config /media/jian/ssd4t/zero/zero/v3/config/sort_shape_edge.yaml \
     --name test \
-    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_01_24__15:30_0.005_sort_shape/version_0/checkpoints/2025_01_24__15:30_0.005_sort_shape_epoch=$item.ckpt \
+    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_01_28__00:48_sort_shape_edge/version_0/checkpoints/2025_01_28__00:48_sort_shape_edge_epoch=$item.ckpt \
     --tasks_to_use ${tasks_to_use[@]} 
 
 done

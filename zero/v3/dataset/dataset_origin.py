@@ -351,6 +351,7 @@ class SimplePolicyDataset(Dataset):
                 else:
                     max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
                     point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+            print(point_idxs)
 
             xyz = xyz[point_idxs]
             rgb = rgb[point_idxs]
