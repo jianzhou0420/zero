@@ -1,8 +1,5 @@
 
 conda activate zero
-# tasks_to_use should be in config
-# python /media/jian/ssd4t/zero/zero/v3/dataprocess/ObsProcessor.py \
-# --config /media/jian/ssd4t/zero/zero/v3/config/insert_peg_0.01.yaml \
 
-python /media/jian/ssd4t/zero/zero/v3/dataprocess/ObsProcessor.py \
---config /media/jian/ssd4t/zero/zero/v3/config/exp_11_1_insert_peg_edge.yaml \
+python /media/jian/ssd4t/zero/zero/v4/dataprocess/ObsProcessor.py \
+--config /media/jian/ssd4t/zero/zero/v4/config/expbase_voxel_size.yaml \

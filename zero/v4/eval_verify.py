@@ -88,7 +88,7 @@ class EvalArgs(tap.Tap):
     microstep_data_dir: str = ''
     num_workers: int = 1
     queue_size: int = 20
-    taskvar_file: str = '/data/zero/zero/v3/models/lotus/assets/taskvars_peract.json'
+    taskvar_file: str = '/data/zero/zero/v4/models/lotus/assets/taskvars_peract.json'
     num_ensembles: int = 1
 
     save_obs_outs_dir: str = None

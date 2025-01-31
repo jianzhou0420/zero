@@ -87,7 +87,7 @@ class ObsProcessLotus:
         self.config = config
 
         # debug
-        taskvar_instr_file = '/data/zero/zero/v3/models/lotus/assets/taskvars_instructions_peract.json'
+        taskvar_instr_file = '/data/zero/zero/v4/models/lotus/assets/taskvars_instructions_peract.json'
         instr_embed_file = '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
         self.taskvar_instrs = json.load(open(taskvar_instr_file))
         self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
@@ -95,7 +95,7 @@ class ObsProcessLotus:
         # /debug
 
         if self.config == None:
-            default_config_path = '/data/zero/zero/v3/config/after_shock.yaml'
+            default_config_path = '/data/zero/zero/v4/config/after_shock.yaml'
             self.config = yacs.config.CfgNode(new_allowed=True)
             self.config.merge_from_file(default_config_path)
 
@@ -636,7 +636,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='exp1_0.005')
     args = parser.parse_args()
-    config_path = os.path.join('/data/zero/zero/v3/config', args.config)
+    config_path = os.path.join('/data/zero/zero/v4/config', args.config)
 
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(config_path)
@@ -645,4 +645,4 @@ if __name__ == '__main__':
 
     # from datetime import datetime
 
-    op.dataset_preprocess_edge_detection(config.selfgen_dir, config.preprocess_dir, tasks_to_use=config.tasks_to_use)
+    op.dataset_preprocess(config.selfgen_dir, config.preprocess_dir, tasks_to_use=config.tasks_to_use)

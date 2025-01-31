@@ -5,7 +5,7 @@ import tap
 from pytorch_lightning.profilers import SimpleProfiler
 from pytorch_lightning.callbacks import Callback
 from zero.v4.models.lotus.optim.misc import build_optimizer
-from zero.v4.dataset.dataset_v5_bins import SimplePolicyDataset, ptv3_collate_fn
+from zero.v4.dataset.dataset_expbase_voxel import SimplePolicyDataset, ptv3_collate_fn
 from zero.v4.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime

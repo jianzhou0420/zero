@@ -402,11 +402,10 @@ class SimplePolicyDataset(Dataset):
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
             outs['gt_actions'].append(torch.from_numpy(gt_action).float())
             outs['step_ids'].append(t)
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(xyz)
-            pcd.colors = o3d.utility.Vector3dVector((rgb + 1) / 2)
-            o3d.visualization.draw_geometries([pcd])
-
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector((rgb + 1) / 2)
+            # o3d.visualization.draw_geometries([pcd])
         return outs
 
 
@@ -471,7 +470,7 @@ if __name__ == '__main__':
     np.random.seed(42)
     random.seed(42)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/media/jian/ssd4t/zero/zero/v3/config/sort_shape_edge.yaml')
+    parser.add_argument('--config', type=str, default='/media/jian/ssd4t/zero/zero/v4/config/sort_shape_edge.yaml')
     parser.add_argument('--output', type=str)
 
     args = parser.parse_args()
