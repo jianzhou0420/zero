@@ -7,7 +7,7 @@ conda activate zero
 # python /data/zero/zero/v3/trainer_lotus.py --config $config_path --name $name
 
 
-name=exp_12_actioner
-config_path=/media/jian/ssd4t/zero/zero/v3/config/sort_shape_edge.yaml
+name=exp_12_bins_insert_peg_0.005
+config_path=/data/zero/zero/v4/config/insert_peg_0.005_bins.yaml
 
-python /data/zero/zero/v3/trainer_lotus.py --config $config_path --name $name
+python /data/zero/zero/v4/trainer_lotus.py --config $config_path --name $name

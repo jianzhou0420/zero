@@ -38,12 +38,14 @@ for dir_name in dir_list:
         'total_success': [],
         'sr': []
     }
-    result_path = os.path.join(eval_dir, dir_name, 'preds/seed42/', 'results.jsonl')
+    seed = os.listdir(os.path.join(eval_dir, dir_name, 'preds/'))[0].split('seed')[-1]
+    seed = 'seed' + seed
+    result_path = os.path.join(eval_dir, dir_name, 'preds/', seed, 'results.jsonl')
     if not os.path.exists(result_path):
-        if not os.path.exists(os.path.join(eval_dir, dir_name, 'preds/preds/seed42/', 'results.jsonl')):
+        if not os.path.exists(os.path.join(eval_dir, dir_name, 'preds/preds/', seed, 'results.jsonl')):
             continue
         else:
-            result_path = os.path.join(eval_dir, dir_name, 'preds/preds/seed42/', 'results.jsonl')
+            result_path = os.path.join(eval_dir, dir_name, 'preds/preds/', seed, 'results.jsonl')
     data = []
     with open(result_path, 'r') as f:
         for line in f:

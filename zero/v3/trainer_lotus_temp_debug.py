@@ -5,7 +5,7 @@ import tap
 from pytorch_lightning.profilers import SimpleProfiler
 from pytorch_lightning.callbacks import Callback
 from zero.v3.models.lotus.optim.misc import build_optimizer
-from zero.v3.dataset.dataset_v5_bins import SimplePolicyDataset, ptv3_collate_fn
+from zero.v3.dataset.dataset_v6_augment import SimplePolicyDataset, ptv3_collate_fn
 from zero.v3.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
 import argparse
 from datetime import datetime
@@ -36,7 +36,7 @@ def natural_sort_key(s):
 
 
 class TrainerArgs(tap.Tap):
-    config: str = None
+    config: str = '/media/jian/ssd4t/zero/zero/v3/config/exp_11_1_insert_peg_edge.yaml'
     name: str = 'default'
     resume_version_dir: str = None
 

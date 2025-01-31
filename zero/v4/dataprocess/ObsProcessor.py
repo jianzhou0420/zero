@@ -4,23 +4,23 @@ import yacs.config
 import pickle
 
 import json
-from zero.v3.dataprocess.utils import natural_sort_key
+from zero.v4.dataprocess.utils import natural_sort_key
 import os
 import einops
 import copy
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
 import numpy as np
-from zero.v3.models.lotus.utils.robot_box import RobotBox
+from zero.v4.models.lotus.utils.robot_box import RobotBox
 from scipy.special import softmax
 import torch
 
-from zero.v3.models.lotus.utils.rotation_transform import (
+from zero.v4.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
 import matplotlib.pyplot as plt
 import random
-from zero.v3.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.v4.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 
 torch.manual_seed(42)
 np.random.seed(42)
