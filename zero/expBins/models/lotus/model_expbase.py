@@ -6,14 +6,14 @@ import torch.nn.functional as F
 import numpy as np
 import einops
 
-from zero.expbasev4.models.lotus.utils.rotation_transform import discrete_euler_to_quaternion
-from zero.expbasev4.models.lotus.base import BaseModel, RobotPoseEmbedding
-from zero.expbasev4.models.lotus.utils.rotation_transform import RotationMatrixTransform
-from zero.expbasev4.models.lotus.PointTransformerV3.model import (
+from zero.expBins.models.lotus.utils.rotation_transform import discrete_euler_to_quaternion
+from zero.expBins.models.lotus.base import BaseModel, RobotPoseEmbedding
+from zero.expBins.models.lotus.utils.rotation_transform import RotationMatrixTransform
+from zero.expBins.models.lotus.PointTransformerV3.model import (
     PointTransformerV3, offset2bincount, offset2batch
 )
-from zero.expbasev4.models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
-from zero.expbasev4.models.lotus.utils.action_position_utils import get_best_pos_from_disc_pos
+from zero.expBins.models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
+from zero.expBins.models.lotus.utils.action_position_utils import get_best_pos_from_disc_pos
 
 
 class ActionHead(nn.Module):

@@ -1,9 +1,9 @@
 # framework package
 
 # own package
-from zero.expbasev4.models.lotus.optim.misc import build_optimizer
-from zero.expbasev4.dataset.dataset_expbase_voxel import SimplePolicyDataset, ptv3_collate_fn
-from zero.expbasev4.models.lotus.model_expbase import SimplePolicyPTV3CA
+from zero.expBins.models.lotus.optim.misc import build_optimizer
+from zero.expBins.dataset.dataset_expbase_voxel import SimplePolicyDataset, ptv3_collate_fn
+from zero.expBins.models.lotus.model_expbase import SimplePolicyPTV3CA
 from zero.z_utils import *
 
 # python package

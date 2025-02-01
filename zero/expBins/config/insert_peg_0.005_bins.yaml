@@ -3,7 +3,7 @@
 # suplementary configs for data management
 ############################################
 pl_flag: True
-exp_name: 'exp_base_insert_peg_0.005'
+exp_name: 'insert_peg_0.005_bins'
 selfgen_dir: '/data/zero/1_Data/A_Selfgen/seed42'
 preprocess_dir: '/data/zero/1_Data/B_Preprocess/insert_0.005'
 tasks_to_use: ['insert_onto_square_peg']
@@ -45,9 +45,9 @@ TRAIN:
 TRAIN_DATASET:
   # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
-  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/data/zero/assets/taskvars_peract.json'
-  num_points: 100000
+  taskvar_instr_file: '/data/zero/zero/v4/models/lotus/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/data/zero/zero/v4/models/lotus/assets/taskvars_peract.json'
+  num_points: 5120
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
@@ -65,7 +65,7 @@ TRAIN_DATASET:
   rm_pc_outliers: False
   rm_pc_outliers_neighbors: 25
   pos_bins: 15
-  pos_bin_size: 0.01
+  pos_bin_size: 0.001
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False
@@ -132,8 +132,8 @@ MODEL:
     dropout: 0.2
 
     pos_bins: 15
-    pos_bin_size: 0.01
-    best_disc_pos: max # max, ens1
+    pos_bin_size: 0.001
+    best_disc_pos: max_scale_bins # max, ens1
 
   loss_config:
     pos_weight: 1
