@@ -17,13 +17,13 @@ import open3d as o3d
 from sklearn.neighbors import LocalOutlierFactor
 from scipy.spatial.transform import Rotation as R
 
-from zero.expbasev4.models.lotus.simple_policy_ptv3 import SimplePolicyPTV3CA
+from zero.expBaseV4.models.lotus.model_expbase import SimplePolicyPTV3CA
 
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 
-from zero.expbasev4.config.default import get_config
+from zero.expBaseV4.config.default import get_config
 
-from zero.expbasev4.config.constants import get_robot_workspace, get_rlbench_labels
+from zero.expBaseV4.config.constants import get_robot_workspace, get_rlbench_labels
 from zero.z_utils.robot_box import RobotBox
 import random
 from zero.env.rlbench_lotus.recorder import (
@@ -32,7 +32,7 @@ from zero.env.rlbench_lotus.recorder import (
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
-from zero.expbasev4.trainer_expbase import TrainerLotus
+from zero.expBaseV4.trainer_expbase import TrainerLotus
 
 
 def task_file_to_task_class(task_file):
@@ -88,7 +88,7 @@ class EvalArgs(tap.Tap):
     microstep_data_dir: str = ''
     num_workers: int = 1
     queue_size: int = 20
-    taskvar_file: str = '/data/zero/zero/v4/models/lotus/assets/taskvars_peract.json'
+    taskvar_file: str = '/data/zero/assets/taskvars_peract.json'
     num_ensembles: int = 1
 
     save_obs_outs_dir: str = None

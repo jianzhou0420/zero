@@ -1,6 +1,6 @@
 import pickle
 import re
-from zero.expBins.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.expBins.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob, BIN_SPACE
 from zero.expBins.models.lotus.utils.robot_box import RobotBox
 from zero.expBins.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
@@ -119,7 +119,7 @@ class SimplePolicyDataset(Dataset):
         # 0.1. Load some pheripheral information
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
-
+        self.bin_strategy = config.bin_strategy
         self.config = config
         data_dir = self.config.preprocess_dir
         self.taskvar_instrs = json.load(open(taskvar_instr_file))
@@ -289,7 +289,7 @@ class SimplePolicyDataset(Dataset):
             arm_links_info = copy.deepcopy(data['arm_links_info'][t])
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
-
+            bin_space = copy.deepcopy(BIN_SPACE)
             # # real robot point cloud is very noisy, requiring noise point cloud removal
             # # segmentation fault if n_workers>0
             # if self.real_robot:
@@ -376,6 +376,7 @@ class SimplePolicyDataset(Dataset):
             height = height / radius
             gt_action[:3] = (gt_action[:3] - centroid) / radius
             ee_pose[:3] = (ee_pose[:3] - centroid) / radius
+            bin_space = (bin_space - centroid[:, None]) / radius
             outs['pc_centroids'].append(centroid)
             outs['pc_radius'].append(radius)
 
@@ -392,7 +393,9 @@ class SimplePolicyDataset(Dataset):
                     xyz, gt_action[:3], pos_bins=self.pos_bins,
                     pos_bin_size=self.pos_bin_size,
                     heatmap_type=self.pos_heatmap_type,
-                    robot_point_idxs=robot_point_idxs
+                    robot_point_idxs=robot_point_idxs,
+                    bin_strategy=self.bin_strategy,
+                    bin_space=bin_space
                 )
                 outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
 

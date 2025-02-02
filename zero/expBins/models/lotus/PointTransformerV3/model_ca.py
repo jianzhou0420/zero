@@ -289,8 +289,8 @@ class PointTransformerV3CA(PointTransformerV3):
         )
 
         # encoder
-        enc_drop_path = [
-            x.item() for x in torch.linspace(0, drop_path, sum(enc_depths))
+        enc_drop_path = [  # 每层的drop rate
+            x.item() for x in torch.linspace(0, drop_path, sum(enc_depths))  # enc_depths: 每层的transformer数
         ]
         self.enc = PointSequential()
         for s in range(self.num_stages):

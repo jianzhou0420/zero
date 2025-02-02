@@ -6,6 +6,19 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
+from .serialization import encode
+from easydict import EasyDict
+from collections import OrderedDict
+from timm.models.layers import DropPath
+import torch_scatter
+import spconv.pytorch as spconv
+import torch.nn.functional as F
+import torch.nn as nn
+import torch
+import math
+from addict import Dict
+from functools import partial
+import sys
 import warnings
 warnings.filterwarnings(
     "ignore",
@@ -13,25 +26,11 @@ warnings.filterwarnings(
     module="spconv"
 )
 
-import sys
-from functools import partial
-from addict import Dict
-import math
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import spconv.pytorch as spconv
-import torch_scatter
-from timm.models.layers import DropPath
-from collections import OrderedDict
-from easydict import EasyDict
 
 try:
     import flash_attn
 except ImportError:
     flash_attn = None
-
-from .serialization import encode
 
 
 @torch.inference_mode()

@@ -25,8 +25,8 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 4
-  # val_batch_size: 1
+  train_batch_size: 1
+
 
   gradient_accumulation_steps: 1
   num_epochs: null
@@ -51,8 +51,8 @@ TRAIN:
 TRAIN_DATASET:
   # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
-  taskvar_instr_file: '/data/zero/zero/v4/models/lotus/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/data/zero/zero/v4/models/lotus/assets/taskvars_peract.json'
+  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/data/zero/assets/taskvars_peract.json'
   num_points: 100000
   xyz_shift: center # none, center, gripper
   xyz_norm: False
@@ -71,7 +71,7 @@ TRAIN_DATASET:
   rm_pc_outliers: False
   rm_pc_outliers_neighbors: 25
   pos_bins: 15
-  pos_bin_size: 0.005
+  pos_bin_size: 0.001
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False
@@ -138,7 +138,7 @@ MODEL:
     dropout: 0.2
 
     pos_bins: 15
-    pos_bin_size: 0.005
+    pos_bin_size: 0.001
     best_disc_pos: max # max, ens1
 
   loss_config:
