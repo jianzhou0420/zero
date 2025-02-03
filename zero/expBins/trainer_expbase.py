@@ -21,7 +21,7 @@ import torch.distributed as dist
 import math
 import os
 from pytorch_lightning.strategies import DDPStrategy
-from pytorch_lightning.loggers import CSVLogger
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
 import warnings
 
@@ -131,7 +131,7 @@ if __name__ == '__main__':
             filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
         )
 
-        csvlogger1 = CSVLogger(
+        tb_log = TensorBoardLogger(
             save_dir=log_path,
             name=log_name,
             version=None
@@ -144,7 +144,7 @@ if __name__ == '__main__':
                              max_epochs=config.TRAIN.epoches,
                              devices='auto',
                              strategy='auto',
-                             logger=csvlogger1,
+                             logger=tb_log,
                              )
 
         trainer.fit(trainer_model, train_dataloader)
@@ -166,7 +166,7 @@ if __name__ == '__main__':
         # print(f"log_path: {log_path}")
         # print(f"log_name: {log_name}")
 
-        csvlogger1 = CSVLogger(
+        tb_log = TensorBoardLogger(
             save_dir=log_path,
             name=log_name,
             version=version
@@ -185,7 +185,7 @@ if __name__ == '__main__':
             max_epochs=config.TRAIN.epoches,
             devices='auto',
             strategy='auto',
-            logger=csvlogger1,
+            logger=tb_log,
             # resume_from_checkpoint=ckpt_path  # Resume from this checkpoint if provided
         )
 

@@ -5,11 +5,13 @@ import time
 
 # 中心点(0.25,0,0.7520)
 # sizeSize (Bounding Box): [-0.32499998807907104, 0.32499998807907104, -0.45500004291534424, 0.45500004291534424, -0.0, 0.0]
-BIN_SPACE = [[-0.325 + 0.25, 0.325 + 0.25], [-0.455, 0.455], [0.7520 + 0, 0.7520 + 0.5]]
+# BIN_SPACE = [[-0.325 + 0.25, 0.325 + 0.25], [-0.455, 0.455], [0.7520 + 0, 0.7520 + 0.5]] # scene的workspace，但是实际操作中会超出这个范围。
+
+BIN_SPACE = [[-0.5 + 0.25, 0.5 + 0.25], [-0.75, 0.75], [0.7520 + 0, 0.7520 + 1]]  # 调大这个范围，试一试，TODO：true workspace
 
 
 def get_disc_gt_pos_prob(
-    xyz, gt_pos, bin_strategy, pos_bin_size=0.01, pos_bins=50, heatmap_type='plain', robot_point_idxs=None, bin_space=None
+    xyz, gt_pos, bin_strategy, pos_bin_size=0.01, pos_bins=50, heatmap_type='plain', robot_point_idxs=None, bins_location=None
 ):
     '''
     heatmap_type:
@@ -55,9 +57,7 @@ def get_disc_gt_pos_prob(
         # 这个function的目标是根据gt_pos计算出每个bin的概率，不需要返回bin的坐标，反正infer的时候可以算。
 
         # 1. get bin locations
-        x_bins_location = np.arange(bin_space[0][0], bin_space[0][1], pos_bin_size)
-        y_bins_location = np.arange(bin_space[1][0], bin_space[1][1], pos_bin_size)
-        z_bins_location = np.arange(bin_space[2][0], bin_space[2][1], pos_bin_size)
+        x_bins_location, y_bins_location, z_bins_location = bins_location
         # bins natually have coordinates
 
         # 2. calculate raw prob

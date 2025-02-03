@@ -3,18 +3,26 @@ import torch.nn as nn
 import torch
 
 
-class CrossAtten(nn.Module):
+class FeatureAggregate(nn.Module):
     def __init__(self, num_queries, feature_dim):
         """
         Args:
             num_queries (int): Number of fixed queries (K). This will determine how many feature vectors you output.
             feature_dim (int): Dimension of the per-point features (D).
         """
-        super(CrossAtten, self).__init__()
+        super(FeatureAggregate, self).__init__()
         self.num_queries = num_queries
         self.feature_dim = feature_dim
         # Initialize K learnable query vectors of dimension D.
-        self.queries = nn.Parameter(torch.randn(num_queries, feature_dim))
+        self.queries = nn.Parameter(torch.randn(num_queries, feature_dim), requires_grad=True)
+
+        # 拿到了query之后，再走一个mlp
+        self.mlp = nn.Sequential(
+            nn.Linear(feature_dim, feature_dim * 2),
+            nn.LeakyReLU(0.02),
+            nn.Linear(feature_dim * 2, feature_dim),
+
+        )
 
     def forward(self, features):
         """
@@ -40,6 +48,9 @@ class CrossAtten(nn.Module):
 
         # Weighted sum of per-point features to get fixed features.
         fixed_features = torch.mm(attn_weights, features)  # Shape: (K, D)
+
+        fixed_features = self.mlp(fixed_features)
+
         return fixed_features
 
 

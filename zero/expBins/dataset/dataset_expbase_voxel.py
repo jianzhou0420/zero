@@ -120,7 +120,14 @@ class SimplePolicyDataset(Dataset):
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
         self.bin_strategy = config.bin_strategy
+
+        x_bins_location = np.arange(BIN_SPACE[0][0], BIN_SPACE[0][1], 0.001)  # TODO: 0.001
+        y_bins_location = np.arange(BIN_SPACE[1][0], BIN_SPACE[1][1], 0.001)
+        z_bins_location = np.arange(BIN_SPACE[2][0], BIN_SPACE[2][1], 0.001)
+        self.bins_locations = [x_bins_location, y_bins_location, z_bins_location]
+
         self.config = config
+
         data_dir = self.config.preprocess_dir
         self.taskvar_instrs = json.load(open(taskvar_instr_file))
         self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
@@ -289,7 +296,7 @@ class SimplePolicyDataset(Dataset):
             arm_links_info = copy.deepcopy(data['arm_links_info'][t])
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
-            bin_space = copy.deepcopy(BIN_SPACE)
+            bin_space = copy.deepcopy(self.bins_locations)
             # # real robot point cloud is very noisy, requiring noise point cloud removal
             # # segmentation fault if n_workers>0
             # if self.real_robot:
@@ -376,7 +383,9 @@ class SimplePolicyDataset(Dataset):
             height = height / radius
             gt_action[:3] = (gt_action[:3] - centroid) / radius
             ee_pose[:3] = (ee_pose[:3] - centroid) / radius
-            bin_space = (bin_space - centroid[:, None]) / radius
+            test = bin_space[0] - centroid[0]  # TODO:delete
+            bin_space = [arr - off for arr, off in zip(bin_space, centroid)]
+            assert (test == bin_space[0]).all()
             outs['pc_centroids'].append(centroid)
             outs['pc_radius'].append(radius)
 
@@ -395,7 +404,7 @@ class SimplePolicyDataset(Dataset):
                     heatmap_type=self.pos_heatmap_type,
                     robot_point_idxs=robot_point_idxs,
                     bin_strategy=self.bin_strategy,
-                    bin_space=bin_space
+                    bins_location=bin_space
                 )
                 outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
 

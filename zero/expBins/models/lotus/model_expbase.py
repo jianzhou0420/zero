@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import einops
+import matplotlib.pyplot as plt
 
 from zero.expBins.models.lotus.utils.rotation_transform import discrete_euler_to_quaternion
 from zero.expBins.models.lotus.base import BaseModel, RobotPoseEmbedding
@@ -14,7 +15,7 @@ from zero.expBins.models.lotus.PointTransformerV3.model import (
 )
 from zero.expBins.models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
 from zero.expBins.models.lotus.utils.action_position_utils import get_best_pos_from_disc_pos, BIN_SPACE
-from zero.expBins.models.lotus.CrossAtten import CrossAtten
+from zero.expBins.models.lotus.CrossAtten import FeatureAggregate
 
 
 class ActionHead(nn.Module):
@@ -37,33 +38,36 @@ class ActionHead(nn.Module):
         self.euler_bins = 360 // euler_resolution
         self.pos_bins = pos_bins
 
-        num_x_bins = len(np.arange(BIN_SPACE[0][0], BIN_SPACE[0][1], 0.001))  # TODO: 0.001
-        num_y_bins = len(np.arange(BIN_SPACE[1][0], BIN_SPACE[1][1], 0.001))
-        num_z_bins = len(np.arange(BIN_SPACE[2][0], BIN_SPACE[2][1], 0.001))
-        self.pos_bins = [num_x_bins, num_y_bins, num_z_bins]
-        num_queries = num_x_bins + num_y_bins + num_z_bins
-        self.xt_cross_atten = CrossAtten(num_queries=num_queries, feature_dim=hidden_size)
-        self.xr_cross_atten = CrossAtten(num_queries=72 * 3, feature_dim=hidden_size)
-        self.xo_cross_atten = CrossAtten(num_queries=1, feature_dim=hidden_size)
+        x_bins_location = np.arange(BIN_SPACE[0][0], BIN_SPACE[0][1], 0.001)  # TODO: 0.001
+        y_bins_location = np.arange(BIN_SPACE[1][0], BIN_SPACE[1][1], 0.001)
+        z_bins_location = np.arange(BIN_SPACE[2][0], BIN_SPACE[2][1], 0.001)
+        self.bins_locations = [x_bins_location, y_bins_location, z_bins_location]
 
-        self.xt_mlp = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
-            nn.LeakyReLU(0.02),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_size, 1)
-        )
-        self.xr_mlp = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
-            nn.LeakyReLU(0.02),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_size, 1)
-        )
-        self.xo_mlp = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
-            nn.LeakyReLU(0.02),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_size, 1)
-        )
+        num_queries = len(x_bins_location) + len(y_bins_location) + len(z_bins_location)
+
+        ft_ag_dim = hidden_size / 3
+        self.xt_cross_atten = FeatureAggregate(num_queries=num_queries, feature_dim=hidden_size)
+        self.xr_cross_atten = FeatureAggregate(num_queries=72 * 3, feature_dim=hidden_size)
+        self.xo_cross_atten = FeatureAggregate(num_queries=1, feature_dim=hidden_size)
+
+        # self.xt_mlp = nn.Sequential(
+        #     nn.Linear(hidden_size, hidden_size),
+        #     nn.LeakyReLU(0.02),
+        #     nn.Dropout(dropout),
+        #     nn.Linear(hidden_size, 1)
+        # )
+        # self.xr_mlp = nn.Sequential(
+        #     nn.Linear(hidden_size, hidden_size),
+        #     nn.LeakyReLU(0.02),
+        #     nn.Dropout(dropout),
+        #     nn.Linear(hidden_size, 1)
+        # )
+        # self.xo_mlp = nn.Sequential(
+        #     nn.Linear(hidden_size, hidden_size),
+        #     nn.LeakyReLU(0.02),
+        #     nn.Dropout(dropout),
+        #     nn.Linear(hidden_size, 1)
+        # )
 
     def forward(  # TODO： 重写
         self, feat, npoints_in_batch, coords=None, temp=1,
@@ -88,15 +92,16 @@ class ActionHead(nn.Module):
             xr_feat = self.xr_cross_atten(feat)  # [72 * 3, hidden_size]
             xo_feat = self.xo_cross_atten(feat)  # [1, hidden_size]
 
-            xt_mlp = self.xt_mlp(xt_feat)  # [num_bins, 1]
-            xr_mlp = self.xr_mlp(xr_feat)  # [72 * 3, 1]
-            xo_mlp = self.xo_mlp(xo_feat)  # [1, 1]
+            # xt_mlp = self.xt_mlp(xt_feat)  # [num_bins, 1]
+            # xr_mlp = self.xr_mlp(xr_feat)  # [72 * 3, 1]
+            # xo_mlp = self.xo_mlp(xo_feat)  # [1, 1]
+            xt_feat = torch.sum(xt_feat, dim=1)
+            xr_feat = torch.sum(xr_feat, dim=1)
+            xo_feat = torch.sum(xo_feat, dim=1)
 
-            xr_mlp = xr_mlp.view(72, 3)
-
-            xt.append(xt_mlp)  # [num_bins, 1] prob of each bin
-            xr.append(xr_mlp)
-            xo.append(xo_mlp)
+            xt.append(xt_feat)  # [num_bins, 1] prob of each bin
+            xr.append(xr_feat)
+            xo.append(xo_feat)
 
         return xt, xr, xo
 
@@ -135,6 +140,8 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         self.apply(self._init_weights)
 
         self.rot_transform = RotationMatrixTransform()
+
+        # debug
 
     def prepare_ptv3_batch(self, batch):
         outs = {
@@ -199,7 +206,36 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             )
             return losses
         else:
-            pass
+            xt, xr, xo = pred_actions
+            bs = len(xt)
+            pred_pos = []
+            for i in range(bs):
+                # 找出第几个bin是我们需要的
+                n_bins_x, n_bins_y, n_bins_z = [len(bins) for bins in self.act_proj_head.bins_locations]
+                bin_x = xt[i][:n_bins_x]
+                bin_y = xt[i][n_bins_x: n_bins_x + n_bins_y]
+                bin_z = xt[i][n_bins_x + n_bins_y:]
+
+                x_idx = torch.argmax(bin_x)
+                y_idx = torch.argmax(bin_y)
+                z_idx = torch.argmax(bin_z)
+                x_pos = self.act_proj_head.bins_locations[0][x_idx]
+                y_pos = self.act_proj_head.bins_locations[1][y_idx]
+                z_pos = self.act_proj_head.bins_locations[2][z_idx]
+                # plt.ion()
+                # plt.plot(bin_x.cpu().detach().numpy())
+                # plt.show()
+                # print idx
+                # print(f'x: {x_idx}, y: {y_idx}, z: {z_idx}')
+                pred_pos.append(torch.from_numpy(np.array([x_pos, y_pos, z_pos])).to('cuda'))
+            # xr
+            pred_rot = torch.argmax(xr[0].unsqueeze(0), 1).data.cpu().numpy()
+            pred_rot = np.stack([discrete_euler_to_quaternion(x, self.act_proj_head.euler_resolution) for x in pred_rot], 0)
+            pred_rot = torch.from_numpy(pred_rot).to(device)
+
+            pred_open = xo
+            final_pred_actions = torch.cat([pred_pos[0].unsqueeze(0), pred_rot, pred_open], dim=-1)  # TODO: list fix
+            return final_pred_actions
 
     def compute_loss(self, pred_actions, tgt_actions, disc_pos_probs=None, npoints_in_batch=None):
         """
@@ -214,21 +250,37 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         tgt_t, tgt_r, tgt_o = tgt_actions[..., :3], tgt_actions[..., 3:-1], tgt_actions[..., -1]
         # xt loss
 
+        # bins_num
+        n_bins_x, n_bins_y, n_bins_z = [len(bins) for bins in self.act_proj_head.bins_locations]
+
         xt_loss = 0
         for i in range(len(npoints_in_batch)):
-            xt_loss += F.cross_entropy(xt[i].squeeze(), disc_pos_probs[i].to(device), reduction='mean')
+
+            xt_x_loss = F.cross_entropy(xt[i][:n_bins_x].squeeze(), disc_pos_probs[i][:n_bins_x].to(device), reduction='mean')
+            xt_y_loss = F.cross_entropy(xt[i][n_bins_x: n_bins_x + n_bins_y].squeeze(), disc_pos_probs[i][n_bins_x: n_bins_x + n_bins_y].to(device), reduction='mean')
+            xt_z_loss = F.cross_entropy(xt[i][n_bins_x + n_bins_y:].squeeze(), disc_pos_probs[i][n_bins_x + n_bins_y:].to(device), reduction='mean')
+            xt_loss += (xt_x_loss + xt_y_loss + xt_z_loss) / 3
+
         xt_loss /= len(npoints_in_batch)
 
         # xr loss
-        tgt_rot = tgt_rot.long()  # (bs, 3)
-        xr_loss = F.cross_entropy(xr, tgt_rot, reduction='mean')
+        tgt_r = tgt_r.long()  # (bs, 3)
+        xr = torch.stack(xr, 0).view(-1, 72, 3)
+        xr_loss = F.cross_entropy(xr, tgt_r, reduction='mean')
 
         # xo loss
+        xo = torch.stack(xo, 0).squeeze()
         xo_loss = F.binary_cross_entropy_with_logits(xo, tgt_o, reduction='mean')
         total_loss = self.config.loss_config.pos_weight * xt_loss + \
             self.config.loss_config.rot_weight * xr_loss + xo_loss
 
-        return total_loss
+        if self.print_flag:
+            print(f'xt_loss: {xt_loss.item()}, xr_loss: {xr_loss.item()}, xo_loss: {xo_loss.item()}')
+            self.print_flag = False
+        return {
+            'pos': xt_loss, 'rot': xr_loss, 'open': xo_loss,
+            'total': total_loss
+        }
 
 
 class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
@@ -258,6 +310,7 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
         self.apply(self._init_weights)
 
         self.rot_transform = RotationMatrixTransform()
+        self.print_flag = True
 
     def prepare_ptv3_batch(self, batch):
         outs = {
@@ -288,25 +341,3 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
         outs['context_offset'] = torch.cumsum(ctx_lens, dim=0).to(device)
 
         return outs
-
-
-if __name__ == '__main__':
-    from genrobo3d.configs.default import get_config
-
-    config = get_config('genrobo3d/configs/rlbench/simple_policy_ptv3.yaml')
-    model = SimplePolicyPTV3AdaNorm(config.MODEL).cuda()
-    # model = SimplePolicyPTV3CA(config.MODEL).cuda()
-
-    fake_batch = {
-        'pc_fts': torch.rand(100, 6),
-        'npoints_in_batch': [30, 70],
-        'offset': torch.LongTensor([30, 100]),
-        'txt_embeds': torch.rand(2, 1280),
-        'txt_lens': [1, 1],
-        'ee_poses': torch.rand(2, 8),
-        'step_ids': torch.LongTensor([0, 1]),
-        'gt_actions': torch.rand(2, 8),
-    }
-
-    outs = model(fake_batch, compute_loss=True)
-    print(outs[1])

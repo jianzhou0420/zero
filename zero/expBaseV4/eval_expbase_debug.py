@@ -17,13 +17,13 @@ import open3d as o3d
 from sklearn.neighbors import LocalOutlierFactor
 from scipy.spatial.transform import Rotation as R
 
-from zero.expBins.models.lotus.model_expbase import SimplePolicyPTV3CA
+from zero.expBaseV4.models.lotus.model_expbase import SimplePolicyPTV3CA
 
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 
-from zero.expBins.config.default import get_config
+from zero.expBaseV4.config.default import get_config
 
-from zero.expBins.config.constants import get_robot_workspace, get_rlbench_labels
+from zero.expBaseV4.config.constants import get_robot_workspace, get_rlbench_labels
 from zero.z_utils.robot_box import RobotBox
 import random
 from zero.env.rlbench_lotus.recorder import (
@@ -32,7 +32,7 @@ from zero.env.rlbench_lotus.recorder import (
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
-from zero.expBins.trainer_expbase import TrainerLotus
+from zero.expBaseV4.trainer_expbase import TrainerLotus
 
 
 def task_file_to_task_class(task_file):
@@ -95,7 +95,7 @@ class EvalArgs(tap.Tap):
 
     best_disc_pos: str = 'max'  # max, ens1
 
-    record_video: bool = True
+    record_video: bool = False
     video_dir: str = None
     not_include_robot_cameras: bool = False
     video_rotate_cam: bool = False
@@ -363,7 +363,7 @@ class Actioner(object):
 
         # action = action.data.cpu().numpy()
         action = action.numpy()
-        # action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
+        action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
 
         # TODO: ensure the action height is above the table
         action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)

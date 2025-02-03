@@ -59,7 +59,7 @@ def get_best_pos_from_disc_pos(disc_pos_prob, xyz, pos_bin_size=0.01, pos_bins=5
     if best == 'max':
         cands_pos = einops.rearrange(cands_pos, 'n c b -> c (n b)')  # (3, npoints*pos_bins*2)
         idxs = np.argmax(disc_pos_prob, -1)
-        best_pos = cands_pos[np.arange(3), idxs]
+        best_pos = cands_pos[np.arange(3), idxs]  # 不是选择某个bin，而是选择某个bin的x坐标，另一个bin的y坐标，再另一个bin的z坐标
 
     elif best == 'ens1':
         # st = time.time()

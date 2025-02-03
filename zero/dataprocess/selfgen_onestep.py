@@ -1,4 +1,6 @@
-import datetime
+from rlbench.tasks import *
+from datetime import datetime
+
 import time
 from rlbench.demo import Demo
 from typing import List, Dict, Optional, Sequence, Tuple, TypedDict, Union, Any
@@ -36,7 +38,7 @@ import einops
 import json
 from scipy.spatial.transform import Rotation as R
 
-from zero.expbasev4.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
+from zero.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
 
 
 def get_obs(obs):
@@ -141,8 +143,15 @@ def post_process_demo(demo, example_path):
     bbox = []
     pose = []
     for key_frameid in key_frames:
-        bbox.append(demo[key_frameid].misc['bbox'])
-        pose.append(demo[key_frameid].misc['pose'])
+        single_bbox = dict()
+        single_pose = dict()
+        for key, value in demo[key_frameid].misc.items():
+            if key.split('_')[-1] == 'bbox':
+                single_bbox[key.split('_bbox')[0]] = value
+            if key.split('_')[-1] == 'pose':
+                single_pose[key.split('_pose')[0]] = value
+        bbox.append(single_bbox)
+        pose.append(single_pose)
 
     outs = {
         'key_frameids': key_frames,
@@ -303,15 +312,15 @@ def run(task, semaphore, config, pbar):
 
 current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-seed = 42
+seed = 2025
 config = dict()
-config['save_path'] = f'/data/exp/EXPLOG/selfgen/{current_time}'
-config['all_task_file'] = 'polarnet/assets/peract_tasks.json'
+config['save_path'] = f'/media/jian/ssd4t/zero/1_Data/A_Selfgen/val/{current_time}'
+config['all_task_file'] = '/media/jian/ssd4t/zero/assets/peract_tasks.json'
 config['tasks'] = None
 config['image_size'] = [512, 512]
 config['renderer'] = 'opengl'
 config['processes'] = 1
-config['episodes_per_task'] = 100
+config['episodes_per_task'] = 20
 config['variations'] = -1
 config['offset'] = 0
 config['state'] = False
@@ -324,7 +333,7 @@ with open(config['all_task_file'], 'r') as f:
     if config['tasks']:
         all_tasks = [t for t in all_tasks if t in config['tasks']]
 
-all_tasks = [task_file_to_task_class(t) for t in all_tasks]
+all_tasks = [task_file_to_task_class(t + '_peract') for t in all_tasks]
 print('Tasks:', all_tasks)
 
 processes = []
@@ -334,7 +343,7 @@ semaphore = Semaphore(config['processes'])
 for each_task in all_tasks:
     pbar = tqdm(total=config['episodes_per_task'], desc=f"{each_task.__name__}")
     processes.append(Process(target=run, args=(each_task, semaphore, config, pbar)))
-
+    # break
 
 for p in processes:
     p.start()

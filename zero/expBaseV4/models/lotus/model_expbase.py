@@ -303,10 +303,10 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                     pred_rot = np.stack([discrete_euler_to_quaternion(x, self.act_proj_head.euler_resolution) for x in pred_rot], 0)
                     pred_rot = torch.from_numpy(pred_rot).to(device)
                 final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open.unsqueeze(-1)], dim=-1)
+
                 return final_pred_actions
 
         else:  # if is_train
-
             losses = self.compute_loss(
                 pred_actions, batch['gt_actions'],
                 disc_pos_probs=batch.get('disc_pos_probs', None),
@@ -321,6 +321,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             tgt_actions: (all_valid_actions, dim_action) / (batch_size, max_action_len, dim_action)
             masks: (batch_size, max_action_len)
         """
+
         # loss_cfg = self.config.loss_config
         device = tgt_actions.device
 
@@ -338,7 +339,8 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             for i in range(len(npoints_in_batch)):
                 pos_loss += F.cross_entropy(
                     split_pred_pos[i].reshape(3, -1), disc_pos_probs[i].to(device), reduction='mean'
-                )
+                )  # input=(3, npoints*pos_bins), target=(3, npoints*pos_bins)
+                # 所以这里学习的是如何从所有bins中选出一个点来。
             pos_loss /= len(npoints_in_batch)
         else:
             pos_loss = F.mse_loss(pred_pos, tgt_pos, reduction='mean')

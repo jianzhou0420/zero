@@ -4,8 +4,8 @@
 ############################################
 pl_flag: True
 exp_name: 'exp_base_insert_peg_0.005'
-selfgen_dir: '/data/zero/1_Data/A_Selfgen/seed42'
-preprocess_dir: '/data/zero/1_Data/B_Preprocess/insert_0.005'
+selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
+preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/insert_0.005'
 tasks_to_use: ['insert_onto_square_peg']
 log_dir: '/data/zero/2_Train'
 
@@ -25,7 +25,7 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 1
+  train_batch_size: 4
 
 
   gradient_accumulation_steps: 1
@@ -44,7 +44,7 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 1
+  n_workers: 4
   pin_mem: True
 
 
