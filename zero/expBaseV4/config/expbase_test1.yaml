@@ -5,8 +5,10 @@
 pl_flag: True
 exp_name: 'exp_base_insert_peg_0.005'
 selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
-preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/insert_0.005'
-tasks_to_use: ['insert_onto_square_peg']
+preprocess_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/train/sort_shape_edge'
+# tasks_to_use: ['insert_onto_square_peg']
+
+tasks_to_use: ['place_shape_in_shape_sorter']
 log_dir: '/data/zero/2_Train'
 
 ############################################
@@ -19,8 +21,7 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 1
-  # val_batch_size: 1
+  train_batch_size: 4
 
   gradient_accumulation_steps: 1
   num_epochs: null
@@ -38,12 +39,12 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 1
+  n_workers: 4
   pin_mem: True
 
 
 TRAIN_DATASET:
-  # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
+
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
@@ -64,12 +65,12 @@ TRAIN_DATASET:
   same_npoints_per_example: False
   rm_pc_outliers: False
   rm_pc_outliers_neighbors: 25
-  pos_bins: 15
-  pos_bin_size: 0.01
+  pos_bins: 75
+  pos_bin_size: 0.001
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False
-  euler_resolution: 5
+  euler_resolution: 1
 
 
 MODEL:
@@ -128,13 +129,12 @@ MODEL:
     pos_pred_type: 'heatmap_disc'  # heatmap_mlp, regression, regression_delta, heatmap_disc
     pos_heatmap_temp: 0.1
     rot_pred_type: 'euler_disc'     # quat, rot6d, euler, euler_delta, euler_disc
-
     dropout: 0.2
-
-    pos_bins: 15
-    pos_bin_size: 0.01
+    pos_bins: 75
+    pos_bin_size: 0.001
     best_disc_pos: max # max, ens1
-    euler_resolution: 5
+    euler_resolution: 1
+
   loss_config:
     pos_weight: 1
     rot_weight: 1

@@ -1,12 +1,13 @@
-import torch
+import torch.nn.functional as F
 import torch.nn as nn
+import torch
 
 
 class FixedOutputTransformerDecoder(nn.Module):
     def __init__(
         self,
         embed_dim=128,
-        num_heads=8,
+        num_heads=1,
         dim_feedforward=256,
         num_queries=3503,
         num_decoder_layers=1,
@@ -74,40 +75,3 @@ class FixedOutputTransformerDecoder(nn.Module):
         output = output.transpose(0, 1)
 
         return output
-
-# -------------------------
-# Example usage
-# -------------------------
-
-
-# Suppose each input sample has variable number of points.
-# For this example, assume we've padded each sample in the batch to have 'max_points' points.
-batch_size = 4
-max_points = 120  # maximum number of points after padding in the batch
-embed_dim = 128
-
-# Create a dummy memory tensor (this would be your features)
-# Shape: (max_points, batch_size, embed_dim)
-memory = torch.randn(max_points, batch_size, embed_dim)
-
-# Optionally, create a key padding mask indicating which positions are padding.
-# For example, if actual numbers of points per sample are [100, 120, 90, 110],
-# then create a boolean mask of shape (batch_size, max_points)
-# where True indicates a padded position.
-# Here, we'll simulate one such mask (this is just an example).
-memory_key_padding_mask = torch.zeros(batch_size, max_points, dtype=torch.bool)
-# (In practice, set positions beyond each sample's num_points to True)
-
-# Initialize the model.
-model = FixedOutputTransformerDecoder(
-    embed_dim=embed_dim,
-    num_heads=8,
-    dim_feedforward=256,
-    num_queries=3503,  # fixed output length
-    num_decoder_layers=1,
-    dropout=0.1,
-)
-
-# Forward pass: The model returns output of shape (batch_size, 3503)
-output = model(memory, memory_key_padding_mask=memory_key_padding_mask)
-print("Output shape:", output.shape)  # Expected: (4, 3503)

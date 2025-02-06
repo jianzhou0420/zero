@@ -4,23 +4,23 @@ import yacs.config
 import pickle
 
 import json
-from zero.expbasev4.dataprocess.utils import natural_sort_key
+from zero.dataprocess.utils import natural_sort_key
 import os
 import einops
 import copy
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
 import numpy as np
-from zero.expbasev4.models.lotus.utils.robot_box import RobotBox
+from zero.expBaseV4.models.lotus.utils.robot_box import RobotBox
 from scipy.special import softmax
 import torch
 
-from zero.expbasev4.models.lotus.utils.rotation_transform import (
+from zero.expBaseV4.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
 import matplotlib.pyplot as plt
 import random
-from zero.expbasev4.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.expBaseV4.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -87,8 +87,8 @@ class ObsProcessLotus:
         self.config = config
 
         # debug
-        taskvar_instr_file = '/data/zero/zero/v4/models/lotus/assets/taskvars_instructions_peract.json'
-        instr_embed_file = '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
+        taskvar_instr_file = config.TRAIN_DATASET.taskvar_instr_file
+        instr_embed_file = config.TRAIN_DATASET.instr_embed_file
         self.taskvar_instrs = json.load(open(taskvar_instr_file))
         self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
         self.TABLE_HEIGHT = 0.7505

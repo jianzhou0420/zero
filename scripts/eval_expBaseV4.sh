@@ -15,9 +15,9 @@ for item in 799
 do
 
     python /media/jian/ssd4t/zero/zero/expBaseV4/eval_expbase.py \
-    --config /media/jian/ssd4t/zero/zero/expBaseV4/config/expbase_voxel_size_0.005.yaml \
+    --config /media/jian/ssd4t/zero/zero/expBaseV4/config/expbase_test1.yaml \
     --name test \
-    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_02_01__12-15_verify_expbasev4/version_0/checkpoints/2025_02_01__12-15_verify_expbasev4_epoch=$item.ckpt \
+    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_02_05__21-35_expBaseV4_change_augment/version_0/checkpoints/2025_02_05__21-35_expBaseV4_change_augment_epoch=799.ckpt\
     --tasks_to_use ${tasks_to_use[@]} 
 
 done

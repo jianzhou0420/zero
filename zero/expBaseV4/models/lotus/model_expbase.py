@@ -192,6 +192,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             config.ptv3_config.dec_channels[0], act_cfg.dim_actions,
             dropout=act_cfg.dropout, voxel_size=act_cfg.voxel_size,
             ptv3_config=config.ptv3_config, pos_bins=config.action_config.pos_bins,
+            euler_resolution=config.action_config.euler_resolution
         )
 
         self.apply(self._init_weights)
@@ -407,6 +408,7 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
             config.ptv3_config.dec_channels[0], act_cfg.dim_actions,
             dropout=act_cfg.dropout, voxel_size=act_cfg.voxel_size,
             ptv3_config=config.ptv3_config, pos_bins=config.action_config.pos_bins,
+            euler_resolution=config.action_config.euler_resolution
         )
 
         self.apply(self._init_weights)

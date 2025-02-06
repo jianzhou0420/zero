@@ -50,9 +50,10 @@ def get_obs(obs):
     apply_pc = True
     apply_cameras = ("left_shoulder", "right_shoulder", "wrist", "front")
     apply_depth = True
+    apply_sem = True
     gripper_pose = False
     # fetch state: (#cameras, H, W, C)
-    state_dict = {"rgb": [], "depth": [], "pc": []}
+    state_dict = {"rgb": [], "depth": [], "pc": [], "sem": []}
     for cam in apply_cameras:
         if apply_rgb:
             rgb = getattr(obs, "{}_rgb".format(cam))
@@ -66,6 +67,9 @@ def get_obs(obs):
             pc = getattr(obs, "{}_point_cloud".format(cam))
             state_dict["pc"] += [pc]
 
+        if apply_sem:
+            sem = getattr(obs, "{}_mask".format(cam))
+            state_dict["sem"] += [sem]
     # fetch gripper state (3+4+1, )
     gripper = np.concatenate([obs.gripper_pose, [obs.gripper_open]]).astype(
         np.float32
@@ -159,7 +163,8 @@ def post_process_demo(demo, example_path):
         'pc': state_dict_ls['pc'],  # (T, N, H, W, 3)
         'action': action_ls,  # (T, A)
         'bbox': bbox,  # [T of dict]
-        'pose': pose  # [T of dict]
+        'pose': pose,  # [T of dict]
+        'sem': state_dict_ls['sem'],  # (T, N, H, W, 3)
     }
     check_and_make(example_path)
     with open(os.path.join(example_path, 'data.pkl'), 'wb') as f:
@@ -195,10 +200,10 @@ def run(task, semaphore, config, pbar):
         obs_config.overhead_camera.point_cloud = False
         obs_config.overhead_camera.mask = False
 
-        obs_config.right_shoulder_camera.mask = False
-        obs_config.left_shoulder_camera.mask = False
-        obs_config.wrist_camera.mask = False
-        obs_config.front_camera.mask = False
+        obs_config.right_shoulder_camera.mask = True
+        obs_config.left_shoulder_camera.mask = True
+        obs_config.wrist_camera.mask = True
+        obs_config.front_camera.mask = True
 
         obs_config.right_shoulder_camera.depth = True
         obs_config.left_shoulder_camera.depth = True
@@ -219,11 +224,11 @@ def run(task, semaphore, config, pbar):
         obs_config.front_camera.depth_in_meters = False
 
         # We want to save the masks as rgb encodings.
-        obs_config.left_shoulder_camera.masks_as_one_channel = False
-        obs_config.right_shoulder_camera.masks_as_one_channel = False
-        obs_config.overhead_camera.masks_as_one_channel = False
-        obs_config.wrist_camera.masks_as_one_channel = False
-        obs_config.front_camera.masks_as_one_channel = False
+        # obs_config.left_shoulder_camera.masks_as_one_channel = False
+        # obs_config.right_shoulder_camera.masks_as_one_channel = False
+        # obs_config.overhead_camera.masks_as_one_channel = False
+        # obs_config.wrist_camera.masks_as_one_channel = False
+        # obs_config.front_camera.masks_as_one_channel = False
 
         if config['renderer'] == 'opengl':
             obs_config.right_shoulder_camera.render_mode = RenderMode.OPENGL
@@ -312,20 +317,20 @@ def run(task, semaphore, config, pbar):
 
 current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-seed = 2025
+seed = 42
 config = dict()
-config['save_path'] = f'/media/jian/ssd4t/zero/1_Data/A_Selfgen/val/{current_time}'
+config['save_path'] = f'/media/jian/ssd4t/zero/1_Data/A_Selfgen/train/with_sem/'
 config['all_task_file'] = '/media/jian/ssd4t/zero/assets/peract_tasks.json'
 config['tasks'] = None
 config['image_size'] = [512, 512]
 config['renderer'] = 'opengl'
 config['processes'] = 1
-config['episodes_per_task'] = 20
+config['episodes_per_task'] = 100
 config['variations'] = -1
 config['offset'] = 0
 config['state'] = False
 config['seed'] = seed
-
+# config['tasks'] = ['insert_onto_square_peg']
 check_and_make(config['save_path'])
 
 with open(config['all_task_file'], 'r') as f:

@@ -109,7 +109,7 @@ class EvalArgs(tap.Tap):
     ckpt_step = 220000
     seed = 42
     num_workers = 4
-    num_demos = 10
+    num_demos = 20
     config: str = None
     name: str = None
     checkpoint: str = None

@@ -318,6 +318,7 @@ class SimplePolicyDataset(Dataset):
                 mask = xyz[..., 2] > self.TABLE_HEIGHT
                 xyz = xyz[mask]
                 rgb = rgb[mask]
+
             if self.rm_robot.startswith('box'):
                 mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.rm_robot)
                 xyz = xyz[mask]

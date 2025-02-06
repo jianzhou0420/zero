@@ -15,7 +15,7 @@ from zero.expBins.models.lotus.PointTransformerV3.model import (
 )
 from zero.expBins.models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
 from zero.expBins.models.lotus.utils.action_position_utils import get_best_pos_from_disc_pos, BIN_SPACE
-from zero.expBins.models.lotus.CrossAtten import FeatureAggregate
+from zero.expBins.models.lotus.FixedOutputTransformerDecoder import FixedOutputTransformerDecoder
 
 
 class ActionHead(nn.Module):
@@ -43,12 +43,15 @@ class ActionHead(nn.Module):
         z_bins_location = np.arange(BIN_SPACE[2][0], BIN_SPACE[2][1], 0.001)
         self.bins_locations = [x_bins_location, y_bins_location, z_bins_location]
 
-        num_queries = len(x_bins_location) + len(y_bins_location) + len(z_bins_location)
+        self.num_queries = len(x_bins_location) + len(y_bins_location) + len(z_bins_location) + 72 * 3 + 1
 
-        ft_ag_dim = hidden_size / 3
-        self.xt_cross_atten = FeatureAggregate(num_queries=num_queries, feature_dim=hidden_size)
-        self.xr_cross_atten = FeatureAggregate(num_queries=72 * 3, feature_dim=hidden_size)
-        self.xo_cross_atten = FeatureAggregate(num_queries=1, feature_dim=hidden_size)
+        self.FeatureAggregate = FixedOutputTransformerDecoder(
+            embed_dim=hidden_size,
+            num_queries=self.num_queries,
+            num_heads=1,
+            num_decoder_layers=1,
+            dropout=0.1
+        )
 
         # self.xt_mlp = nn.Sequential(
         #     nn.Linear(hidden_size, hidden_size),
@@ -84,24 +87,12 @@ class ActionHead(nn.Module):
         # 1. xt
         feat_all = torch.split(feat, npoints_in_batch, dim=0)
 
-        xt = []
-        xr = []
-        xo = []
+        xt, xr, xo = [], [], []
         for feat in feat_all:
-            xt_feat = self.xt_cross_atten(feat)  # [num_bins, hidden_size]
-            xr_feat = self.xr_cross_atten(feat)  # [72 * 3, hidden_size]
-            xo_feat = self.xo_cross_atten(feat)  # [1, hidden_size]
-
-            # xt_mlp = self.xt_mlp(xt_feat)  # [num_bins, 1]
-            # xr_mlp = self.xr_mlp(xr_feat)  # [72 * 3, 1]
-            # xo_mlp = self.xo_mlp(xo_feat)  # [1, 1]
-            xt_feat = torch.sum(xt_feat, dim=1)
-            xr_feat = torch.sum(xr_feat, dim=1)
-            xo_feat = torch.sum(xo_feat, dim=1)
-
-            xt.append(xt_feat)  # [num_bins, 1] prob of each bin
-            xr.append(xr_feat)
-            xo.append(xo_feat)
+            x_all = self.FeatureAggregate(feat.unsqueeze(0)).squeeze(0)
+            xt.append(x_all[:, :self.num_queries - 72 * 3 - 1])
+            xr.append(x_all[:, self.num_queries - 72 * 3 - 1: self.num_queries - 1])
+            xo.append(x_all[:, -1])
 
         return xt, xr, xo
 
@@ -255,7 +246,6 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
 
         xt_loss = 0
         for i in range(len(npoints_in_batch)):
-
             xt_x_loss = F.cross_entropy(xt[i][:n_bins_x].squeeze(), disc_pos_probs[i][:n_bins_x].to(device), reduction='mean')
             xt_y_loss = F.cross_entropy(xt[i][n_bins_x: n_bins_x + n_bins_y].squeeze(), disc_pos_probs[i][n_bins_x: n_bins_x + n_bins_y].to(device), reduction='mean')
             xt_z_loss = F.cross_entropy(xt[i][n_bins_x + n_bins_y:].squeeze(), disc_pos_probs[i][n_bins_x + n_bins_y:].to(device), reduction='mean')
