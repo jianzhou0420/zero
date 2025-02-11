@@ -1,6 +1,7 @@
 # framework package
 
 # own package
+from pytorch_lightning.profilers import PyTorchProfiler
 from zero.expAugmentation.models.lotus.optim.misc import build_optimizer
 from zero.expAugmentation.dataset.dataset_expbase_voxel_augment import SimplePolicyDataset, ptv3_collate_fn
 from zero.expAugmentation.models.lotus.model_expbase import SimplePolicyPTV3CA
@@ -95,7 +96,7 @@ class TrainerLotus(pl.LightningModule):
         return [optimizer], [scheduler_config]
 
     def get_dataset(self, config):
-        dataset = SimplePolicyDataset(config=config, is_single_frame=False, **config.TRAIN_DATASET)
+        dataset = SimplePolicyDataset(config=config, is_single_frame=False, tasks_to_use=config.tasks_to_use, **config.TRAIN_DATASET)
         return dataset
 
     def get_dataloader(self, config):
@@ -170,60 +171,37 @@ if __name__ == '__main__':
 
         print(f"len(train_dataloader): {len(train_dataloader)}")
         print(f"max_epochs: {config.TRAIN.epoches}")
+        profiler = PyTorchProfiler(
+            output_filename="profiler_output.json",  # This will output a JSON trace.
+            activities=[
+                torch.profiler.ProfilerActivity.CPU,
+                torch.profiler.ProfilerActivity.CUDA,
+            ],
+            # Optionally set up a schedule to control when profiling is active:
+            schedule=torch.profiler.schedule(
+                wait=10,    # number of steps to skip before warming up
+                warmup=20,  # number of warmup steps
+                active=2,  # number of steps to profile
+                repeat=1   # number of times to repeat the cycle
+            ),
+
+            on_trace_ready=torch.profiler.tensorboard_trace_handler('./log/profiler'),
+            record_shapes=True,   # Optionally record tensor shapes for more insight.
+        )
 
         trainer = pl.Trainer(callbacks=[checkpoint_callback],
                              max_epochs=config.TRAIN.epoches,
                              devices='auto',
                              strategy='auto',
                              logger=csvlogger1,
-                             profiler='pytorch'
+                             #  profiler=profiler，
+                             profiler='simple',
                              )
 
         trainer.fit(trainer_model, train_dataloader)
+        # print(profiler.key_averages().table(max_len=200))
 
-    def resume(exp_name, config, logs_dir):
-        # logs_dir should navigate to the version folder
-        version = logs_dir.split('/')[-1]
-        log_name = logs_dir.split('/')[-2]
-        log_path = "/".join(logs_dir.split('/')[0:-2])
-
-        ckpt_folder = os.path.join(logs_dir, 'checkpoints')
-        ckpts = sorted(os.listdir(ckpt_folder), key=natural_sort_key)
-
-        ckpt_path = os.path.join(ckpt_folder, ckpts[-1])
-        ckpt_name = ckpts[-1].split('epoch=')[0]
-
-        # print(f"ckpt_path: {ckpt_path}")
-        # print(f"ckpt_name: {ckpt_name}")
-        # print(f"log_path: {log_path}")
-        # print(f"log_name: {log_name}")
-
-        csvlogger1 = CSVLogger(
-            save_dir=log_path,
-            name=log_name,
-            version=version
-        )
-
-        trainer_model = TrainerLotus(config)
-        train_dataloader = trainer_model.get_dataloader(config)
-        checkpoint_callback = ModelCheckpoint(
-            every_n_epochs=100,
-            save_top_k=-1,
-            save_last=False,
-            filename=f'{ckpt_name}' + '{epoch:03d}'  # Checkpoint filename
-        )
-        trainer = pl.Trainer(
-            callbacks=[checkpoint_callback],
-            max_epochs=config.TRAIN.epoches,
-            devices='auto',
-            strategy='auto',
-            logger=csvlogger1,
-            # resume_from_checkpoint=ckpt_path  # Resume from this checkpoint if provided
-        )
-
-        trainer.fit(trainer_model, train_dataloader, ckpt_path=ckpt_path)
-
-        # 0.1 args
+    # 0.1 args
     args = TrainerArgs().parse_args(known_only=True)
     # 0.2 config
     config = yacs.config.CfgNode(new_allowed=True)
@@ -241,7 +219,5 @@ if __name__ == '__main__':
     current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
 
     exp_name = args.name
-    if args.resume_version_dir is None:
-        train(exp_name, config, current_time)
-    else:
-        resume(exp_name, config, args.resume_version_dir)
+
+    train(exp_name, config, current_time)
