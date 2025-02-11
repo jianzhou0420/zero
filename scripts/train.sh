@@ -1,8 +1,8 @@
 
 conda activate zero
 
-name=expBins_first_try
-config_path=/media/jian/ssd4t/zero/zero/expBins/config/expbase_voxel_size_0.005_bins.yaml
+name=expBins_all_together
+config_path=/media/jian/ssd4t/zero/zero/expBaseV4/config/expBase_all_together.yaml
 
 python /media/jian/ssd4t/zero/zero/expBins/trainer_expbase.py --config $config_path --name $name
 
