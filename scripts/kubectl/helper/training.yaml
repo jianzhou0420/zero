@@ -4,54 +4,53 @@ metadata:
   name: exp # Your training job name
 spec:
   backoffLimit: 0   # add this line so --> If your pod failed, the training job will stop.
-  template:
-    spec:
-      restartPolicy: Never
-      imagePullSecrets:
-        - name: gitlab-docker-secret
-      volumes:
-        - name: shared-memory # This is to resolve the dataloader OOM issue.
-          emptyDir:
-            medium: Memory
-        - name: dataset-volume
-          persistentVolumeClaim:
-            claimName: rlbench-pvc      # <------- your PVC name    kubectl get pvc
+  spec:
+    restartPolicy: Never
+    imagePullSecrets:
+      - name: gitlab-docker-secret
+    volumes:
+      - name: shared-memory # This is to resolve the dataloader OOM issue.
+        emptyDir:
+          medium: Memory
+      - name: dataset-volume
+        persistentVolumeClaim:
+          claimName: rlbench-pvc      # <------- your PVC name    kubectl get pvc
 
-      containers:
-        - name: zero-container # It is recommended to name your container according to the project
-          image: docker.aiml.team/jian.zhou/test:latest # You can reuse this image for different projects if their python dependencies are the same.
-          imagePullPolicy: Always
-          stdin: true
-          tty: true
-          command: ["/bin/bash", "-c"]
-          args: 
-              - |
-                cd /data/zero
-                git pull
-                pip install -e .
-                python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
-                nvidia-smi
-                source /data/zero/scripts/train.sh
+    containers:
+      - name: zero-container # It is recommended to name your container according to the project
+        image: docker.aiml.team/jian.zhou/test:latest # You can reuse this image for different projects if their python dependencies are the same.
+        imagePullPolicy: Always
+        stdin: true
+        tty: true
+        command: ["/bin/bash", "-c"]
+        args: 
+            - |
+              cd /data/zero
+              git pull
+              pip install -e .
+              python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
+              nvidia-smi
+              source /data/zero/scripts/train.sh
 
 
-          resources:
-            limits:
-              nvidia.com/gpu: 2           # <------- If you don't need any of GPUs, Please comment-out this line.
-              cpu: 16
-              memory: 128Gi
-            requests:
-              nvidia.com/gpu: 2           # <------- If you don't need any of GPUs, Please comment-out this line.
-              cpu: 8
-              memory: 64Gi
+        resources:
+          limits:
+            nvidia.com/gpu: 2           # <------- If you don't need any of GPUs, Please comment-out this line.
+            cpu: 16
+            memory: 128Gi
+          requests:
+            nvidia.com/gpu: 2           # <------- If you don't need any of GPUs, Please comment-out this line.
+            cpu: 8
+            memory: 64Gi
 
-          volumeMounts:
-            - name: dataset-volume
-              mountPath: /data
-            - name: shared-memory
-              mountPath: /dev/shm
-          env:
-            - name: GITLAB_TOKEN
-              valueFrom:
-                secretKeyRef:
-                    name: gitlab-token  # kubectl get secrets
-                    key:  access-token
+        volumeMounts:
+          - name: dataset-volume
+            mountPath: /data
+          - name: shared-memory
+            mountPath: /dev/shm
+        env:
+          - name: GITLAB_TOKEN
+            valueFrom:
+              secretKeyRef:
+                  name: gitlab-token  # kubectl get secrets
+                  key:  access-token

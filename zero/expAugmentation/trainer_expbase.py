@@ -66,7 +66,7 @@ class TrainerLotus(pl.LightningModule):
     def training_step(self, batch, batch_idx):
 
         # del batch['pc_centroids'], batch['pc_radius']
-        if batch_idx % (int(100 / self.config.TRAIN.train_batch_size * self.config.num_gpu)) == 0:
+        if batch_idx % (int(100 / (self.config.TRAIN.train_batch_size * self.config.num_gpu))) == 0:
             # print(f"Before empty cache: {torch.cuda.memory_allocated()} bytes")
             # print(f"Before empty cache: {torch.cuda.memory_reserved()} bytes")
             print('batch_idx:', batch_idx)
