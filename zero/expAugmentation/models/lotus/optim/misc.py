@@ -15,12 +15,13 @@ def build_optimizer(model, opts):
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
     rgb_enc_params, other_params = {}, {}
     for n, p in param_optimizer:
-        if not p.requires_grad: continue
+        if not p.requires_grad:
+            continue
         if 'rgb_encoder' in n:
             rgb_enc_params[n] = p
         else:
             other_params[n] = p
-    
+
     optimizer_grouped_parameters = []
     init_lrs = []
     for ptype, pdict in [('rgb', rgb_enc_params), ('others', other_params)]:
@@ -32,13 +33,13 @@ def build_optimizer(model, opts):
         optimizer_grouped_parameters.extend([
             {'params': [p for n, p in pdict.items()
                         if not any(nd in n for nd in no_decay)],
-            'weight_decay': opts.weight_decay, 'lr': init_lr},
+             'weight_decay': opts.weight_decay, 'lr': init_lr},
             {'params': [p for n, p in pdict.items()
                         if any(nd in n for nd in no_decay)],
-            'weight_decay': 0.0, 'lr': init_lr}
+             'weight_decay': 0.0, 'lr': init_lr}
         ])
         init_lrs.extend([init_lr] * 2)
-        
+
     # currently Adam only
     if opts.optim == 'adam':
         OptimCls = Adam

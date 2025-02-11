@@ -65,7 +65,7 @@ class TrainerLotus(pl.LightningModule):
         self.model = SimplePolicyPTV3CA(config.MODEL)
 
     def training_step(self, batch, batch_idx):
-
+        print('batch_idx:', batch_idx)
         # del batch['pc_centroids'], batch['pc_radius']
         if batch_idx % (int(100 / (self.config.TRAIN.train_batch_size * self.config.num_gpu))) == 0:
             # print(f"Before empty cache: {torch.cuda.memory_allocated()} bytes")
@@ -84,11 +84,13 @@ class TrainerLotus(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer, init_lrs = build_optimizer(self.model, self.config.TRAIN)
+
         scheduler = WarmupCosineScheduler(
             optimizer,
             warmup_steps=self.config.TRAIN.warmup_steps,
             total_steps=self.config.TRAIN.num_train_steps,
         )
+
         scheduler_config = {
             "scheduler": scheduler,
             "interval": "step",  # Adjust learning rate every step
