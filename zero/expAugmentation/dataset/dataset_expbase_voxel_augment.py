@@ -77,7 +77,7 @@ def natural_sort_key(s):
 class SimplePolicyDataset(Dataset):
     def __init__(
         self, instr_embed_file, taskvar_instr_file, taskvar_file=None,
-        num_points=10000, xyz_shift='center', xyz_norm=True, use_height=False,
+        num_points=10000000, xyz_shift='center', xyz_norm=True, use_height=False,
         rot_type='quat', instr_embed_type='last', all_step_in_batch=True,
         rm_table=True, rm_robot='none', include_last_step=False, augment_pc=False,
         sample_points_by_distance=False, same_npoints_per_example=False,
@@ -305,7 +305,7 @@ class SimplePolicyDataset(Dataset):
             instr_embed = copy.deepcopy(self.instr_embeds[instr])
             # print(taskvar)
             # print(instr)
-            print(f"initial xyz: {xyz.shape}")
+            # print(f"initial xyz: {xyz.shape}")
             # remove background points (table, robot arm)
             if self.rm_table:
                 mask = xyz[..., 2] > self.TABLE_HEIGHT
@@ -321,10 +321,11 @@ class SimplePolicyDataset(Dataset):
                 xyz, rgb = self._rm_pc_outliers(xyz, rgb)
 
             # sampling points
-            print(f"before downsample xyz: {xyz.shape}")
-            if len(xyz) > self.num_points:
-                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
-            print(f"before downsample xyz: {xyz.shape}")
+            # print(f"before downsample xyz: {xyz.shape}")
+            # if len(xyz) > self.num_points:
+            #     point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+            #    xyz = xyz[point_idxs]
+            #    rgb = rgb[point_idxs]
 
             max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
             point_idxs = np.random.permutation(len(xyz))[:max_npoints]
@@ -332,7 +333,7 @@ class SimplePolicyDataset(Dataset):
             xyz = xyz[point_idxs]
             rgb = rgb[point_idxs]
             height = xyz[:, -1] - self.TABLE_HEIGHT
-
+            # print(f"After downsample xyz: {xyz.shape}")
             if self.pos_heatmap_no_robot:
                 robot_box = RobotBox(
                     arm_links_info=arm_links_info,
@@ -386,13 +387,14 @@ class SimplePolicyDataset(Dataset):
                 )
                 outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
 
-            print(f"afterprocess: {xyz.shape}")
+            # print(f"afterprocess: {xyz.shape}")
             outs['data_ids'].append(data_ids)
             outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
             outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
             outs['gt_actions'].append(torch.from_numpy(gt_action).float())
             outs['step_ids'].append(t)
+            # break
         return outs
 
 
@@ -457,7 +459,7 @@ if __name__ == '__main__':
     np.random.seed(42)
     random.seed(42)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/data/zero/zero/expAugmentation/config/expbase_voxel_size_0.005_eular_res.yaml')
+    parser.add_argument('--config', type=str, default='/media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_all_together.yaml')
     parser.add_argument('--output', type=str)
 
     args = parser.parse_args()

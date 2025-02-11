@@ -2,7 +2,7 @@
 
 # own package
 from zero.expAugmentation.models.lotus.optim.misc import build_optimizer
-from zero.expAugmentation.dataset.dataset_expbase_voxel import SimplePolicyDataset, ptv3_collate_fn
+from zero.expAugmentation.dataset.dataset_expbase_voxel_augment import SimplePolicyDataset, ptv3_collate_fn
 from zero.expAugmentation.models.lotus.model_expbase import SimplePolicyPTV3CA
 from zero.z_utils import *
 
@@ -38,6 +38,8 @@ class TrainerArgs(tap.Tap):
     config: str = None
     name: str = 'default'
     resume_version_dir: str = None
+    tasks_to_use: list = None
+    num_gpu: int
 
 
 class WarmupCosineScheduler(torch.optim.lr_scheduler.LambdaLR):
@@ -121,15 +123,23 @@ if __name__ == '__main__':
 
         # 0. prepare config
         # check batch size and number of gpus
-        # bs = config.TRAIN.train_batch_size
-        # gpu = config.TRAIN.num_gpu
-        # assert 100 % (bs * gpu) == 0, "Batch size should be divisible by 100, please change the batch size or number of gpus"
+        bs = config.TRAIN.train_batch_size
+        gpu = config.num_gpu
+        assert 100 % (bs * gpu) == 0, "Batch size should be divisible by 100, please change the batch size or number of gpus"
 
-        # # num_train_steps
-        # epoches = config.TRAIN.epoches
+        # num_train_steps
+        epoches = config.TRAIN.epoches
 
-        # if config.tasks_to_use
-        # pairs=epoches//
+        if config.tasks_to_use is not None:
+            num_tasks = len(config.tasks_to_use)
+            num_episodes = num_tasks * 100
+            total_episodes = num_episodes * epoches
+            total_steps = total_episodes // (bs * gpu)
+        else:
+            total_steps = 18 * epoches * 100 // (bs * gpu)
+
+        config.TRAIN.num_train_steps = total_steps
+        config.TRAIN.warmup_steps = total_steps // 15
 
         # 1.trainer
 
@@ -208,6 +218,14 @@ if __name__ == '__main__':
     args = TrainerArgs().parse_args(known_only=True)
     # 0.2 config
     config = yacs.config.CfgNode(new_allowed=True)
+
+    args_dict = {}
+    for arg in args.class_variables.keys():
+        args_dict[arg] = getattr(args, arg)
+
+    for key, value in args_dict.items():
+        config[key] = value
+
     config.merge_from_file(args.config)
 
     # 0.3 path & name stuff
