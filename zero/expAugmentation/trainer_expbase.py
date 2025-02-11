@@ -111,6 +111,8 @@ class TrainerLotus(pl.LightningModule):
             copied from lotus, sampler is not used as pytorchlightning will automaticallt config it for me
             '''
             batch_size = config.TRAIN.train_batch_size if is_train else config.TRAIN.val_batch_size
+            sampler = DistributedSampler(dataset, shuffle=False)
+
             print(f"batch_size: {batch_size}")
             loader = DataLoader(
                 dataset,
@@ -118,6 +120,7 @@ class TrainerLotus(pl.LightningModule):
                 num_workers=config.TRAIN.n_workers,
                 pin_memory=config.TRAIN.pin_mem,
                 collate_fn=collate_fn,
+                sampler=sampler,
                 drop_last=False,
                 prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
                 shuffle=False,

@@ -274,7 +274,7 @@ class SimplePolicyDataset(Dataset):
 
         # 0.1 identify the frame info and output info
         taskvar = self.g_episode_to_taskvar[g_episode]
-
+        # print(f"taskvar: {taskvar}")
         # 0.2 get data of specific frame
         data = self.check_cache(g_episode)
         num_frames = len(data['data_ids'])
@@ -489,8 +489,8 @@ if __name__ == '__main__':
     with open('/data/zero/assets/peract_tasks.json', 'r') as f:
         tasks = json.load(f)
 
-    for i in range(18):
-        print(f"task: {tasks[i]}")
-        dataset[i * 100]
+    for i in trange(1800):
+        # print(f"task: {tasks[i]}")
+        dataset[i]
 
         # break
