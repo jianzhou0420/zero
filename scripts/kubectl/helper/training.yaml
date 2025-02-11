@@ -36,7 +36,7 @@ spec:
 
           resources:
             limits:
-              nvidia.com/gpu: 4           # <------- If you don't need any of GPUs, Please comment-out this line.
+              nvidia.com/gpu: 2           # <------- If you don't need any of GPUs, Please comment-out this line.
           volumeMounts:
             - name: dataset-volume
               mountPath: /data
