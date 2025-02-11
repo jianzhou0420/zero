@@ -6,7 +6,7 @@ pl_flag: True
 exp_name: 'exp_tricks_all_together'
 selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
 preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/0.005all'
-tasks_to_use: ['insert_onto_square_peg','close_jar']
+# tasks_to_use: ['insert_onto_square_peg','close_jar']
 log_dir: '/data/zero/2_Train'
 
 ############################################
@@ -14,7 +14,7 @@ log_dir: '/data/zero/2_Train'
 ############################################
 TRAIN:
 
-  train_batch_size: 1
+  train_batch_size: 2
   epoches: 2
   num_train_steps: null
   warmup_steps: null
