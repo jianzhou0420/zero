@@ -66,10 +66,15 @@ class TrainerLotus(pl.LightningModule):
     def training_step(self, batch, batch_idx):
 
         # del batch['pc_centroids'], batch['pc_radius']
-
+        if batch_idx % (int(100 / self.config.TRAIN.train_batch_size * self.config.num_gpu)) == 0:
+            # print(f"Before empty cache: {torch.cuda.memory_allocated()} bytes")
+            # print(f"Before empty cache: {torch.cuda.memory_reserved()} bytes")
+            torch.cuda.empty_cache()
+            # print(f"After empty cache: {torch.cuda.memory_allocated()} bytes")
+            # print(f"After empty cache: {torch.cuda.memory_reserved()} bytes")
         losses = self.model(batch, is_train=True)
         self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)        # if self.global_step % 10 == 0:
-        if self.global_step % 50 == 0:
+        if self.global_step % 10 == 0:
             print(f"train_loss: {losses['total']}")
         #     print(f"train_loss: {losses['total']}")
         # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
@@ -170,6 +175,7 @@ if __name__ == '__main__':
                              devices='auto',
                              strategy='auto',
                              logger=csvlogger1,
+                             profiler='pytorch'
                              )
 
         trainer.fit(trainer_model, train_dataloader)

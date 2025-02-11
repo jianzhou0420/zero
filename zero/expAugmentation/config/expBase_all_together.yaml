@@ -15,7 +15,7 @@ log_dir: '/data/zero/2_Train'
 TRAIN:
 
   train_batch_size: 2
-  epoches: 1500
+  epoches: 1
   num_train_steps: null
   warmup_steps: null
 
