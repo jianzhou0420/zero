@@ -34,7 +34,7 @@ TRAIN:
 
 TRAIN_DATASET:
   # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
-  instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
+  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
   # num_points: 10000

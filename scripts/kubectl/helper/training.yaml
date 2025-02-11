@@ -28,6 +28,7 @@ spec:
               - |
                 cd /data/zero
                 git pull
+                pip install -e .
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
                 source /data/zero/scripts/train.sh
