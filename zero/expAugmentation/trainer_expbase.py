@@ -105,7 +105,7 @@ class TrainerLotus(pl.LightningModule):
         dataset = SimplePolicyDataset(config=config, is_single_frame=False, tasks_to_use=config.tasks_to_use, **config.TRAIN_DATASET)
         return dataset
 
-    def get_dataloader(self, config):
+    def train_dataloader(self, config):
         def build_dataloader(dataset, collate_fn, is_train: bool, config):
             '''
             copied from lotus, sampler is not used as pytorchlightning will automaticallt config it for me
@@ -131,6 +131,40 @@ class TrainerLotus(pl.LightningModule):
         dataset = self.get_dataset(config)
         train_loader = build_dataloader(dataset, ptv3_collate_fn, is_train=True, config=config)
         return train_loader
+
+
+class MyDataModule(pl.LightningDataModule):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
+    def prepare_data(self):
+        # Download or preprocess data if necessary
+        pass
+
+    def setup(self, stage=None):
+        dataset = SimplePolicyDataset(config=self.config, is_single_frame=False, tasks_to_use=self.config.tasks_to_use, **self.config.TRAIN_DATASET)
+        self.train_dataset = dataset
+
+    def train_dataloader(self):
+
+        batch_size = self.config.TRAIN.train_batch_size
+        # sampler = DistributedSampler(self.train_dataset, shuffle=False)
+
+        print(f"batch_size: {batch_size}")
+        loader = DataLoader(
+            self.train_dataset,
+            batch_size=batch_size,
+            num_workers=config.TRAIN.n_workers,
+            pin_memory=config.TRAIN.pin_mem,
+            collate_fn=ptv3_collate_fn,
+            # sampler=sampler,
+            drop_last=False,
+            prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
+            shuffle=False,
+            persistent_workers=True
+        )
+        return loader
 
 
 if __name__ == '__main__':
@@ -162,10 +196,6 @@ if __name__ == '__main__':
 
         # 1.trainer
 
-        trainer_model = TrainerLotus(config)
-
-        train_dataloader = trainer_model.get_dataloader(config)
-
         checkpoint_callback = ModelCheckpoint(
             every_n_epochs=100,
             save_top_k=-1,
@@ -179,7 +209,6 @@ if __name__ == '__main__':
             version=None
         )
 
-        print(f"len(train_dataloader): {len(train_dataloader)}")
         print(f"max_epochs: {config.TRAIN.epoches}")
         profiler = PyTorchProfiler(
             output_filename="profiler_output.json",  # This will output a JSON trace.
@@ -206,9 +235,11 @@ if __name__ == '__main__':
                              logger=csvlogger1,
                              #  profiler=profiler，
                              profiler='simple',
+                             use_distributed_sampler=False
                              )
-
-        trainer.fit(trainer_model, train_dataloader)
+        trainer_model = TrainerLotus(config)
+        data_module = MyDataModule(config)
+        trainer.fit(trainer_model, datamodule=data_module)
         # print(profiler.key_averages().table(max_len=200))
 
     # 0.1 args
