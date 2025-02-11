@@ -1,17 +1,9 @@
+SEED: 2024
+output_dir: 'data/experiments/gembench/simple_policy_ptv3/debug'
+tfboard_log_dir: null # 'data/TFBoard/xxx'
+checkpoint: null
+checkpoint_strict_load: False # true, false
 
-############################################
-# suplementary configs for data management
-############################################
-pl_flag: True
-exp_name: 'exp_tricks_all_together'
-selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
-preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/0.005all'
-# tasks_to_use: ['insert_onto_square_peg']
-log_dir: '/data/zero/2_Train'
-
-############################################
-# Trainning configs
-############################################
 TRAIN:
   resume_training: True
   resume_encoder_only: False
@@ -19,14 +11,13 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 5
-  num_gpu: 4
-
+  train_batch_size: 4
+  # val_batch_size: 1
+  epoches: 6500
   gradient_accumulation_steps: 1
   num_epochs: null
-  epoches: 1500
-  num_train_steps: 675000
-  warmup_steps: 5000
+  num_train_steps: 37000 
+  warmup_steps: 2000
   log_steps: 1000
   save_steps: 10000
   val_steps: 10000
@@ -41,13 +32,15 @@ TRAIN:
   n_workers: 4
   pin_mem: True
 
+#/hpcfs/users/a1946536/
+#/hpcfs/users/a1946536/code/
 
 TRAIN_DATASET:
-  # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
+  data_dir: '/data/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
-  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/data/zero/assets/taskvars_peract.json'
-  num_points: 10000
+  taskvar_instr_file: '/data/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/data/zero/zero/v1/models/lotus/assets/taskvars_peract.json'
+  num_points: 4096
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
@@ -64,13 +57,41 @@ TRAIN_DATASET:
   same_npoints_per_example: False
   rm_pc_outliers: False
   rm_pc_outliers_neighbors: 25
-  pos_bins: 75
-  pos_bin_size: 0.001
+  pos_bins: 15
+  pos_bin_size: 0.01
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False
-  euler_resolution: 1
+  
 
+# VAL_DATASET:
+#   use_val: False
+#   data_dir: '/data/lotus/peract/test/keysteps_bbox_pcd/voxel1cm'
+#   instr_embed_file: '/data/lotus/peract/test/keysteps_bbox_pcd/instr_embeds_clip.npy'
+#   taskvar_instr_file: '/data/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
+#   taskvar_file: '/data/zero/zero/v1/models/lotus/assets/taskvars_train.json'
+#   num_points: 4096
+#   xyz_shift: center # none, center, gripper
+#   xyz_norm: False
+#   use_height: False
+#   sample_points_by_distance: False
+#   rot_type: euler_disc # quat, rot6d, euler, euler_delta, euler_disc
+#   pos_type: disc # disc, cont
+#   instr_embed_type: 'last' # last, all
+#   all_step_in_batch: True
+#   include_last_step: False
+#   rm_table: True
+#   rm_robot: box_keep_gripper  # none, gt, box, box_keep_gripper
+#   augment_pc: True
+#   aug_max_rot: 45
+#   same_npoints_per_example: False
+#   rm_pc_outliers: False
+#   rm_pc_outliers_neighbors: 25
+#   pos_bins: 15
+#   pos_bin_size: 0.01
+#   pos_heatmap_type: 'dist' # plain, dist
+#   pos_heatmap_no_robot: True
+#   real_robot: False
 
 MODEL:
   model_class: 'SimplePolicyPTV3CA'
@@ -111,7 +132,7 @@ MODEL:
     add_coords_in_attn: 'none' # none, qk, qkv
 
   action_config:
-    voxel_size: 0.005 # 1cm
+    voxel_size: 0.01 # 1cm
     context_channels: 256
 
     txt_ft_size: 512
@@ -131,13 +152,18 @@ MODEL:
 
     dropout: 0.2
 
-    pos_bins: 75
-    pos_bin_size: 0.001
+    pos_bins: 15
+    pos_bin_size: 0.01
     best_disc_pos: max # max, ens1
-    euler_resolution: 1
+
   loss_config:
     pos_weight: 1
     rot_weight: 1
 
 
 
+############################################
+# suplementary configs from the sbatch script
+############################################
+
+pl_flag: True

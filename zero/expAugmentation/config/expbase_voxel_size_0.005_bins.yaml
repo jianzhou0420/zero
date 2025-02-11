@@ -3,11 +3,17 @@
 # suplementary configs for data management
 ############################################
 pl_flag: True
-exp_name: 'exp_tricks_all_together'
+exp_name: 'exp_base_insert_peg_0.005'
 selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
-preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/0.005all'
-# tasks_to_use: ['insert_onto_square_peg']
+preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/insert_0.005'
+tasks_to_use: ['insert_onto_square_peg']
 log_dir: '/data/zero/2_Train'
+
+############################################
+# Model configs
+############################################
+bin_strategy: 'global'
+
 
 ############################################
 # Trainning configs
@@ -19,14 +25,14 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 5
-  num_gpu: 4
+  train_batch_size: 4
+  # val_batch_size: 1
 
   gradient_accumulation_steps: 1
   num_epochs: null
-  epoches: 1500
-  num_train_steps: 675000
-  warmup_steps: 5000
+  epoches: 800
+  num_train_steps: 20000
+  warmup_steps: 2000
   log_steps: 1000
   save_steps: 10000
   val_steps: 10000
@@ -38,16 +44,16 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 4
+  n_workers: 1
   pin_mem: True
 
 
 TRAIN_DATASET:
   # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
-  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/data/zero/assets/taskvars_peract.json'
-  num_points: 10000
+  taskvar_instr_file: '/data/zero/zero/v4/models/lotus/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/data/zero/zero/v4/models/lotus/assets/taskvars_peract.json'
+  num_points: 100000
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
@@ -64,13 +70,13 @@ TRAIN_DATASET:
   same_npoints_per_example: False
   rm_pc_outliers: False
   rm_pc_outliers_neighbors: 25
-  pos_bins: 75
-  pos_bin_size: 0.001
+  pos_bins: 15
+  pos_bin_size: 0.005
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False
-  euler_resolution: 1
-
+  euler_resolution: 5
+ 
 
 MODEL:
   model_class: 'SimplePolicyPTV3CA'
@@ -131,10 +137,10 @@ MODEL:
 
     dropout: 0.2
 
-    pos_bins: 75
-    pos_bin_size: 0.001
+    pos_bins: 15
+    pos_bin_size: 0.005
     best_disc_pos: max # max, ens1
-    euler_resolution: 1
+
   loss_config:
     pos_weight: 1
     rot_weight: 1

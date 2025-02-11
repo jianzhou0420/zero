@@ -1,1 +1,1 @@
-kubectl delete -f /home/jian/git_all/project_zero/kubectl/helper/training.yaml
+kubectl delete -f /media/jian/ssd4t/zero/scripts/kubectl/helper/training.yaml

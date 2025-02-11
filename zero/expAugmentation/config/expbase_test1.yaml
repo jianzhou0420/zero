@@ -3,10 +3,12 @@
 # suplementary configs for data management
 ############################################
 pl_flag: True
-exp_name: 'exp_tricks_all_together'
+exp_name: 'exp_base_insert_peg_0.005'
 selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
-preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/0.005all'
+preprocess_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/train/sort_shape_edge'
 # tasks_to_use: ['insert_onto_square_peg']
+
+tasks_to_use: ['place_shape_in_shape_sorter']
 log_dir: '/data/zero/2_Train'
 
 ############################################
@@ -19,14 +21,13 @@ TRAIN:
     encoder: False
     decoder: False
 
-  train_batch_size: 5
-  num_gpu: 4
+  train_batch_size: 4
 
   gradient_accumulation_steps: 1
   num_epochs: null
-  epoches: 1500
-  num_train_steps: 675000
-  warmup_steps: 5000
+  epoches: 800
+  num_train_steps: 20000
+  warmup_steps: 2000
   log_steps: 1000
   save_steps: 10000
   val_steps: 10000
@@ -43,11 +44,11 @@ TRAIN:
 
 
 TRAIN_DATASET:
-  # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
+
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
-  num_points: 10000
+  num_points: 100000
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
@@ -128,13 +129,12 @@ MODEL:
     pos_pred_type: 'heatmap_disc'  # heatmap_mlp, regression, regression_delta, heatmap_disc
     pos_heatmap_temp: 0.1
     rot_pred_type: 'euler_disc'     # quat, rot6d, euler, euler_delta, euler_disc
-
     dropout: 0.2
-
     pos_bins: 75
     pos_bin_size: 0.001
     best_disc_pos: max # max, ens1
     euler_resolution: 1
+
   loss_config:
     pos_weight: 1
     rot_weight: 1

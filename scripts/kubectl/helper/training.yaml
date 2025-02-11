@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: exp2-test # Your training job name
+  name: exp # Your training job name
 spec:
   backoffLimit: 0   # add this line so --> If your pod failed, the training job will stop.
   template:
@@ -30,12 +30,12 @@ spec:
                 git pull
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
-                source /data/zero/zero/scripts/train.sh
+                source /data/zero/scripts/train.sh
 
 
           resources:
             limits:
-              nvidia.com/gpu: 4           # <------- If you don't need any of GPUs, Please comment-out this line.
+              nvidia.com/gpu: 2           # <------- If you don't need any of GPUs, Please comment-out this line.
           volumeMounts:
             - name: dataset-volume
               mountPath: /data
