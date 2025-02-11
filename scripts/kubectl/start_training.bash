@@ -1,0 +1,1 @@
+kubectl create -f /home/jian/git_all/project_zero/kubectl/helper/training.yaml

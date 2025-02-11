@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rlbench-pvc
+spec:
+  accessModes:
+    - ReadWriteMany # So you can run multiple training pods with the same PVC
+  resources:
+    requests:
+      storage: 800Gi # You can change this value up to 1000Gi
