@@ -1,3 +1,4 @@
+import yaml
 from typing import Tuple, Dict, List
 
 import os
@@ -29,6 +30,7 @@ import random
 from zero.env.rlbench_lotus.recorder import (
     TaskRecorder, StaticCameraMotion, CircleCameraMotion, AttachedCameraMotion
 )
+
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
@@ -95,7 +97,7 @@ class EvalArgs(tap.Tap):
 
     best_disc_pos: str = 'max'  # max, ens1
 
-    record_video: bool = False
+    record_video: bool = True
     video_dir: str = None
     not_include_robot_cameras: bool = False
     video_rotate_cam: bool = False
@@ -107,8 +109,8 @@ class EvalArgs(tap.Tap):
     # sbatch
     ############################
     ckpt_step = 220000
-    seed = 42
-    num_workers = 4
+    seed = 2025
+    num_workers = 1
     num_demos = 20
     config: str = None
     name: str = None
@@ -126,21 +128,23 @@ class Actioner(object):
         self.WORKSPACE = get_robot_workspace(real_robot=args.real_robot)
         self.device = torch.device(args.device)
 
-        config = get_config(args.config, args.remained_args)
-        self.config = config
+        # config = get_config(args.config, args.remained_args)
+        with open(args.config, "r") as f:
+            config = yaml.load(f, Loader=yaml.UnsafeLoader)
+        self.config = config['config']
         self.config.defrost()
 
         if args.checkpoint is not None:
-            config.checkpoint = args.checkpoint
+            self.config.checkpoint = args.checkpoint
         # config.pl_flag=False
-        if config.pl_flag:
-            model = TrainerLotus.load_from_checkpoint(checkpoint_path=config.checkpoint, config=self.config)
+        if self.config.pl_flag:
+            model = TrainerLotus.load_from_checkpoint(checkpoint_path=self.config.checkpoint, config=self.config)
             self.model = model.model
         else:
-            self.model = SimplePolicyPTV3CA(config.MODEL)
-            if config.checkpoint:
+            self.model = SimplePolicyPTV3CA(self.config.MODEL)
+            if self.config.checkpoint:
                 checkpoint = torch.load(
-                    config.checkpoint, map_location=lambda storage, loc: storage
+                    self.config.checkpoint, map_location=lambda storage, loc: storage
                 )
                 self.model.load_state_dict(checkpoint, strict=True)
 

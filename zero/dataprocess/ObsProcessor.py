@@ -119,7 +119,6 @@ class ObsProcessLotus:
         }
 
       outs = {
-            'data_ids': [], 
             'pc_fts': [], 
             'step_ids': [],
             'pc_centroids': [],
