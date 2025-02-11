@@ -27,6 +27,10 @@ dist/
 zero/v1/env/gym-aloha/
 
 
-1_Data/
-2_Train/
-3_Eval/
+1_Data/*
+2_Train/*
+3_Eval/*
+
+!1_Data/.gitkeep
+!2_Train/.gitkeep
+!3_Eval/.gitkeep
