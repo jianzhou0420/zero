@@ -105,6 +105,7 @@ class TrainerLotus(pl.LightningModule):
             copied from lotus, sampler is not used as pytorchlightning will automaticallt config it for me
             '''
             batch_size = config.TRAIN.train_batch_size if is_train else config.TRAIN.val_batch_size
+            print(f"batch_size: {batch_size}")
             loader = DataLoader(
                 dataset,
                 batch_size=batch_size,

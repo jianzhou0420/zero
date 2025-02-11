@@ -29,7 +29,7 @@ TRAIN:
   weight_decay: 0.05
   grad_norm: 10
   n_workers: 4
-  pin_mem: True
+  pin_mem: False
 
 
 TRAIN_DATASET:
