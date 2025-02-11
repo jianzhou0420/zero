@@ -66,8 +66,8 @@ class TrainerLotus(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         print('each_batch_idx:', batch_idx)
-        print(f"each_step_allocated_cache: {torch.cuda.memory_allocated()/1024/1024} MB")
-        print(f"each_step_reserved_cache: {torch.cuda.memory_reserved()/1024/1024} MB")
+        print(f"each_step_allocated_cache: {torch.cuda.memory_allocated()/1024/1024/1024} GB")
+        print(f"each_step_reserved_cache: {torch.cuda.memory_reserved()/1024/1024/1024} GB")
         print('dataids', batch['data_ids'])
         # del batch['pc_centroids'], batch['pc_radius']
         if batch_idx % (int(100 / (self.config.TRAIN.train_batch_size * self.config.num_gpu))) == 0:
@@ -86,20 +86,22 @@ class TrainerLotus(pl.LightningModule):
         return losses['total']
 
     def configure_optimizers(self):
-        optimizer, init_lrs = build_optimizer(self.model, self.config.TRAIN)
+        # optimizer, init_lrs = build_optimizer(self.model, self.config.TRAIN)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-5)
 
-        scheduler = WarmupCosineScheduler(
-            optimizer,
-            warmup_steps=self.config.TRAIN.warmup_steps,
-            total_steps=self.config.TRAIN.num_train_steps,
-        )
+        # scheduler = WarmupCosineScheduler(
+        #     optimizer,
+        #     warmup_steps=self.config.TRAIN.warmup_steps,
+        #     total_steps=self.config.TRAIN.num_train_steps,
+        # )
 
-        scheduler_config = {
-            "scheduler": scheduler,
-            "interval": "step",  # Adjust learning rate every step
-        }
+        # scheduler_config = {
+        #     "scheduler": scheduler,
+        #     "interval": "step",  # Adjust learning rate every step
+        # }
 
-        return [optimizer], [scheduler_config]
+        return [optimizer], [scheduler]
 
     def get_dataset(self, config):
         dataset = SimplePolicyDataset(config=config, is_single_frame=False, tasks_to_use=config.tasks_to_use, **config.TRAIN_DATASET)
