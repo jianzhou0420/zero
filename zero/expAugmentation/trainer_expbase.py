@@ -105,33 +105,6 @@ class TrainerLotus(pl.LightningModule):
         dataset = SimplePolicyDataset(config=config, is_single_frame=False, tasks_to_use=config.tasks_to_use, **config.TRAIN_DATASET)
         return dataset
 
-    def train_dataloader(self, config):
-        def build_dataloader(dataset, collate_fn, is_train: bool, config):
-            '''
-            copied from lotus, sampler is not used as pytorchlightning will automaticallt config it for me
-            '''
-            batch_size = config.TRAIN.train_batch_size if is_train else config.TRAIN.val_batch_size
-            sampler = DistributedSampler(dataset, shuffle=False)
-
-            print(f"batch_size: {batch_size}")
-            loader = DataLoader(
-                dataset,
-                batch_size=batch_size,
-                num_workers=config.TRAIN.n_workers,
-                pin_memory=config.TRAIN.pin_mem,
-                collate_fn=collate_fn,
-                sampler=sampler,
-                drop_last=False,
-                prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
-                shuffle=False,
-                persistent_workers=True
-            )
-            return loader
-        # function
-        dataset = self.get_dataset(config)
-        train_loader = build_dataloader(dataset, ptv3_collate_fn, is_train=True, config=config)
-        return train_loader
-
 
 class MyDataModule(pl.LightningDataModule):
     def __init__(self, config):
@@ -149,7 +122,7 @@ class MyDataModule(pl.LightningDataModule):
     def train_dataloader(self):
 
         batch_size = self.config.TRAIN.train_batch_size
-        # sampler = DistributedSampler(self.train_dataset, shuffle=False)
+        sampler = DistributedSampler(self.train_dataset, shuffle=False)
 
         print(f"batch_size: {batch_size}")
         loader = DataLoader(
@@ -158,7 +131,7 @@ class MyDataModule(pl.LightningDataModule):
             num_workers=config.TRAIN.n_workers,
             pin_memory=config.TRAIN.pin_mem,
             collate_fn=ptv3_collate_fn,
-            # sampler=sampler,
+            sampler=sampler,
             drop_last=False,
             prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
             shuffle=False,
@@ -231,7 +204,7 @@ if __name__ == '__main__':
         trainer = pl.Trainer(callbacks=[checkpoint_callback],
                              max_epochs=config.TRAIN.epoches,
                              devices='auto',
-                             strategy='auto',
+                             strategy='ddp',
                              logger=csvlogger1,
                              #  profiler=profiler，
                              profiler='simple',
