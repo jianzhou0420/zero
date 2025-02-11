@@ -69,6 +69,7 @@ class TrainerLotus(pl.LightningModule):
         if batch_idx % (int(100 / self.config.TRAIN.train_batch_size * self.config.num_gpu)) == 0:
             # print(f"Before empty cache: {torch.cuda.memory_allocated()} bytes")
             # print(f"Before empty cache: {torch.cuda.memory_reserved()} bytes")
+            print('batch_idx:', batch_idx)
             torch.cuda.empty_cache()
             # print(f"After empty cache: {torch.cuda.memory_allocated()} bytes")
             # print(f"After empty cache: {torch.cuda.memory_reserved()} bytes")

@@ -37,6 +37,13 @@ spec:
           resources:
             limits:
               nvidia.com/gpu: 2           # <------- If you don't need any of GPUs, Please comment-out this line.
+              cpu: 16
+              memory: 128Gi
+            requests:
+              nvidia.com/gpu: 2           # <------- If you don't need any of GPUs, Please comment-out this line.
+              cpu: 8
+              memory: 64Gi
+
           volumeMounts:
             - name: dataset-volume
               mountPath: /data
