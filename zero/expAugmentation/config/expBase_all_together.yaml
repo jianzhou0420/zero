@@ -8,6 +8,7 @@ selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
 preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/0.005all'
 # tasks_to_use: ['insert_onto_square_peg','close_jar']
 # tasks_to_use: ['insert_onto_square_peg']
+tasks_to_use:
 log_dir: '/data/zero/2_Train'
 optimizer: 'lotus'
 
