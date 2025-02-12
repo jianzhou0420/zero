@@ -91,6 +91,7 @@ class TrainerLotus(pl.LightningModule):
             # 1. default optimizer
             optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-5)
+            return [optimizer], [scheduler]
 
         elif self.config.optimizer == 'lotus':
 
@@ -107,8 +108,7 @@ class TrainerLotus(pl.LightningModule):
                 "scheduler": scheduler,
                 "interval": "step",  # Adjust learning rate every step
             }
-
-        return [optimizer], [scheduler]
+            return [optimizer], [scheduler_config]
 
     def get_dataset(self, config):
         dataset = SimplePolicyDataset(config=config, is_single_frame=False, tasks_to_use=config.tasks_to_use, **config.TRAIN_DATASET)
