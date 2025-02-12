@@ -14,10 +14,10 @@ tasks_to_use=("insert_onto_square_peg")
 for item in 799
 do
 
-    python /media/jian/ssd4t/zero/zero/expBaseV4/eval_expbase.py \
-    --config /media/jian/ssd4t/zero/2_Train/2025_02_06__22-19_exp_tricks_all_together/version_0/hparams.yaml \
+    python /media/jian/ssd4t/zero/zero/expAugmentation/eval_expbase.py \
+    --config /media/jian/ssd4t/zero/2_Train/zzzz/version_0/hparams.yaml \
     --name test \
-    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_02_06__22-19_exp_tricks_all_together/version_0/checkpoints/2025_02_06__22-19_exp_tricks_all_together_epoch=699.ckpt\
+    --checkpoint /data/zero/2_Train/zzzz/version_0/checkpoints/2025_02_11__10-29_expBins_all_together_epoch=799.ckpt\
     --tasks_to_use ${tasks_to_use[@]} 
 
 done

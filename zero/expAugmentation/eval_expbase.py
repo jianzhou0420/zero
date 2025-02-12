@@ -88,7 +88,6 @@ class EvalArgs(tap.Tap):
     max_steps: int = 15
 
     microstep_data_dir: str = ''
-    num_workers: int = 1
     queue_size: int = 20
     taskvar_file: str = '/data/zero/assets/taskvars_peract.json'
     num_ensembles: int = 1
@@ -97,7 +96,7 @@ class EvalArgs(tap.Tap):
 
     best_disc_pos: str = 'max'  # max, ens1
 
-    record_video: bool = True
+    record_video: bool = False
     video_dir: str = None
     not_include_robot_cameras: bool = False
     video_rotate_cam: bool = False
@@ -110,7 +109,7 @@ class EvalArgs(tap.Tap):
     ############################
     ckpt_step = 220000
     seed = 2025
-    num_workers = 1
+    num_workers = 4
     num_demos = 20
     config: str = None
     name: str = None

@@ -86,20 +86,27 @@ class TrainerLotus(pl.LightningModule):
         return losses['total']
 
     def configure_optimizers(self):
-        # optimizer, init_lrs = build_optimizer(self.model, self.config.TRAIN)
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-5)
 
-        # scheduler = WarmupCosineScheduler(
-        #     optimizer,
-        #     warmup_steps=self.config.TRAIN.warmup_steps,
-        #     total_steps=self.config.TRAIN.num_train_steps,
-        # )
+        if self.config.optimizer == 'default':
+            # 1. default optimizer
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-5)
 
-        # scheduler_config = {
-        #     "scheduler": scheduler,
-        #     "interval": "step",  # Adjust learning rate every step
-        # }
+        elif self.config.optimizer == 'lotus':
+
+            # 2. lotus custom optimizer
+            optimizer, init_lrs = build_optimizer(self.model, self.config.TRAIN)
+
+            scheduler = WarmupCosineScheduler(
+                optimizer,
+                warmup_steps=self.config.TRAIN.warmup_steps,
+                total_steps=self.config.TRAIN.num_train_steps,
+            )
+
+            scheduler_config = {
+                "scheduler": scheduler,
+                "interval": "step",  # Adjust learning rate every step
+            }
 
         return [optimizer], [scheduler]
 
@@ -209,7 +216,7 @@ if __name__ == '__main__':
                              strategy='ddp',
                              logger=csvlogger1,
                              #  profiler=profiler，
-                             profiler='simple',
+                             #  profiler='simple',
                              use_distributed_sampler=False
                              )
         trainer_model = TrainerLotus(config)
