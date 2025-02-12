@@ -16,7 +16,7 @@ optimizer: 'lotus'
 TRAIN:
 
   train_batch_size: 5
-  epoches: 1500
+  epoches: 800
   num_train_steps: null
   warmup_steps: null
 
