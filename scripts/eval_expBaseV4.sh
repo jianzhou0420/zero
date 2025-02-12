@@ -15,9 +15,9 @@ for item in 799
 do
 
     python /media/jian/ssd4t/zero/zero/expAugmentation/eval_expbase.py \
-    --config /media/jian/ssd4t/zero/2_Train/2025_02_12__01-55_expBase_tricks_all_together/version_0/hparams.yaml \
+    --config 2_Train/2025_02_12__03-28_expBase_4gpu_1_batch_size/version_0/hparams.yaml \
     --name test \
-    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_02_12__01-55_expBase_tricks_all_together/version_0/checkpoints/2025_02_12__01-55_expBase_tricks_all_together_epoch=799.ckpt\
+    --checkpoint /data/zero/2_Train/2025_02_12__03-28_expBase_4gpu_1_batch_size/version_0/checkpoints/2025_02_12__03-28_expBase_4gpu_1_batch_size_epoch=799.ckpt \
     --tasks_to_use ${tasks_to_use[@]} 
 
 done
