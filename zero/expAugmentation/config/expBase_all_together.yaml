@@ -10,18 +10,17 @@ preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/0.005all'
 tasks_to_use: ['insert_onto_square_peg']
 log_dir: '/data/zero/2_Train'
 optimizer: 'lotus'
+
+
+#Training
+epochs: 800
+batch_size: 5
 ############################################
 # Trainning configs
 ############################################
 TRAIN:
-
-  train_batch_size: 5
-  epoches: 800
   num_train_steps: null
   warmup_steps: null
-
-
-
   optim: 'adamw'
   learning_rate: 0.0001
   lr_sched: 'cosine' # inverse_sqrt, linear, cosine, cosine_cycle

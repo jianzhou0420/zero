@@ -39,8 +39,9 @@ class TrainerArgs(tap.Tap):
     config: str = None
     name: str = 'default'
     resume_version_dir: str = None
-    tasks_to_use: list = None
     num_gpu: int
+    epoches: int
+    batch_size: int
 
 
 class WarmupCosineScheduler(torch.optim.lr_scheduler.LambdaLR):
@@ -70,7 +71,7 @@ class TrainerLotus(pl.LightningModule):
         # print(f"each_step_reserved_cache: {torch.cuda.memory_reserved()/1024/1024/1024} GB")
         # print('dataids', batch['data_ids'])
         # del batch['pc_centroids'], batch['pc_radius']
-        # if batch_idx % (int(100 / (self.config.TRAIN.train_batch_size * self.config.num_gpu))) == 0:
+        # if batch_idx % (int(100 / (self.config.batch_size * self.config.num_gpu))) == 0:
 
         #     # print('batch_idx:', batch_idx)
         #     print('cache_empty')
@@ -130,7 +131,7 @@ class MyDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
 
-        batch_size = self.config.TRAIN.train_batch_size
+        batch_size = self.config.batch_size
         sampler = DistributedSampler(self.train_dataset, shuffle=False)
 
         print(f"batch_size: {batch_size}")
@@ -150,20 +151,21 @@ class MyDataModule(pl.LightningDataModule):
 
 
 if __name__ == '__main__':
-    def train(exp_name, config, current_time):
+    def train(config: yacs.config.CfgNode):
+        current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
+        exp_name = config.name
         ckpt_name = f'{current_time}_{exp_name}'
-
         log_path = config.log_dir
         log_name = f'{current_time}_{exp_name}'
 
         # 0. prepare config
         # check batch size and number of gpus
-        bs = config.TRAIN.train_batch_size
+        bs = config.batch_size
         gpu = config.num_gpu
         assert 100 % (bs * gpu) == 0, "Batch size should be divisible by 100, please change the batch size or number of gpus"
 
         # num_train_steps
-        epoches = config.TRAIN.epoches
+        epoches = config.epoches
 
         if config.tasks_to_use is not None:
             num_tasks = len(config.tasks_to_use)
@@ -177,7 +179,6 @@ if __name__ == '__main__':
         config.TRAIN.warmup_steps = total_steps // 15
 
         # 1.trainer
-
         checkpoint_callback = ModelCheckpoint(
             every_n_epochs=100,
             save_top_k=-1,
@@ -191,27 +192,8 @@ if __name__ == '__main__':
             version=None
         )
 
-        print(f"max_epochs: {config.TRAIN.epoches}")
-        profiler = PyTorchProfiler(
-            output_filename="profiler_output.json",  # This will output a JSON trace.
-            activities=[
-                torch.profiler.ProfilerActivity.CPU,
-                torch.profiler.ProfilerActivity.CUDA,
-            ],
-            # Optionally set up a schedule to control when profiling is active:
-            schedule=torch.profiler.schedule(
-                wait=10,    # number of steps to skip before warming up
-                warmup=20,  # number of warmup steps
-                active=2,  # number of steps to profile
-                repeat=1   # number of times to repeat the cycle
-            ),
-
-            on_trace_ready=torch.profiler.tensorboard_trace_handler('./log/profiler'),
-            record_shapes=True,   # Optionally record tensor shapes for more insight.
-        )
-
         trainer = pl.Trainer(callbacks=[checkpoint_callback],
-                             max_epochs=config.TRAIN.epoches,
+                             max_epochs=config.epoches,
                              devices='auto',
                              strategy='ddp',
                              logger=csvlogger1,
@@ -224,23 +206,28 @@ if __name__ == '__main__':
         trainer.fit(trainer_model, datamodule=data_module)
         # print(profiler.key_averages().table(max_len=200))
 
-    # 0.1 args
+    def resume():
+        pass
+
+    def setup_config(args, config: yacs.config.CfgNode):
+        '''
+        First load from file and then update from args
+        '''
+        config.merge_from_file(args.config)
+
+        args_dict = {}
+        for arg in args.class_variables.keys():  # get all the class variables
+            args_dict[arg] = getattr(args, arg)
+
+        for key, value in args_dict.items():
+            config[key] = value
+
+        return config
+
+    # 0.1 args & 0.2 config
     args = TrainerArgs().parse_args(known_only=True)
-    # 0.2 config
     config = yacs.config.CfgNode(new_allowed=True)
+    config = setup_config(args, config)
 
-    args_dict = {}
-    for arg in args.class_variables.keys():
-        args_dict[arg] = getattr(args, arg)
-
-    for key, value in args_dict.items():
-        config[key] = value
-
-    config.merge_from_file(args.config)
-
-    # 0.3 path & name stuff
-    current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
-
-    exp_name = args.name
-
-    train(exp_name, config, current_time)
+    # 1. train
+    train(config)
