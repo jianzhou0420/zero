@@ -5,6 +5,7 @@ from ..models.lotus.utils.robot_box import RobotBox
 from ..models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
+
 from ..config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
@@ -74,7 +75,7 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
-class SimplePolicyDataset(Dataset):
+class LotusDataset(Dataset):
     def __init__(
         self, instr_embed_file, taskvar_instr_file, taskvar_file=None,
         num_points=10000, xyz_shift='center', xyz_norm=True, use_height=False,
@@ -321,27 +322,28 @@ class SimplePolicyDataset(Dataset):
                 xyz, rgb = self._rm_pc_outliers(xyz, rgb)
 
             # sampling points
-            # if len(xyz) > self.num_points:
-            #     if self.sample_points_by_distance:
-            #         dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
-            #         probs = 1 / np.maximum(dists, 0.1)
-            #         probs = np.maximum(softmax(probs), 1e-30)
-            #         probs = probs / sum(probs)
-            #         # probs = 1 / dists
-            #         # probs = probs / np.sum(probs)
-            #         point_idxs = np.random.choice(len(xyz), self.num_points, replace=False, p=probs)
-            #     else:
-            #         point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
-            # else:
-            #     if self.same_npoints_per_example:
-            #         point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
-            #     else:
-            max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
-            point_idxs = np.random.permutation(len(xyz))[:max_npoints]
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(xyz)
-            pcd.colors = o3d.utility.Vector3dVector(rgb / 255)
-            o3d.visualization.draw_geometries([pcd])
+            if len(xyz) > self.num_points:
+                if self.sample_points_by_distance:
+                    dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
+                    probs = 1 / np.maximum(dists, 0.1)
+                    probs = np.maximum(softmax(probs), 1e-30)
+                    probs = probs / sum(probs)
+                    # probs = 1 / dists
+                    # probs = probs / np.sum(probs)
+                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False, p=probs)
+                else:
+                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+            else:
+                if self.same_npoints_per_example:
+                    point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
+                else:
+                    max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
+                    point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector(rgb / 255)
+            # o3d.visualization.draw_geometries([pcd])
 
             xyz = xyz[point_idxs]
             rgb = rgb[point_idxs]
@@ -477,7 +479,7 @@ if __name__ == '__main__':
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(args.config)
 
-    dataset = SimplePolicyDataset(config=config, is_single_frame=False, **config.TRAIN_DATASET)
+    dataset = LotusDataset(config=config, is_single_frame=False, **config.TRAIN_DATASET)
     dataset[0]
     # all_data = []
     # for i in trange(len(dataset)):

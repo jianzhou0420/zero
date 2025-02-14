@@ -74,7 +74,7 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
-class SimplePolicyDataset(Dataset):
+class LotusDatasetAugmentation(Dataset):
     def __init__(
         self, instr_embed_file, taskvar_instr_file, taskvar_file=None,
         num_points=10000000, xyz_shift='center', xyz_norm=True, use_height=False,
@@ -466,7 +466,7 @@ if __name__ == '__main__':
     config = yacs.config.CfgNode(new_allowed=True)
     config.merge_from_file(args.config)
 
-    dataset = SimplePolicyDataset(config=config, is_single_frame=False, **config.TRAIN_DATASET)
+    dataset = LotusDatasetAugmentation(config=config, is_single_frame=False, **config.TRAIN_DATASET)
 
     # all_data = []
     # for i in trange(len(dataset)):

@@ -1,36 +1,29 @@
+# 'null' means you have to manually set the value when training by bash script
 
-############################################
-# suplementary configs for data management
-############################################
+
+# ----------------------------------------
+# region Experiment configs
 pl_flag: True
-exp_name: 'exp_base_insert_peg_0.005'
+name: 'exp_tricks_all_together'
 selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
-preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/insert_0.005'
-tasks_to_use: ['insert_onto_square_peg']
+preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/0.005all'
 log_dir: '/data/zero/2_Train'
+optimizer: 'lotus'
+num_gpus: null
+epoches: null
+batch_size: null
+# tasks_to_use: ['insert_onto_square_peg']
+# tasks_to_use: ['close_jar']
+tasks_to_use: null
+dataset: null # origin, augment
+# endregion
+# ----------------------------------------
 
-############################################
-# Trainning configs
-############################################
+# ----------------------------------------
+# region Trainning configs
 TRAIN:
-  resume_training: True
-  resume_encoder_only: False
-  freeze_params:
-    encoder: False
-    decoder: False
-
-  train_batch_size: 1
-  # val_batch_size: 1
-
-  gradient_accumulation_steps: 1
-  num_epochs: null
-  epoches: 800
-  num_train_steps: 20000
-  warmup_steps: 2000
-  log_steps: 1000
-  save_steps: 10000
-  val_steps: 10000
-
+  num_train_steps: null
+  warmup_steps: null
   optim: 'adamw'
   learning_rate: 0.0001
   lr_sched: 'cosine' # inverse_sqrt, linear, cosine, cosine_cycle
@@ -38,16 +31,16 @@ TRAIN:
   betas: [0.9, 0.98]
   weight_decay: 0.05
   grad_norm: 10
-  n_workers: 1
-  pin_mem: True
+  n_workers: 4
+  pin_mem: False
 
 
 TRAIN_DATASET:
   # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
-  instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
+  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
-  num_points: 100000
+  num_points: null
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
@@ -64,14 +57,17 @@ TRAIN_DATASET:
   same_npoints_per_example: False
   rm_pc_outliers: False
   rm_pc_outliers_neighbors: 25
-  pos_bins: 15
-  pos_bin_size: 0.01
+  pos_bins: null
+  pos_bin_size: null
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False
-  euler_resolution: 5
+  euler_resolution: 1
+# endregion
+# ----------------------------------------
 
-
+# ----------------------------------------
+# region Model configs
 MODEL:
   model_class: 'SimplePolicyPTV3CA'
   ptv3_config:
@@ -113,31 +109,27 @@ MODEL:
   action_config:
     voxel_size: 0.005 # 1cm
     context_channels: 256
-
     txt_ft_size: 512
     max_txt_len: 77
     txt_reduce: 'attn' # mean, attn
     use_ee_pose: False
     use_step_id: False
-
     max_steps: 30
-    
     reduce: 'max' # max, mean, attn, multiscale_max
     max_traj_len: 1 # predicted trajectory len
     dim_actions: 7  # (xyz, quaternion, openness)
     pos_pred_type: 'heatmap_disc'  # heatmap_mlp, regression, regression_delta, heatmap_disc
     pos_heatmap_temp: 0.1
     rot_pred_type: 'euler_disc'     # quat, rot6d, euler, euler_delta, euler_disc
-
     dropout: 0.2
-
-    pos_bins: 15
-    pos_bin_size: 0.01
+    pos_bins: null
+    pos_bin_size: null
     best_disc_pos: max # max, ens1
-    euler_resolution: 5
+    euler_resolution: 1
   loss_config:
     pos_weight: 1
     rot_weight: 1
 
-
+# endregion
+# ----------------------------------------
 

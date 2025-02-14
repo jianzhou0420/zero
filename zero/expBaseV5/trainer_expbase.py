@@ -13,7 +13,8 @@ import pytorch_lightning as pl
 # zero package
 from .config.default import get_config
 from .models.lotus.optim.misc import build_optimizer
-from .dataset.dataset_expbase_voxel_augment import SimplePolicyDataset, ptv3_collate_fn
+from .dataset.dataset_expbase_voxel_augment import LotusDatasetAugmentation, ptv3_collate_fn
+from .dataset.dataset_expbase_voxel import LotusDataset, ptv3_collate_fn
 from .models.lotus.model_expbase import SimplePolicyPTV3CA
 from zero.z_utils import *
 
@@ -109,9 +110,7 @@ class TrainerLotus(pl.LightningModule):
             }
             return [optimizer], [scheduler_config]
 
-    def get_dataset(self, config):
-        dataset = SimplePolicyDataset(config=config, is_single_frame=False, tasks_to_use=config.tasks_to_use, **config.TRAIN_DATASET)
-        return dataset
+
 # endregion
 # ---------------------------------------------------------------
 
@@ -129,12 +128,15 @@ class MyDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage=None):
-        dataset = SimplePolicyDataset(config=self.config, is_single_frame=False, tasks_to_use=self.config.tasks_to_use, **self.config.TRAIN_DATASET)
+        if config.dataset == 'lotus':
+            dataset = LotusDataset(config=self.config, is_single_frame=False, tasks_to_use=self.config.tasks_to_use, **self.config.TRAIN_DATASET)
+        else:
+            dataset = LotusDatasetAugmentation(config=self.config, is_single_frame=False, tasks_to_use=self.config.tasks_to_use, **self.config.TRAIN_DATASET)
         self.train_dataset = dataset
 
     def train_dataloader(self):
         batch_size = self.config.batch_size
-        sampler = DistributedSampler(self.train_dataset, shuffle=False)
+        sampler = DistributedSampler(self.train_dataset, shuffle=False) if self.config.num_gpus > 1 else None
 
         print(f"batch_size: {batch_size}")
         loader = DataLoader(
@@ -237,7 +239,7 @@ def train(config: yacs.config.CfgNode):
     trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
                          max_epochs=config.epoches,
                          devices='auto',
-                         strategy='ddp',
+                         strategy='ddp' if config.num_gpus > 1 else 'auto',
                          logger=csvlogger1,
                          #  profiler=profiler，
                          #  profiler='simple',
