@@ -130,7 +130,7 @@ class MyDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         if config.dataset == 'lotus':
             dataset = LotusDataset(config=self.config, is_single_frame=False, tasks_to_use=self.config.tasks_to_use, **self.config.TRAIN_DATASET)
-        else:
+        elif config.dataset == 'augment':
             dataset = LotusDatasetAugmentation(config=self.config, is_single_frame=False, tasks_to_use=self.config.tasks_to_use, **self.config.TRAIN_DATASET)
         self.train_dataset = dataset
 

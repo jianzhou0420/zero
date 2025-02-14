@@ -13,13 +13,11 @@ tasks_to_use=("insert_onto_square_peg")
 
 for item in 799
 do
-
-    python /data/zero/zero/v4/eval_verify.py \
-    --config /media/jian/ssd4t/zero/zero/v4/config/insert_peg_0.005_bins.yaml \
+    python -m zero.expBaseV5.eval_expbase \
+    --config /media/jian/ssd4t/zero/2_Train/2025_02_14__14-59_expBaseV5_test/version_0/hparams.yaml \
     --name test \
-    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_01_29__22:43_exp_12_bins_insert_peg_0.005/version_0/checkpoints/2025_01_29__22:43_exp_12_bins_insert_peg_0.005_epoch=$item.ckpt \
+    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_02_14__14-59_expBaseV5_test/version_0/checkpoints/2025_02_14__14-59_expBaseV5_test_epoch=799.ckpt \
     --tasks_to_use ${tasks_to_use[@]} 
-
 done
 
 # tasks_to_use=("place_shape_in_shape_sorter")
