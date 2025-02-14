@@ -1,15 +1,17 @@
 # framework package
 
 # own package
+from .config.default import get_config
+import argparse
+import time
 from pytorch_lightning.profilers import PyTorchProfiler
-from zero.expAugmentation.models.lotus.optim.misc import build_optimizer
-from zero.expAugmentation.dataset.dataset_expbase_voxel_augment import SimplePolicyDataset, ptv3_collate_fn
-from zero.expAugmentation.models.lotus.model_expbase import SimplePolicyPTV3CA
+from .models.lotus.optim.misc import build_optimizer
+from .dataset.dataset_expbase_voxel_augment import SimplePolicyDataset, ptv3_collate_fn
+from .models.lotus.model_expbase import SimplePolicyPTV3CA
 from zero.z_utils import *
 
 # python package
 import re
-import tap
 from datetime import datetime
 import yacs.config
 from torch.nn import functional as F
@@ -35,15 +37,6 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
-class TrainerArgs(tap.Tap):
-    config: str = None
-    name: str = 'default'
-    resume_version_dir: str = None
-    num_gpu: int
-    epoches: int
-    batch_size: int
-
-
 class WarmupCosineScheduler(torch.optim.lr_scheduler.LambdaLR):
     def __init__(self, optimizer, warmup_steps, total_steps, min_lr=1e-5, num_cycles=0.5):
         def lr_lambda(current_step):
@@ -66,23 +59,20 @@ class TrainerLotus(pl.LightningModule):
         self.model = SimplePolicyPTV3CA(config.MODEL)
 
     def training_step(self, batch, batch_idx):
-        # print('each_batch_idx:', batch_idx)
-        # print(f"each_step_allocated_cache: {torch.cuda.memory_allocated()/1024/1024/1024} GB")
-        # print(f"each_step_reserved_cache: {torch.cuda.memory_reserved()/1024/1024/1024} GB")
-        # print('dataids', batch['data_ids'])
-        # del batch['pc_centroids'], batch['pc_radius']
-        # if batch_idx % (int(100 / (self.config.batch_size * self.config.num_gpu))) == 0:
 
-        #     # print('batch_idx:', batch_idx)
-        #     print('cache_empty')
-        #     torch.cuda.empty_cache()
-        # print(f"After empty cache: {torch.cuda.memory_allocated()} bytes")
-        # print(f"After empty cache: {torch.cuda.memory_reserved()} bytes")
+        if batch_idx % (int(100 / (self.config.batch_size * self.config.num_gpus))) == 0:
+            # print('batch_idx:', batch_idx)
+            print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
+            print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
+            torch.cuda.empty_cache()
+            print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
+            print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
+
         losses = self.model(batch, is_train=True)
         self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)        # if self.global_step % 10 == 0:
         if self.global_step % 10 == 0:
             print(f"train_loss: {losses['total']}")
-            # print(f"train_loss: {losses['total']}")
+        # print(f"train_loss: {losses['total']}")
         # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
         return losses['total']
 
@@ -130,7 +120,6 @@ class MyDataModule(pl.LightningDataModule):
         self.train_dataset = dataset
 
     def train_dataloader(self):
-
         batch_size = self.config.batch_size
         sampler = DistributedSampler(self.train_dataset, shuffle=False)
 
@@ -150,8 +139,40 @@ class MyDataModule(pl.LightningDataModule):
         return loader
 
 
+class EpochCallback(pl.Callback):
+
+    def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self.epoch_start_time = time.time()
+
+    def on_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        epoch_time = time.time() - self.epoch_start_time
+        print(f"Epoch {trainer.current_epoch} took {epoch_time:.2f} seconds")
+        trainer.logger.log_metrics({'epoch_time': epoch_time}, step=trainer.global_step)
+
+
+def build_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--exp-config",
+        type=str,
+        required=True,
+        help="path to config yaml containing info about experiment",
+    )
+    parser.add_argument(
+        "opts",
+        default=None,
+        nargs=argparse.REMAINDER,
+        help="Modify config options from command line (use , to separate values in a list)",
+    )
+    args = parser.parse_args()
+
+    config = get_config(args.exp_config, args.opts)
+    return config
+
+
 if __name__ == '__main__':
     def train(config: yacs.config.CfgNode):
+        config.defrost()
         current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
         exp_name = config.name
         ckpt_name = f'{current_time}_{exp_name}'
@@ -161,7 +182,7 @@ if __name__ == '__main__':
         # 0. prepare config
         # check batch size and number of gpus
         bs = config.batch_size
-        gpu = config.num_gpu
+        gpu = config.num_gpus
         assert 100 % (bs * gpu) == 0, "Batch size should be divisible by 100, please change the batch size or number of gpus"
 
         # num_train_steps
@@ -185,14 +206,13 @@ if __name__ == '__main__':
             save_last=False,
             filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
         )
-
         csvlogger1 = CSVLogger(
             save_dir=log_path,
             name=log_name,
             version=None
         )
-
-        trainer = pl.Trainer(callbacks=[checkpoint_callback],
+        epoch_callback = EpochCallback()
+        trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
                              max_epochs=config.epoches,
                              devices='auto',
                              strategy='ddp',
@@ -201,6 +221,7 @@ if __name__ == '__main__':
                              #  profiler='simple',
                              use_distributed_sampler=False
                              )
+        config.freeze()
         trainer_model = TrainerLotus(config)
         data_module = MyDataModule(config)
         trainer.fit(trainer_model, datamodule=data_module)
@@ -209,25 +230,8 @@ if __name__ == '__main__':
     def resume():
         pass
 
-    def setup_config(args, config: yacs.config.CfgNode):
-        '''
-        First load from file and then update from args
-        '''
-        config.merge_from_file(args.config)
-
-        args_dict = {}
-        for arg in args.class_variables.keys():  # get all the class variables
-            args_dict[arg] = getattr(args, arg)
-
-        for key, value in args_dict.items():
-            config[key] = value
-
-        return config
-
     # 0.1 args & 0.2 config
-    args = TrainerArgs().parse_args(known_only=True)
-    config = yacs.config.CfgNode(new_allowed=True)
-    config = setup_config(args, config)
+    config = build_args()
 
     # 1. train
     train(config)

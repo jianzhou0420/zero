@@ -1,11 +1,11 @@
 import pickle
 import re
-from zero.expAugmentation.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
-from zero.expAugmentation.models.lotus.utils.robot_box import RobotBox
-from zero.expAugmentation.models.lotus.utils.rotation_transform import (
+from ..models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from ..models.lotus.utils.robot_box import RobotBox
+from ..models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
-from zero.expAugmentation.config.constants import (
+from ..config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
 

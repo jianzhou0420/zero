@@ -18,14 +18,14 @@ import open3d as o3d
 from sklearn.neighbors import LocalOutlierFactor
 from scipy.spatial.transform import Rotation as R
 
-from zero.expAugmentation.models.lotus.model_expbase import SimplePolicyPTV3CA
+from .models.lotus.model_expbase import SimplePolicyPTV3CA
 
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 
-from zero.expAugmentation.config.default import get_config
+from .config.default import get_config
 
-from zero.expAugmentation.config.constants import get_robot_workspace, get_rlbench_labels
-from zero.z_utils.robot_box import RobotBox
+from .config.constants import get_robot_workspace, get_rlbench_labels
+from ..z_utils.robot_box import RobotBox
 import random
 from zero.env.rlbench_lotus.recorder import (
     TaskRecorder, StaticCameraMotion, CircleCameraMotion, AttachedCameraMotion
@@ -34,7 +34,7 @@ from zero.env.rlbench_lotus.recorder import (
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
-from zero.expAugmentation.trainer_expbase import TrainerLotus
+from .trainer_expbase import TrainerLotus
 
 
 def task_file_to_task_class(task_file):

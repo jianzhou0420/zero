@@ -1,11 +1,12 @@
-import pickle
-import re
-from zero.expBaseV4.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
-from zero.expBaseV4.models.lotus.utils.robot_box import RobotBox
-from zero.expBaseV4.models.lotus.utils.rotation_transform import (
+import open3d as o3d
+from tqdm import trange
+from ..models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from ..models.lotus.utils.robot_box import RobotBox
+from ..models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
-from zero.expBaseV4.config.constants import (
+
+from ..config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
 
@@ -19,19 +20,11 @@ import json
 import copy
 import random
 from scipy.special import softmax
-import open3d as o3d
 
-# import open3d as o3d
-import tap
-
-
-def random_rotate_z(pc, angle=None):
-    # Randomly rotate around z-axis
-    if angle is None:
-        angle = np.random.uniform() * 2 * np.pi
-    cosval, sinval = np.cos(angle), np.sin(angle)
-    R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
-    return np.dot(pc, np.transpose(R))
+import lmdb
+import msgpack
+import msgpack_numpy
+msgpack_numpy.patch()
 
 
 def pad_tensors(tensors, lens=None, pad=0, max_len=None):
@@ -52,6 +45,15 @@ def pad_tensors(tensors, lens=None, pad=0, max_len=None):
     return output
 
 
+def random_rotate_z(pc, angle=None):
+    # Randomly rotate around z-axis
+    if angle is None:
+        angle = np.random.uniform() * 2 * np.pi
+    cosval, sinval = np.cos(angle), np.sin(angle)
+    R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
+    return np.dot(pc, np.transpose(R))
+
+
 def gen_seq_masks(seq_lens, max_len=None):
     """
     Args:
@@ -70,13 +72,12 @@ def gen_seq_masks(seq_lens, max_len=None):
     return masks
 
 
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+# import open3d as o3d
 
 
 class SimplePolicyDataset(Dataset):
     def __init__(
-        self, instr_embed_file, taskvar_instr_file, taskvar_file=None,
+        self, data_dir, instr_embed_file, taskvar_instr_file, taskvar_file=None,
         num_points=10000, xyz_shift='center', xyz_norm=True, use_height=False,
         rot_type='quat', instr_embed_type='last', all_step_in_batch=True,
         rm_table=True, rm_robot='none', include_last_step=False, augment_pc=False,
@@ -84,15 +85,44 @@ class SimplePolicyDataset(Dataset):
         rm_pc_outliers=False, rm_pc_outliers_neighbors=25, euler_resolution=5,
         pos_type='cont', pos_bins=50, pos_bin_size=0.01,
         pos_heatmap_type='plain', pos_heatmap_no_robot=False,
-        aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, is_single_frame=True, **kwargs
+        aug_max_rot=45, real_robot=False, **kwargs
     ):
 
-        # 0. Parameters
         assert instr_embed_type in ['last', 'all']
         assert xyz_shift in ['none', 'center', 'gripper']
         assert pos_type in ['cont', 'disc']
         assert rot_type in ['quat', 'rot6d', 'euler', 'euler_delta', 'euler_disc']
         assert rm_robot in ['none', 'gt', 'box', 'box_keep_gripper']
+
+        self.taskvar_instrs = json.load(open(taskvar_instr_file))
+        self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
+        if instr_embed_type == 'last':
+            self.instr_embeds = {instr: embeds[-1:] for instr, embeds in self.instr_embeds.items()}
+
+        if taskvar_file is not None:
+            self.taskvars = json.load(open(taskvar_file))
+        else:
+            self.taskvars = os.listdir(data_dir)
+
+        self.lmdb_envs, self.lmdb_txns = {}, {}
+        self.data_ids = []
+        for taskvar in self.taskvars:
+            if not os.path.exists(os.path.join(data_dir, taskvar)):
+                continue
+            self.lmdb_envs[taskvar] = lmdb.open(os.path.join(data_dir, taskvar), readonly=True)
+            self.lmdb_txns[taskvar] = self.lmdb_envs[taskvar].begin()
+            if all_step_in_batch:
+                self.data_ids.extend(
+                    [(taskvar, key) for key in self.lmdb_txns[taskvar].cursor().iternext(values=False)]
+                )
+            else:
+                for key, value in self.lmdb_txns[taskvar].cursor():
+                    value = msgpack.unpackb(value)
+                    if include_last_step:
+                        self.data_ids.extend([(taskvar, key, t) for t in range(len(value['xyz']))])
+                    else:
+                        self.data_ids.extend([(taskvar, key, t) for t in range(len(value['xyz']) - 1)])
+
         self.num_points = num_points
         self.xyz_shift = xyz_shift
         self.xyz_norm = xyz_norm
@@ -115,83 +145,29 @@ class SimplePolicyDataset(Dataset):
         self.pos_heatmap_type = pos_heatmap_type
         self.pos_heatmap_no_robot = pos_heatmap_no_robot
         self.real_robot = real_robot
-        self.is_single_frame = is_single_frame
-        # 0.1. Load some pheripheral information
+
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
 
-        self.config = config
-        data_dir = self.config.preprocess_dir
-        self.taskvar_instrs = json.load(open(taskvar_instr_file))
-        self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
-        if instr_embed_type == 'last':
-            self.instr_embeds = {instr: embeds[-1:] for instr, embeds in self.instr_embeds.items()}
+        self.new_data_ids = []
+        for i, episode in enumerate(self.data_ids):
+            if self.data_ids[i][0].split('_peract')[0] == 'close_jar':
+                self.new_data_ids.append(self.data_ids[i])
+        self.data_ids = self.new_data_ids
+        print(len(self.data_ids))
 
-        tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
-        if tasks_to_use is not None:
-            tasks_all = [task for task in tasks_all if task in tasks_to_use]
-            print(f"tasks_all: {tasks_all}")
+    def __exit__(self):
+        for lmdb_env in self.lmdb_envs.values():
+            lmdb_env.close()
 
-        # 1. episodes-wise list
-        self.g_episode_to_taskvar = []  # Which taskvar is each episode
-        self.g_episode_to_path = []  # retrieve all episodes path and put them in self.episodes
-        self.g_episode_to_l_episode = []  # Which episode in each taskvar
-        self.frames = []  # How many frames in each episode
-        for task_name in tasks_all:
-            task_folder_path = os.path.join(data_dir, task_name)
-            variation_list = sorted(os.listdir(task_folder_path), key=natural_sort_key)
-            for variation_folder in variation_list:
-                l_episode = 0
-                variation_folder_path = os.path.join(task_folder_path, variation_folder, 'episodes')
-                episodes_list = sorted(os.listdir(variation_folder_path), key=natural_sort_key)
-                for episode_folder in episodes_list:
-                    episode_folder_path = os.path.join(variation_folder_path, episode_folder)
-                    self.g_episode_to_path.append(episode_folder_path)
-                    variation_id = int(variation_folder.split('variation')[-1])
-                    taskvar = task_name + '_peract' + '+' + str(variation_id)
-                    self.g_episode_to_taskvar.append(taskvar)
-                    with open(os.path.join(episode_folder_path, 'data.pkl'), 'rb') as f:
-                        data = pickle.load(f)
-                    self.frames.append(len(data['data_ids']))
+    def __len__(self):
+        return len(self.data_ids)
 
-                    self.g_episode_to_l_episode.append(l_episode)
-                    l_episode += 1
-
-        # 2. frame-wise list
-        self.g_frame_to_taskvar = []
-        self.g_frame_to_g_episode = []
-        self.g_frame_to_frame = []
-        self.g_frame_to_l_episode = []
-
-        for episode_id, frame in enumerate(self.frames):
-            self.g_frame_to_g_episode.extend([episode_id] * frame)
-            self.g_frame_to_taskvar.extend([self.g_episode_to_taskvar[episode_id]] * frame)
-            self.g_frame_to_frame.extend(list(range(frame)))
-            self.g_frame_to_l_episode.extend([episode_id] * frame)
-
-        # 3.container
-        self.cache = dict()
-        self.max_cache_length = 1800
-        print(f"max_cache_length: {self.max_cache_length}")
-        for i in range(len(self.g_episode_to_path)):
-            self.check_cache(i)
-
-    def check_cache(self, g_episode):
-
-        if self.cache.get(g_episode) is None:
-
-            episode_path = self.g_episode_to_path[g_episode]
-            with open(os.path.join(episode_path, 'data.pkl'), 'rb') as f:
-                data = pickle.load(f)
-
-            if len(self.cache) >= self.max_cache_length:
-                first_key = next(iter(self.cache))
-                self.cache.pop(first_key)
-
-            self.cache[g_episode] = data
-            return data
-        else:
-            return self.cache[g_episode]
+    def _get_mask_with_label_ids(self, sem, label_ids):
+        mask = sem == label_ids[0]
+        for label_id in label_ids[1:]:
+            mask = mask | (sem == label_id)
+        return mask
 
     def _get_mask_with_robot_box(self, xyz, arm_links_info, rm_robot_type):
         if rm_robot_type == 'box_keep_gripper':
@@ -200,7 +176,7 @@ class SimplePolicyDataset(Dataset):
             keep_gripper = False
         robot_box = RobotBox(
             arm_links_info, keep_gripper=keep_gripper,
-            env_name='rlbench', selfgen=True
+            env_name='real' if self.real_robot else 'rlbench'
         )
         _, robot_point_ids = robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)
         robot_point_ids = np.array(list(robot_point_ids))
@@ -209,86 +185,111 @@ class SimplePolicyDataset(Dataset):
             mask[robot_point_ids] = False
         return mask
 
+    def _rm_pc_outliers(self, xyz, rgb=None, return_idxs=False):
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(xyz)
+        # pcd, idxs = pcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=2.0)
+        # pcd, idxs = pcd.remove_radius_outlier(nb_points=16, radius=0.03)
+        clf = LocalOutlierFactor(n_neighbors=self.rm_pc_outliers_neighbors)
+        preds = clf.fit_predict(xyz)
+        idxs = (preds == 1)
+        xyz = xyz[idxs]
+        if rgb is not None:
+            rgb = rgb[idxs]
+        if return_idxs:
+            return xyz, rgb, idxs
+        else:
+            return xyz, rgb
+
     def _rotate_gripper(self, gripper_rot, angle):
         rot = R.from_euler('z', angle, degrees=False)
         gripper_rot = R.from_quat(gripper_rot)
         gripper_rot = (rot * gripper_rot).as_quat()
         return gripper_rot
 
-    def _augment_pc(self, xyz, action_current, action_next, aug_max_rot):
+    def _augment_pc(self, xyz, ee_pose, gt_action, gt_rot, aug_max_rot):
         # rotate around z-axis
         angle = np.random.uniform(-1, 1) * aug_max_rot
         xyz = random_rotate_z(xyz, angle=angle)
-        action_current[:3] = random_rotate_z(action_current[:3], angle=angle)
-        action_current[3:-1] = self._rotate_gripper(action_current[3:-1], angle)
-
-        action_next[:3] = random_rotate_z(action_next[:3], angle=angle)
-        action_next[3:-1] = self._rotate_gripper(action_next[3:-1], angle)
-
+        ee_pose[:3] = random_rotate_z(ee_pose[:3], angle=angle)
+        gt_action[:3] = random_rotate_z(gt_action[:3], angle=angle)
+        ee_pose[3:-1] = self._rotate_gripper(ee_pose[3:-1], angle)
+        gt_action[3:-1] = self._rotate_gripper(gt_action[3:-1], angle)
         if self.rot_type == 'quat':
-            gt_rot = action_next[3:-1]
+            gt_rot = gt_action[3:-1]
         elif self.rot_type == 'euler':
             gt_rot = self.rotation_transform.quaternion_to_euler(
-                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy() / 180.
+                torch.from_numpy(gt_action[3:-1][None, :]))[0].numpy() / 180.
         elif self.rot_type == 'euler_disc':
-            gt_rot = quaternion_to_discrete_euler(action_next[3:-1], self.euler_resolution)
+            gt_rot = quaternion_to_discrete_euler(gt_action[3:-1], self.euler_resolution)
         elif self.rot_type == 'rot6d':
             gt_rot = self.rotation_transform.quaternion_to_ortho6d(
-                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy()
+                torch.from_numpy(gt_action[3:-1][None, :]))[0].numpy()
 
         # add small noises (+-2mm)
         pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
         xyz = pc_noises + xyz
 
-        return xyz, action_current, action_next, gt_rot
+        return xyz, ee_pose, gt_action, gt_rot
 
-    def __exit__(self):
-        for lmdb_env in self.lmdb_envs.values():
-            lmdb_env.close()
-
-    def __len__(self):
-        if self.is_single_frame:
-            return sum(self.frames)
+    def get_groundtruth_rotations(self, ee_poses):
+        ee_poses = copy.deepcopy(ee_poses)
+        gt_rots = torch.from_numpy(ee_poses)   # quaternions
+        if self.rot_type == 'euler':    # [-1, 1]
+            gt_rots = self.rotation_transform.quaternion_to_euler(gt_rots[1:]) / 180.
+            gt_rots = torch.cat([gt_rots, gt_rots[-1:]], 0)
+        elif self.rot_type == 'euler_disc':  # 3D
+            gt_rots = [quaternion_to_discrete_euler(x, self.euler_resolution) for x in gt_rots[1:]]
+            gt_rots = torch.from_numpy(np.stack(gt_rots + gt_rots[-1:]))
+        elif self.rot_type == 'euler_delta':
+            gt_eulers = self.rotation_transform.quaternion_to_euler(gt_rots)
+            gt_rots = (gt_eulers[1:] - gt_eulers[:-1]) % 360
+            gt_rots[gt_rots > 180] -= 360
+            gt_rots = gt_rots / 180.
+            gt_rots = torch.cat([gt_rots, torch.zeros(1, 3)], 0)
+        elif self.rot_type == 'rot6d':
+            gt_rots = self.rotation_transform.quaternion_to_ortho6d(gt_rots)
+            gt_rots = torch.cat([gt_rots, gt_rots[-1:]], 0)
         else:
-            return len(self.frames)
+            gt_rots = torch.cat([gt_rots, gt_rots[-1:]], 0)
+        gt_rots = gt_rots.numpy()
+        return gt_rots
 
-    def __getitem__(self, g_frame_idx):
-        # 0. get single frame
-        if self.is_single_frame:
-            return self.get_single_frame(g_frame_idx)
+    def __getitem__(self, idx):
+        if self.all_step_in_batch:
+            taskvar, data_id = self.data_ids[idx]
         else:
-            return self.get_entire_episode(g_frame_idx)
+            taskvar, data_id, data_step = self.data_ids[idx]
 
-    def get_entire_episode(self, g_episode):
+        task, variation = taskvar.split('+')
+
+        data = msgpack.unpackb(self.lmdb_txns[taskvar].get(data_id))
+
         outs = {
-            'data_ids': [],
-            'pc_fts': [],
-            'step_ids': [],
-            'pc_centroids': [],
-            'pc_radius': [],
-            'ee_poses': [],
-            'txt_embeds': [],
-            'gt_actions': [],
-            'disc_pos_probs': []
+            'data_ids': [], 'pc_fts': [], 'step_ids': [],
+            'pc_centroids': [], 'pc_radius': [], 'ee_poses': [],
+            'txt_embeds': [], 'gt_actions': [],
         }
+        if self.pos_type == 'disc':
+            outs['disc_pos_probs'] = []
 
-        # 0.1 identify the frame info and output info
-        taskvar = self.g_episode_to_taskvar[g_episode]
+        gt_rots = self.get_groundtruth_rotations(data['action'][:, 3:7])
 
-        # 0.2 get data of specific frame
-        data = self.check_cache(g_episode)
-        num_frames = len(data['data_ids'])
-
-        # 1.get specific frame data
-        for t in range(num_frames):
-            data_ids = data['data_ids'][t]
-            xyz = copy.deepcopy(data['xyz'][t])
-            rgb = copy.deepcopy(data['rgb'][t])
-            ee_pose = copy.deepcopy(data['action_current'][t])
-            gt_action = copy.deepcopy(data['action_next'][t])
-            arm_links_info = copy.deepcopy(data['arm_links_info'][t])
+        num_steps = len(data['xyz'])
+        for t in range(num_steps):
+            if (not self.all_step_in_batch) and t != data_step:
+                continue
+            if (not self.include_last_step) and (t == (num_steps - 1)):
+                # the last step is the end observation
+                continue
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
+            # xyz = copy.deepcopy(xyz)
+            # rgb = copy.deepcopy(rgb)
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector(rgb / 255)
+            # o3d.visualization.draw_geometries([pcd])
 
             # # real robot point cloud is very noisy, requiring noise point cloud removal
             # # segmentation fault if n_workers>0
@@ -300,11 +301,24 @@ class SimplePolicyDataset(Dataset):
             #     xyz = xyz[outlier_masks]
             #     rgb = rgb[outlier_masks]
 
+            if self.real_robot:  # save in a different format
+                arm_links_info = (data['bbox_info'][0], data['pose_info'][0])
+            else:
+                arm_links_info = (
+                    {k: v[t] for k, v in data['bbox_info'].items()},
+                    {k: v[t] for k, v in data['pose_info'].items()}
+                )
+
+            if t < num_steps - 1:
+                gt_action = copy.deepcopy(data['action'][t + 1])
+            else:
+                gt_action = copy.deepcopy(data['action'][-1])
+            ee_pose = copy.deepcopy(data['action'][t])
+            gt_rot = gt_rots[t]
+
             # randomly select one instruction
             instr = random.choice(self.taskvar_instrs[taskvar])
-            instr_embed = copy.deepcopy(self.instr_embeds[instr])
-            # print(taskvar)
-            # print(instr)
+            instr_embed = self.instr_embeds[instr]
 
             # remove background points (table, robot arm)
             if self.rm_table:
@@ -321,27 +335,24 @@ class SimplePolicyDataset(Dataset):
                 xyz, rgb = self._rm_pc_outliers(xyz, rgb)
 
             # sampling points
-            # if len(xyz) > self.num_points:
-            #     if self.sample_points_by_distance:
-            #         dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
-            #         probs = 1 / np.maximum(dists, 0.1)
-            #         probs = np.maximum(softmax(probs), 1e-30)
-            #         probs = probs / sum(probs)
-            #         # probs = 1 / dists
-            #         # probs = probs / np.sum(probs)
-            #         point_idxs = np.random.choice(len(xyz), self.num_points, replace=False, p=probs)
-            #     else:
-            #         point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
-            # else:
-            #     if self.same_npoints_per_example:
-            #         point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
-            #     else:
-            max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
-            point_idxs = np.random.permutation(len(xyz))[:max_npoints]
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(xyz)
-            pcd.colors = o3d.utility.Vector3dVector(rgb / 255)
-            o3d.visualization.draw_geometries([pcd])
+            if len(xyz) > self.num_points:
+                if self.sample_points_by_distance:
+                    dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
+                    probs = 1 / np.maximum(dists, 0.1)
+                    probs = np.maximum(softmax(probs), 1e-30)
+                    probs = probs / sum(probs)
+                    # probs = 1 / dists
+                    # probs = probs / np.sum(probs)
+                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False, p=probs)
+                else:
+                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+            else:
+                if self.same_npoints_per_example:
+                    point_idxs = np.random.choice(xyz.shape[0], self.num_points, replace=True)
+                else:
+                    max_npoints = int(len(xyz) * np.random.uniform(0.95, 1))
+                    point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+            print(point_idxs)
 
             xyz = xyz[point_idxs]
             rgb = rgb[point_idxs]
@@ -350,7 +361,7 @@ class SimplePolicyDataset(Dataset):
             if self.pos_heatmap_no_robot:
                 robot_box = RobotBox(
                     arm_links_info=arm_links_info,
-                    env_name='rlbench', selfgen=True
+                    env_name='real' if self.real_robot else 'rlbench'
                 )
                 robot_point_idxs = np.array(
                     list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])
@@ -361,7 +372,7 @@ class SimplePolicyDataset(Dataset):
             # point cloud augmentation
             if self.augment_pc:
                 xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
-                    xyz, ee_pose, gt_action, self.aug_max_rot
+                    xyz, ee_pose, gt_action, gt_rot, self.aug_max_rot
                 )
 
             # normalize point cloud
@@ -400,12 +411,21 @@ class SimplePolicyDataset(Dataset):
                 )
                 outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
 
-            outs['data_ids'].append(data_ids)
+            outs['data_ids'].append(f'{taskvar}-{data_id.decode("ascii")}-t{t}')
             outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
             outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
             outs['gt_actions'].append(torch.from_numpy(gt_action).float())
             outs['step_ids'].append(t)
+
+            # xyz = pc_ft[:, :3]
+            # rgb = np.zeros_like(xyz)
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector(rgb)
+            # o3d.visualization.draw_geometries([pcd])
+            # action_current_list.append(ee_pose)
+            # action_next_list.append(gt_action)
         return outs
 
 
@@ -427,9 +447,9 @@ def base_collate_fn(data):
         batch['txt_embeds'], lens=txt_lens, max_len=max(txt_lens)
     )
 
-    # if len(batch['pc_centroids']) > 0:
-    #     batch['pc_centroids'] = np.stack(batch['pc_centroids'], 0)
-    #     batch['pc_radius'] = np.array(batch['pc_radius'])
+    if len(batch['pc_centroids']) > 0:
+        batch['pc_centroids'] = np.stack(batch['pc_centroids'], 0)
+        batch['pc_radius'] = np.array(batch['pc_radius'])
 
     return batch
 
@@ -462,26 +482,26 @@ def ptv3_collate_fn(data):
 
 
 if __name__ == '__main__':
-    import argparse
     import yacs.config
-    from tqdm import trange
-    # seed everything
-    torch.manual_seed(42)
-    np.random.seed(42)
-    random.seed(42)
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/media/jian/ssd4t/zero/zero/expBaseV4/config/expbase_test1.yaml')
-    parser.add_argument('--output', type=str)
-
-    args = parser.parse_args()
+    import pickle
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file(args.config)
+    config.merge_from_file('/data/zero/zero/v4/config/lotus_origin.yaml')
 
-    dataset = SimplePolicyDataset(config=config, is_single_frame=False, **config.TRAIN_DATASET)
-    dataset[0]
-    # all_data = []
-    # for i in trange(len(dataset)):
-    #     data = dataset[i]
-    #     all_data.append(data)
-    # with open(args.output, 'wb') as f:
-    #     pickle.dump(all_data, f)
+    dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
+
+    outs = {
+        'data_ids': [], 'pc_fts': [], 'step_ids': [],
+        'pc_centroids': [], 'pc_radius': [], 'ee_poses': [],
+        'txt_embeds': [], 'gt_actions': [], 'disc_pos_probs': []
+    }
+    episode_length = []
+    dataset_length = len(dataset)
+    print(dataset_length)
+    for i in trange(dataset_length):
+
+        data = dataset[i]
+        for key in data.keys():
+            outs[key].extend(data[key])
+
+    with open('data_origin.pickle', 'wb') as f:
+        pickle.dump(outs, f)
