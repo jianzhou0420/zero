@@ -28,7 +28,7 @@ import math
 import os
 import warnings
 warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
-
+torch.set_float32_matmul_precision('medium')
 
 # ---------------------------------------------------------------
 # region 0.Some tools
@@ -244,7 +244,8 @@ def train(config: yacs.config.CfgNode):
                          logger=csvlogger1,
                          #  profiler=profiler，
                          #  profiler='simple',
-                         use_distributed_sampler=False
+                         use_distributed_sampler=False,
+                         precision=16 if config.fp16 else None,
                          )
     config.freeze()
     trainer_model = TrainerLotus(config)
