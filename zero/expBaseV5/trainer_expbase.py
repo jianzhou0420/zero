@@ -237,6 +237,7 @@ def train(config: yacs.config.CfgNode):
         version=None
     )
     epoch_callback = EpochCallback()
+    print('fp16:', config.fp16)
     trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
                          max_epochs=config.epoches,
                          devices='auto',
