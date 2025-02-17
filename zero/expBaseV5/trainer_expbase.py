@@ -222,7 +222,8 @@ def train(config: yacs.config.CfgNode):
 
     config.TRAIN.num_train_steps = total_steps
     config.TRAIN.warmup_steps = total_steps // 15
-
+    print(config.tasks_to_use)
+    print(f"Total steps: {total_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
         every_n_epochs=100,
@@ -259,9 +260,7 @@ def resume():
 # endregion
 # ---------------------------------------------------------------
 if __name__ == '__main__':
-
     # 0.1 args & 0.2 config
     config = build_args()
-
     # 1. train
     train(config)

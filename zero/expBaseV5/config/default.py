@@ -1,3 +1,4 @@
+import argparse
 from typing import List, Optional, Union
 
 import yacs.config
@@ -55,4 +56,24 @@ def get_config(
     config.CMD_TRAILING_OPTS = []
 
     config.freeze()
+    return config
+
+
+def build_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--exp-config",
+        type=str,
+        required=True,
+        help="path to config yaml containing info about experiment",
+    )
+    parser.add_argument(
+        "opts",
+        default=None,
+        nargs=argparse.REMAINDER,
+        help="Modify config options from command line (use , to separate values in a list)",
+    )
+    args = parser.parse_args()
+
+    config = get_config(args.exp_config, args.opts)
     return config

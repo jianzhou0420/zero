@@ -1,13 +1,23 @@
 import pickle
 import re
-from ..models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
-from ..models.lotus.utils.robot_box import RobotBox
-from ..models.lotus.utils.rotation_transform import (
+# from ..models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+# from ..models.lotus.utils.robot_box import RobotBox
+# from ..models.lotus.utils.rotation_transform import (
+#     RotationMatrixTransform, quaternion_to_discrete_euler
+# )
+# from ..config.constants import (
+#     get_rlbench_labels, get_robot_workspace
+# )
+
+from zero.expBaseV5.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.expBaseV5.models.lotus.utils.robot_box import RobotBox
+from zero.expBaseV5.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
-from ..config.constants import (
+from zero.expBaseV5.config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
+
 
 from scipy.spatial.transform import Rotation as R
 from sklearn.neighbors import LocalOutlierFactor
@@ -387,7 +397,7 @@ class LotusDatasetAugmentation(Dataset):
                 )
                 outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
 
-            # print(f"afterprocess: {xyz.shape}")
+            # print(f"{taskvar}: {xyz.shape}")
             outs['data_ids'].append(data_ids)
             outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
             outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
@@ -454,17 +464,8 @@ if __name__ == '__main__':
     import argparse
     import yacs.config
     from tqdm import trange
-    # seed everything
-    torch.manual_seed(42)
-    np.random.seed(42)
-    random.seed(42)
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_all_together.yaml')
-    parser.add_argument('--output', type=str)
-
-    args = parser.parse_args()
-    config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file(args.config)
+    from zero.expBaseV5.config.default import build_args
+    config = build_args()
 
     dataset = LotusDatasetAugmentation(config=config, is_single_frame=False, **config.TRAIN_DATASET)
 
@@ -478,19 +479,36 @@ if __name__ == '__main__':
     # single_xyz=[]
     # for i in trange(len(dataset)):
     #     data = dataset.check_cache(i)
-    #     xyz= data['xyz']
+    #     xyz = data['xyz']
     #     for j in range(len(xyz)):
     #         single_xyz.append(xyz[j].shape)
-    #     if i%100==0:
-    #         single_xyz=np.average(single_xyz, axis=0)
+    #     if i % 100 == 0:
+    #         single_xyz = np.average(single_xyz, axis=0)
     #         xyz_all.append(single_xyz)
-    #         single_xyz=[]
+    #         single_xyz = []
 
     with open('/data/zero/assets/peract_tasks.json', 'r') as f:
         tasks = json.load(f)
 
-    for i in trange(1800):
-        # print(f"task: {tasks[i]}")
-        dataset[i]
+    for i in range(18):
 
+        single_frame = dataset[i * 100]
+
+        print(f"task: {single_frame['data_ids'][0].split('-')[1]:<35}", single_frame['pc_fts'][0].shape[0])
+        # dataset[i]
         # break
+    '''
+     python  -m zero.expBaseV5.dataset.dataset_expbase_voxel_augment \
+            --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
+            name expBaseV5_test \
+            dataset augment\
+            num_gpus 1 \
+            epoches 800 \
+            batch_size 4 \
+            TRAIN_DATASET.num_points 100000 \
+            TRAIN_DATASET.pos_bins 75 \
+            TRAIN_DATASET.pos_bin_size 0.001\
+            MODEL.action_config.pos_bins 75\
+            MODEL.action_config.pos_bin_size 0.001 \
+            tasks_to_use "['insert_onto_square_peg','close_jar']" 
+    '''

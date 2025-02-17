@@ -31,7 +31,19 @@ spec:
                 pip install -e .
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
-                source /data/zero/scripts/train.sh
+                python  -m zero.expBaseV5.trainer_expbase \
+                        --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
+                        name expBaseV5_test \
+                        dataset augment\
+                        num_gpus 4 \
+                        epoches 1500 \
+                        batch_size 1 \
+                        TRAIN_DATASET.num_points 100000 \
+                        TRAIN_DATASET.pos_bins 75 \
+                        TRAIN_DATASET.pos_bin_size 0.001\
+                        MODEL.action_config.pos_bins 75\
+                        MODEL.action_config.pos_bin_size 0.001 \
+                       
 
 
           resources:
