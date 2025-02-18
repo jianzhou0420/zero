@@ -735,7 +735,8 @@ class SerializedPooling(PointModule):
             sorted=True,
             return_inverse=True,
             return_counts=True,
-        )
+        )  # ZJA: 这一步是池化的过程，聚类指的是，缩放格子罢了。一个voxel一个类。因为code是space-filling的index，所以移位=缩放,然后后面的torch_scatter.segment_csr就是pool本身，前面这些都是在做谁跟谁一起pooling的事情。
+        # 又因为，每个code的基本都是octree，所以一样的基本。
         # indices of point sorted by cluster, for torch_scatter.segment_csr
         _, indices = torch.sort(cluster)
         # index pointer for sorted point, for torch_scatter.segment_csr
@@ -966,7 +967,7 @@ class PointTransformerV3(PointModule):
         enc_drop_path = [
             x.item() for x in torch.linspace(0, drop_path, sum(enc_depths))
         ]
-        self.enc = PointSequential()
+        self.enc = PointSequential()  # 套壳，为了用sparse_conv
         for s in range(self.num_stages):
             enc_drop_path_ = enc_drop_path[
                 sum(enc_depths[:s]): sum(enc_depths[: s + 1])

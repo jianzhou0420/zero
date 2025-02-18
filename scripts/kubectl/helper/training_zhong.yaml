@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: exp-zhong # Your training job name
+spec:
+  backoffLimit: 0   # add this line so --> If your pod failed, the training job will stop.
+  template:
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: gitlab-docker-secret
+      volumes:
+        - name: shared-memory # This is to resolve the dataloader OOM issue.
+          emptyDir:
+            medium: Memory
+        - name: dataset-volume
+          persistentVolumeClaim:
+            claimName: rlbench-pvc      # <------- your PVC name    kubectl get pvc
+
+      containers:
+        - name: zero-container # It is recommended to name your container according to the project
+          image: docker.aiml.team/jian.zhou/test:latest # You can reuse this image for different projects if their python dependencies are the same.
+          imagePullPolicy: Always
+          stdin: true
+          tty: true
+          command: ["/bin/bash", "-c"]
+          args: 
+              - |
+                cd /data/zero
+                git pull
+                pip install -e .
+                python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
+                nvidia-smi
+                python  -m zero.expBaseV5.trainer_expbase \
+                        --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
+                        name expBaseV5_test \
+                        dataset augment\
+                        num_gpus 1 \
+                        epoches 1200 \
+                        batch_size 2 \
+                        TRAIN_DATASET.num_points 100000 \
+                        TRAIN_DATASET.pos_bins 75 \
+                        TRAIN_DATASET.pos_bin_size 0.001\
+                        MODEL.action_config.pos_bins 75\
+                        MODEL.action_config.pos_bin_size 0.001 \
+                        tasks_to_use "[meat_off_grill, sweep_to_dustpan_of_size, close_jar, push_buttons, light_bulb_in, insert_onto_square_peg, put_groceries_in_cupboard,place_shape_in_shape_sorter,stack_blocks]"       
+          resources:
+            limits:
+              cpu: 8
+              nvidia.com/gpu: 1           # <------- If you don't need any of GPUs, Please comment-out this line.
+              memory: 60Gi
+            requests:
+              cpu: 8
+              nvidia.com/gpu: 1           # <------- If you don't need any of GPUs, Please comment-out this line.
+              memory: 60Gi
+          
+            
+
+          volumeMounts:
+            - name: dataset-volume
+              mountPath: /data
+            - name: shared-memory
+              mountPath: /dev/shm
+          env:
+            - name: GITLAB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                    name: gitlab-token  # kubectl get secrets
+                    key:  access-token
