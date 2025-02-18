@@ -6,7 +6,7 @@ python  -m zero.expBaseV5.trainer_expbase \
         dataset augment\
         num_gpus 1 \
         epoches 1200 \
-        batch_size 4 \
+        batch_size 2 \
         TRAIN_DATASET.num_points 100000 \
         TRAIN_DATASET.pos_bins 75 \
         TRAIN_DATASET.pos_bin_size 0.001\

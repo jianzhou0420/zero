@@ -244,7 +244,8 @@ def train(config: yacs.config.CfgNode):
                          logger=csvlogger1,
                          #  profiler=profiler，
                          #  profiler='simple',
-                         use_distributed_sampler=False
+                         use_distributed_sampler=False,
+                         sync_batchnorm=True,
                          )
     config.freeze()
     trainer_model = TrainerLotus(config)
