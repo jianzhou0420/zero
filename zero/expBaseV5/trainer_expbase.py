@@ -28,7 +28,7 @@ import math
 import os
 import warnings
 warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
-
+torch.set_float32_matmul_precision('medium')
 
 # ---------------------------------------------------------------
 # region 0.Some tools
@@ -237,6 +237,7 @@ def train(config: yacs.config.CfgNode):
         version=None
     )
     epoch_callback = EpochCallback()
+    print('fp16:', config.fp16)
     trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
                          max_epochs=config.epoches,
                          devices='auto',

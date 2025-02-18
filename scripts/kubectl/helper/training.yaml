@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: exp # Your training job name
+  name: expsinglefp16 # Your training job name
 spec:
   backoffLimit: 0   # add this line so --> If your pod failed, the training job will stop.
   template:
@@ -35,26 +35,28 @@ spec:
                         --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
                         name expBaseV5_test \
                         dataset augment\
-                        num_gpus 4 \
-                        epoches 1500 \
-                        batch_size 1 \
+                        num_gpus 1 \
+                        epoches 1200 \
+                        batch_size 2 \
                         TRAIN_DATASET.num_points 100000 \
                         TRAIN_DATASET.pos_bins 75 \
                         TRAIN_DATASET.pos_bin_size 0.001\
                         MODEL.action_config.pos_bins 75\
                         MODEL.action_config.pos_bin_size 0.001 \
+                        tasks_to_use "['insert_onto_square_peg','close_jar','light_bulb_in','put_groceries_in_cupboard']" \
+                        fp16 True \
                        
 
 
           resources:
             limits:
-              nvidia.com/gpu: 4           # <------- If you don't need any of GPUs, Please comment-out this line.
+              nvidia.com/gpu: 1           # <------- If you don't need any of GPUs, Please comment-out this line.
               cpu: 16
               memory: 128Gi
-            requests:
-              nvidia.com/gpu: 4           # <------- If you don't need any of GPUs, Please comment-out this line.
-              cpu: 16
-              memory: 64Gi
+            # requests:
+            #   nvidia.com/gpu: 4           # <------- If you don't need any of GPUs, Please comment-out this line.
+            #   cpu: 16
+            #   memory: 64Gi
 
           volumeMounts:
             - name: dataset-volume
