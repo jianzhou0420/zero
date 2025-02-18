@@ -247,6 +247,7 @@ def train(config: yacs.config.CfgNode):
                          #  profiler='simple',
                          use_distributed_sampler=False,
                          precision=16 if config.fp16 else None,
+                         sync_batchnorm=True,
                          )
     config.freeze()
     trainer_model = TrainerLotus(config)
