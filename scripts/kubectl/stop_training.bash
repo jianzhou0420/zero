@@ -1,1 +1,0 @@
-kubectl delete -f /media/jian/ssd4t/zero/scripts/kubectl/helper/training.yaml

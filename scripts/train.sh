@@ -12,8 +12,8 @@ python  -m zero.expBaseV5.trainer_expbase \
         TRAIN_DATASET.pos_bin_size 0.001\
         MODEL.action_config.pos_bins 75\
         MODEL.action_config.pos_bin_size 0.001 \
-        tasks_to_use "['insert_onto_square_peg','close_jar','light_bulb_in','put_groceries_in_cupboard']" \
-        fp16 True \
+        tasks_to_use "[meat_off_grill, sweep_to_dustpan_of_size, close_jar, push_buttons, light_bulb_in, insert_onto_square_peg, put_groceries_in_cupboard,place_shape_in_shape_sorter,stack_blocks]" \
+       
         
         
 

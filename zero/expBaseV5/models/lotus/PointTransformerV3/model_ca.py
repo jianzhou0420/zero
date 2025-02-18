@@ -293,7 +293,7 @@ class PointTransformerV3CA(PointTransformerV3):
             x.item() for x in torch.linspace(0, drop_path, sum(enc_depths))
         ]
         self.enc = PointSequential()
-        for s in range(self.num_stages):
+        for s in range(self.num_stages):  # depth是每个layer的深度
             enc_drop_path_ = enc_drop_path[
                 sum(enc_depths[:s]): sum(enc_depths[: s + 1])
             ]
