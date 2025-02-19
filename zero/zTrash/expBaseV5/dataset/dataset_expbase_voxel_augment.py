@@ -86,51 +86,52 @@ def natural_sort_key(s):
 
 class LotusDatasetAugmentation(Dataset):
     def __init__(
-        self, instr_embed_file, taskvar_instr_file,
+        self, instr_embed_file, taskvar_instr_file, taskvar_file=None,
         num_points=10000000, xyz_shift='center', xyz_norm=True, use_height=False,
-        rot_type='quat', instr_embed_type='last',
-        rm_robot='none', augment_pc=False,
-        euler_resolution=5,
+        rot_type='quat', instr_embed_type='last', all_step_in_batch=True,
+        rm_table=True, rm_robot='none', include_last_step=False, augment_pc=False,
+        sample_points_by_distance=False, same_npoints_per_example=False,
+        rm_pc_outliers=False, rm_pc_outliers_neighbors=25, euler_resolution=5,
         pos_type='cont', pos_bins=50, pos_bin_size=0.01,
         pos_heatmap_type='plain', pos_heatmap_no_robot=False,
-        aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, data_dir=None,
-        **kwargs
+        aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, is_single_frame=True, **kwargs
     ):
+
         # 0. Parameters
         assert instr_embed_type in ['last', 'all']
         assert xyz_shift in ['none', 'center', 'gripper']
         assert pos_type in ['cont', 'disc']
         assert rot_type in ['quat', 'rot6d', 'euler', 'euler_delta', 'euler_disc']
         assert rm_robot in ['none', 'gt', 'box', 'box_keep_gripper']
-
-        # 0.1 Downsample args
         self.num_points = num_points
-
-        # 0.2 shift and normalization
         self.xyz_shift = xyz_shift
         self.xyz_norm = xyz_norm
-
-        # put together
         self.use_height = use_height
-
-        # augment & action head
+        self.pos_type = pos_type
         self.rot_type = rot_type
+        self.rm_table = rm_table
+        self.rm_robot = rm_robot
+        self.all_step_in_batch = all_step_in_batch
+        self.include_last_step = include_last_step
         self.augment_pc = augment_pc
         self.aug_max_rot = np.deg2rad(aug_max_rot)
+        self.sample_points_by_distance = sample_points_by_distance
+        self.rm_pc_outliers = rm_pc_outliers
+        self.rm_pc_outliers_neighbors = rm_pc_outliers_neighbors
+        self.same_npoints_per_example = same_npoints_per_example
         self.euler_resolution = euler_resolution
-
-        self.pos_type = pos_type
         self.pos_bins = pos_bins
         self.pos_bin_size = pos_bin_size
         self.pos_heatmap_type = pos_heatmap_type
         self.pos_heatmap_no_robot = pos_heatmap_no_robot
-
+        self.real_robot = real_robot
+        self.is_single_frame = is_single_frame
         # 0.1. Load some pheripheral information
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
         self.rotation_transform = RotationMatrixTransform()
 
         self.config = config
-        data_dir = data_dir
+        data_dir = self.config.preprocess_dir
         self.taskvar_instrs = json.load(open(taskvar_instr_file))
         self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
         if instr_embed_type == 'last':
@@ -256,17 +257,19 @@ class LotusDatasetAugmentation(Dataset):
             lmdb_env.close()
 
     def __len__(self):
+        if self.is_single_frame:
+            return sum(self.frames)
+        else:
+            return len(self.frames)
 
-        return len(self.frames)
-
-    def __getitem__(self, g_episode):
+    def __getitem__(self, g_frame_idx):
         # 0. get single frame
-        return self.get_entire_episode(g_episode)
+        if self.is_single_frame:
+            return self.get_single_frame(g_frame_idx)
+        else:
+            return self.get_entire_episode(g_frame_idx)
 
     def get_entire_episode(self, g_episode):
-        '''
-        主要就做augmentation的工作
-        '''
         outs = {
             'data_ids': [],
             'pc_fts': [],
@@ -297,18 +300,50 @@ class LotusDatasetAugmentation(Dataset):
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
 
+            # # real robot point cloud is very noisy, requiring noise point cloud removal
+            # # segmentation fault if n_workers>0
+            # if self.real_robot:
+            #     pcd = o3d.geometry.PointCloud()
+            #     pcd.points = o3d.utility.Vector3dVector(xyz)
+            #     pcd.colors = o3d.utility.Vector3dVector(rgb)
+            #     pcd, outlier_masks = pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=0.2)
+            #     xyz = xyz[outlier_masks]
+            #     rgb = rgb[outlier_masks]
+
             # randomly select one instruction
             instr = random.choice(self.taskvar_instrs[taskvar])
             instr_embed = copy.deepcopy(self.instr_embeds[instr])
+            # print(taskvar)
+            # print(instr)
+            # print(f"initial xyz: {xyz.shape}")
+            # remove background points (table, robot arm)
+            if self.rm_table:
+                mask = xyz[..., 2] > self.TABLE_HEIGHT
+                xyz = xyz[mask]
+                rgb = rgb[mask]
+            if self.rm_robot.startswith('box'):
+                mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.rm_robot)
+                xyz = xyz[mask]
+                rgb = rgb[mask]
 
-            # 5. downsample point cloud
+            # TODO: segmentation fault in cleps with num_workers>0
+            if self.rm_pc_outliers:
+                xyz, rgb = self._rm_pc_outliers(xyz, rgb)
+
+            # sampling points
+            # print(f"before downsample xyz: {xyz.shape}")
+            # if len(xyz) > self.num_points:
+            #     point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+            #    xyz = xyz[point_idxs]
+            #    rgb = rgb[point_idxs]
+
             max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
             point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+
             xyz = xyz[point_idxs]
             rgb = rgb[point_idxs]
             height = xyz[:, -1] - self.TABLE_HEIGHT
             # print(f"After downsample xyz: {xyz.shape}")
-
             if self.pos_heatmap_no_robot:
                 robot_box = RobotBox(
                     arm_links_info=arm_links_info,
@@ -320,13 +355,13 @@ class LotusDatasetAugmentation(Dataset):
             else:
                 robot_point_idxs = None
 
-            # 6. point cloud augmentation
+            # point cloud augmentation
             if self.augment_pc:
                 xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
                     xyz, ee_pose, gt_action, self.aug_max_rot
                 )
 
-            # 7. normalize point cloud
+            # normalize point cloud
             if self.xyz_shift == 'none':
                 centroid = np.zeros((3, ))
             elif self.xyz_shift == 'center':

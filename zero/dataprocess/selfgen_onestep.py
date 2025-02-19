@@ -317,15 +317,16 @@ def run(task, semaphore, config, pbar):
 
 current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-seed = 42
+seed = random.randint(0, 1000000)
+print('Seed:', seed)
 config = dict()
-config['save_path'] = f'/media/jian/ssd4t/zero/1_Data/A_Selfgen/train/with_sem/'
+config['save_path'] = f'/media/jian/ssd4t/zero/1_Data/A_Selfgen/val/{seed}'
 config['all_task_file'] = '/media/jian/ssd4t/zero/assets/peract_tasks.json'
 config['tasks'] = None
 config['image_size'] = [512, 512]
 config['renderer'] = 'opengl'
 config['processes'] = 1
-config['episodes_per_task'] = 100
+config['episodes_per_task'] = 4
 config['variations'] = -1
 config['offset'] = 0
 config['state'] = False
@@ -344,10 +345,10 @@ print('Tasks:', all_tasks)
 processes = []
 semaphore = Semaphore(config['processes'])
 
-
-for each_task in all_tasks:
-    pbar = tqdm(total=config['episodes_per_task'], desc=f"{each_task.__name__}")
-    processes.append(Process(target=run, args=(each_task, semaphore, config, pbar)))
+pbar = []
+for i, each_task in enumerate(all_tasks):
+    pbar.append(tqdm(total=config['episodes_per_task'], desc=f"{each_task.__name__}"))
+    processes.append(Process(target=run, args=(each_task, semaphore, config, pbar[i])))
     # break
 
 for p in processes:

@@ -11,20 +11,25 @@ import copy
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
 import numpy as np
-from zero.expBaseV4.models.lotus.utils.robot_box import RobotBox
+from zero.expBaseV5.models.lotus.utils.robot_box import RobotBox
 from scipy.special import softmax
 import torch
 
-from zero.expBaseV4.models.lotus.utils.rotation_transform import (
+from zero.expBaseV5.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
 import matplotlib.pyplot as plt
 import random
-from zero.expBaseV4.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.expBaseV5.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
+'''
+
+
+
+'''
 
 
 def get_robot_workspace(real_robot=False, use_vlm=False):
@@ -79,25 +84,10 @@ class ObsProcessLotus:
     '''
 
     def __init__(self, config=None, selfgen=True):
-        self.rm_pc_outliers_neighbors = 25
-        self.rm_robot_type = 'box_keep_gripper'
         self.rotation_transform = RotationMatrixTransform()
         self.WORKSPACE = get_robot_workspace(real_robot=False, use_vlm=False)
         self.selfgen = selfgen
         self.config = config
-
-        # debug
-        taskvar_instr_file = config.TRAIN_DATASET.taskvar_instr_file
-        instr_embed_file = config.TRAIN_DATASET.instr_embed_file
-        self.taskvar_instrs = json.load(open(taskvar_instr_file))
-        self.instr_embeds = np.load(instr_embed_file, allow_pickle=True).item()
-        self.TABLE_HEIGHT = 0.7505
-        # /debug
-
-        if self.config == None:
-            default_config_path = '/data/zero/zero/v4/config/after_shock.yaml'
-            self.config = yacs.config.CfgNode(new_allowed=True)
-            self.config.merge_from_file(default_config_path)
 
         # print(self.config)
         # print('Config loaded')
@@ -163,10 +153,16 @@ class ObsProcessLotus:
             in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
                       (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
                       (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+
             # 2. remove table
             in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
             xyz = xyz[in_mask]
             rgb = rgb[in_mask]
+
+            # 4. remove robot
+            mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.config.TRAIN_DATASET.rm_robot)
+            xyz = xyz[mask]
+            rgb = rgb[mask]
 
             # 3. voxelization
             pcd = o3d.geometry.PointCloud()
@@ -307,21 +303,20 @@ class ObsProcessLotus:
         return outs
 
     def dataset_preprocess(self, origin_data_root, output_dir, tasks_to_use=None):
-
-        tasks_list = self._retrieve_all_episodes(origin_data_root)
+        tasks_list = self._retrieve_all_episodes(origin_data_root)  # 304706
         total = sum([len(variation) for task in tasks_list for variation in task])    # nested sum
         pbar = tqdm(total=total)
         for task in tasks_list:
             # test = task[0][0].split('/')
-            task_name = task[0][0].split('/')[6]
+            task_name = task[0][0].split('/')[-5]
             if tasks_to_use is not None and task_name not in tasks_to_use:
                 pbar.update(100)
                 continue
             for variation in task:
                 for episode in variation:
                     data_path = episode
-                    sub = data_path.split('/seed42')
-                    export_path = os.path.join(output_dir, sub[1][1:])
+                    sub = data_path.split('/')
+                    export_path = os.path.join(output_dir, *sub[-5:])
                     if os.path.exists(export_path):
                         pbar.update(1)
                         continue
@@ -334,6 +329,17 @@ class ObsProcessLotus:
                     with open(export_path, 'wb') as f:
                         pickle.dump(new_data, f)
                     pbar.update(1)
+
+    def dataset_preprocess_train_val(self, origin_data_root, output_dir, tasks_to_use=None):
+        train_path = os.path.join(origin_data_root, 'train')
+        val_path = os.path.join(origin_data_root, 'val')
+        train_output_path = os.path.join(output_dir, 'train')
+        val_output_path = os.path.join(output_dir, 'val')
+
+        os.makedirs(train_output_path, exist_ok=1)
+        os.makedirs(val_output_path, exist_ok=1)
+        self.dataset_preprocess(train_path, train_output_path, tasks_to_use)
+        self.dataset_preprocess(val_path, val_output_path, tasks_to_use)
 
     def dataset_preprocess_edge_detection(self, origin_data_root, output_dir, tasks_to_use=None):
 
@@ -631,17 +637,22 @@ class ObsProcessLotus:
 
 if __name__ == '__main__':
     # mixed args
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='exp1_0.005')
-    args = parser.parse_args()
-    config_path = os.path.join('/data/zero/zero/v4/config', args.config)
-
-    config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file(config_path)
+    from zero.expBaseV5.config.default import build_args
+    config = build_args()
 
     op = ObsProcessLotus(config, selfgen=True)
 
-    # from datetime import datetime
+    op.dataset_preprocess_train_val(config.A_Selfgen, config.B_Preprocess, tasks_to_use=None)
 
-    op.dataset_preprocess(config.selfgen_dir, config.preprocess_dir, tasks_to_use=config.tasks_to_use)
+    '''
+    python -m zero.dataprocess.ObsProcessor\
+        --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
+        TRAIN_DATASET.num_points 100000 \
+        TRAIN_DATASET.pos_bins 75 \
+        TRAIN_DATASET.pos_bin_size 0.001\
+        MODEL.action_config.pos_bins 75\
+        MODEL.action_config.pos_bin_size 0.001 \
+        # tasks_to_use "[meat_off_grill, sweep_to_dustpan_of_size, close_jar, push_buttons, light_bulb_in, insert_onto_square_peg, put_groceries_in_cupboard,place_shape_in_shape_sorter,stack_blocks]" \
+
+    
+    '''

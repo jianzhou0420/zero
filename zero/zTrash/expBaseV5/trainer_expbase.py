@@ -14,6 +14,7 @@ import pytorch_lightning as pl
 from .config.default import get_config
 from .models.lotus.optim.misc import build_optimizer
 from .dataset.dataset_expbase_voxel_augment import LotusDatasetAugmentation, ptv3_collate_fn
+from .dataset.dataset_expbase_voxel import LotusDataset, ptv3_collate_fn
 from .models.lotus.model_expbase import SimplePolicyPTV3CA
 from zero.z_utils import *
 
@@ -69,27 +70,23 @@ class TrainerLotus(pl.LightningModule):
     def training_step(self, batch, batch_idx):
 
         if batch_idx % (int(100 / (self.config.batch_size * self.config.num_gpus))) == 0:
-            # # print('batch_idx:', batch_idx)
-            # print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
-            # print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
+            # print('batch_idx:', batch_idx)
+            print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
+            print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
             torch.cuda.empty_cache()
-            # print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
-            # print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
+            print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
+            print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
 
         losses = self.model(batch, is_train=True)
         self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)        # if self.global_step % 10 == 0:
+        if self.global_step % 10 == 0:
+            print(f"train_loss: {losses['total']}")
+        # print(f"train_loss: {losses['total']}")
+        # print(f"After loading: {torch.cuda.memory_allocated()} bytes")
         return losses['total']
 
-    def validation_step(self, batch, batch_idx):
-        if (self.current_epoch > 100 and self.current_epoch % 10 == 0) or self.current_epoch == 0:  # 100个epoch后每10个epoch测试一次
-            if batch_idx % (int(100 / (self.config.batch_size * self.config.num_gpus))) == 0:
-                torch.cuda.empty_cache()
-            losses = self.model(batch, is_train=True)
-            self.log('val_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=False, logger=True)        # if self.global_step % 10 == 0:
-        else:
-            pass
-
     def configure_optimizers(self):
+
         if self.config.optimizer == 'default':
             # 1. default optimizer
             optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
@@ -131,13 +128,11 @@ class MyDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage=None):
-        train_data_path = os.path.join(self.config.B_Preprocess, 'train')
-        val_data_path = os.path.join(self.config.B_Preprocess, 'val')
-        train_dataset = LotusDatasetAugmentation(config=self.config, tasks_to_use=self.config.tasks_to_use, data_dir=train_data_path, **self.config.TRAIN_DATASET)
-        val_dataset = LotusDatasetAugmentation(config=self.config, tasks_to_use=self.config.tasks_to_use, data_dir=val_data_path, **self.config.TRAIN_DATASET)
-        self.train_dataset = train_dataset
-        self.val_dataset = val_dataset
-        print(f"Train dataset size: {len(train_dataset)}, Val dataset size: {len(val_dataset)}")
+        if config.dataset == 'lotus':
+            dataset = LotusDataset(config=self.config, is_single_frame=False, tasks_to_use=self.config.tasks_to_use, **self.config.TRAIN_DATASET)
+        elif config.dataset == 'augment':
+            dataset = LotusDatasetAugmentation(config=self.config, is_single_frame=False, tasks_to_use=self.config.tasks_to_use, **self.config.TRAIN_DATASET)
+        self.train_dataset = dataset
 
     def train_dataloader(self):
         batch_size = self.config.batch_size
@@ -147,29 +142,12 @@ class MyDataModule(pl.LightningDataModule):
         loader = DataLoader(
             self.train_dataset,
             batch_size=batch_size,
-            num_workers=self.config.TRAIN.n_workers,
-            pin_memory=self.config.TRAIN.pin_mem,
+            num_workers=config.TRAIN.n_workers,
+            pin_memory=config.TRAIN.pin_mem,
             collate_fn=ptv3_collate_fn,
             sampler=sampler,
             drop_last=False,
-            prefetch_factor=2 if self.config.TRAIN.n_workers > 0 else None,
-            shuffle=False,
-            persistent_workers=True
-        )
-        return loader
-
-    def val_dataloader(self):
-        batch_size = self.config.batch_size
-        sampler = DistributedSampler(self.val_dataset, shuffle=False) if self.config.num_gpus > 1 else None
-        loader = DataLoader(
-            self.val_dataset,
-            batch_size=batch_size,
-            num_workers=self.config.TRAIN.n_workers,
-            pin_memory=self.config.TRAIN.pin_mem,
-            collate_fn=ptv3_collate_fn,
-            sampler=sampler,
-            drop_last=False,
-            prefetch_factor=2 if self.config.TRAIN.n_workers > 0 else None,
+            prefetch_factor=2 if config.TRAIN.n_workers > 0 else None,
             shuffle=False,
             persistent_workers=True
         )
@@ -279,64 +257,7 @@ def train(config: yacs.config.CfgNode):
 
 
 def resume():
-    config.defrost()
-    current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
-    exp_name = config.name
-    ckpt_name = f'{current_time}_{exp_name}'
-    log_path = config.log_dir
-    log_name = f'{current_time}_{exp_name}'
-
-    # 0. prepare config
-    # check batch size and number of gpus
-    bs = config.batch_size
-    gpu = config.num_gpus
-    assert 100 % (bs * gpu) == 0, "Batch size should be divisible by 100, please change the batch size or number of gpus"
-
-    # num_train_steps
-    epoches = config.epoches
-
-    if config.tasks_to_use is not None:
-        num_tasks = len(config.tasks_to_use)
-        num_episodes = num_tasks * 100
-        total_episodes = num_episodes * epoches
-        total_steps = total_episodes // (bs * gpu)
-    else:
-        total_steps = 18 * epoches * 100 // (bs * gpu)
-
-    config.TRAIN.num_train_steps = total_steps
-    config.TRAIN.warmup_steps = total_steps // 15
-    print(config.tasks_to_use)
-    print(f"Total steps: {total_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
-    # 1.trainer
-    checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=100,
-        save_top_k=-1,
-        save_last=False,
-        filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
-    )
-    csvlogger1 = CSVLogger(
-        save_dir=log_path,
-        name=log_name,
-        version=None
-    )
-    epoch_callback = EpochCallback()
-    print('fp16:', config.fp16)
-    trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
-                         max_epochs=config.epoches,
-                         devices='auto',
-                         strategy='ddp' if config.num_gpus > 1 else 'auto',
-                         logger=csvlogger1,
-                         #  profiler=profiler，
-                         #  profiler='simple',
-                         use_distributed_sampler=False,
-                         precision=16 if config.fp16 else None,
-                         sync_batchnorm=True,
-                         )
-    config.freeze()
-    trainer_model = TrainerLotus(config)
-    data_module = MyDataModule(config)
-    # trainer.fit(trainer_model, datamodule=data_module,ckpt_path=)
-    # print(profiler.key_averages().table(max_len=200))
+    pass
 
 
 # endregion
