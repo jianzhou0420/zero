@@ -65,6 +65,8 @@ class TrainerLotus(pl.LightningModule):
         self.save_hyperparameters()
         self.config = config
         self.model = SimplePolicyPTV3CA(config.MODEL)
+        if config.num_gpus > 1:
+            self.model=torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
     def training_step(self, batch, batch_idx):
 

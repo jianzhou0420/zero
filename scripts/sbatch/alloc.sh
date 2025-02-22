@@ -1,0 +1,1 @@
+salloc --nodes=1 --ntasks=1 --time=00:30:00 --partition=a100 --gres=gpu:4 --cpus-per-task=16 --mem=120GB

@@ -1,0 +1,20 @@
+name: zero
+channels:
+ - pytorch
+ - nvidia
+ - defaults
+dependencies:
+  - pytorch==1.13.1 
+  - torchvision==0.14.1 
+  - torchaudio==0.13.1 
+  - pytorch-cuda=11.6
+  - pip:
+       - yacs
+       - einops
+       - scipy
+       - open3d
+       - opencv-python-headless
+       - typed-argument-parser
+       - timm
+       - easydict
+       - spconv

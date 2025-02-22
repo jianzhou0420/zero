@@ -1,0 +1,10 @@
+No flash attn
+
+Total steps: 0, Warmup steps: 0
+fp16: False
+tasks_all: []
+max_cache_length: 1800
+tasks_all: []
+max_cache_length: 1800
+Train dataset size: 0, Val dataset size: 0
+Sanity Checking: |          | 0/? [00:00<?, ?it/s]                                                  batch_size: 1

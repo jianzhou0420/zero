@@ -1,9 +1,0 @@
-ckpt_name,task_name,total_demos,total_success,sr
-ckpt_name=0_epoch=099.ckpt,insert_onto_square_peg_peract,200,17,[0.085]
-ckpt_name=0_epoch=199.ckpt,insert_onto_square_peg_peract,200,84,[0.42]
-ckpt_name=0_epoch=299.ckpt,insert_onto_square_peg_peract,200,92,[0.46]
-ckpt_name=0_epoch=399.ckpt,insert_onto_square_peg_peract,200,114,[0.57]
-ckpt_name=0_epoch=499.ckpt,insert_onto_square_peg_peract,200,137,[0.685]
-ckpt_name=0_epoch=599.ckpt,insert_onto_square_peg_peract,200,129,[0.645]
-ckpt_name=0_epoch=699.ckpt,insert_onto_square_peg_peract,200,141,[0.705]
-ckpt_name=0_epoch=799.ckpt,insert_onto_square_peg_peract,200,141,[0.705]
