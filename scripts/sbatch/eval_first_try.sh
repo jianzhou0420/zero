@@ -4,10 +4,10 @@
 #SBATCH -p a100                                                # partition (this is the queue your job will be added to)
 #SBATCH --job-name=test1
 #SBATCH -n 1              	                                # number of tasks (sequential job starts 1 task) (check this if your job unexpectedly uses 2 nodes)
-#SBATCH --cpus-per-task=16             	                                # number of cores (sequential job calls a multi-thread program that uses 8 cores)
+#SBATCH --cpus-per-task=36          	                                # number of cores (sequential job calls a multi-thread program that uses 8 cores)
 #SBATCH --time=01:00:00                                         # time allocation, which has the format (D-HH:MM), here set to 1 hour
 #SBATCH --gres=gpu:1                                            # generic resource required (here requires 4 GPUs)
-#SBATCH --mem=64GB
+#SBATCH --mem=128GB
 
 
 module purge

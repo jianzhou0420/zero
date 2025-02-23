@@ -46,21 +46,26 @@ TRAIN_DATASET:
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
-
+  sample_points_by_distance: False
   rot_type: euler_disc # quat, rot6d, euler, euler_delta, euler_disc
   pos_type: disc # disc, cont
   instr_embed_type: 'all' # last, all
-
+  all_step_in_batch: True
+  include_last_step: False
+  rm_table: True
   rm_robot: box_keep_gripper  # none, gt, box, box_keep_gripper
   augment_pc: True
   aug_max_rot: 45
   same_npoints_per_example: False
-  pos_bins: null
-  pos_bin_size: null
+  rm_pc_outliers: False
+  rm_pc_outliers_neighbors: 25
+  pos_bins: 75
+  pos_bin_size: 0.001
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False
   euler_resolution: 1
+
 # endregion
 # ----------------------------------------
 
