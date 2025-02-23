@@ -16,6 +16,7 @@ venv/
 # Logs and temporary files
 *.log
 *.tmp
+*.out
 
 # Build outputs
 build/
