@@ -66,7 +66,7 @@ class TrainerLotus(pl.LightningModule):
         self.config = config
         self.model = SimplePolicyPTV3CA(config.MODEL)
         if config.num_gpus > 1:
-            self.model=torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
+            self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
     def training_step(self, batch, batch_idx):
 
@@ -235,8 +235,8 @@ def train(config: yacs.config.CfgNode):
 
     # num_train_steps
     epoches = config.epoches
-    config.tasks_to_use=config.tasks_to_use.split(',')
-    
+    config.tasks_to_use = config.tasks_to_use.split(',')
+
     if config.tasks_to_use is not None:
         num_tasks = len(config.tasks_to_use)
         num_episodes = num_tasks * 100
@@ -247,7 +247,7 @@ def train(config: yacs.config.CfgNode):
     config.TRAIN.num_train_steps = total_steps
     config.TRAIN.warmup_steps = total_steps // 15
 
-    print('tasks_to_use:', config.tasks_to_use,'type:',type(config.tasks_to_use),'len:',len(config.tasks_to_use))
+    print('tasks_to_use:', config.tasks_to_use, 'type:', type(config.tasks_to_use), 'len:', len(config.tasks_to_use))
     print(f"Total steps: {total_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
     # raise ValueError('stop here')
     # 1.trainer
@@ -350,3 +350,4 @@ if __name__ == '__main__':
     config = build_args()
     # 1. train
     train(config)
+    # TODO: automatically record list as element of list
