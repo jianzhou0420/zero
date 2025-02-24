@@ -13,8 +13,8 @@ import pytorch_lightning as pl
 # zero package
 from .config.default import get_config
 from .models.lotus.optim.misc import build_optimizer
-from .dataset.dataset_expbase_voxel_augment import LotusDatasetAugmentation, ptv3_collate_fn
-from .models.lotus.model_expbase import SimplePolicyPTV3CA
+from .dataset.dataset_expbase_voxel_augment_with_path import LotusDatasetAugmentation, ptv3_collate_fn
+from .models.lotus.long_horizon_head import SimplePolicyPTV3CA
 from zero.z_utils import *
 
 # helper package
@@ -69,7 +69,6 @@ class TrainerLotus(pl.LightningModule):
             self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
     def training_step(self, batch, batch_idx):
-
         if batch_idx % (int(100 / (self.config.batch_size * self.config.num_gpus))) == 0:
             # # print('batch_idx:', batch_idx)
             # print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')

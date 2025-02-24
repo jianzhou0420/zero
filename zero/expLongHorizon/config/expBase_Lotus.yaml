@@ -65,6 +65,7 @@ TRAIN_DATASET:
   pos_heatmap_no_robot: True
   real_robot: False
   euler_resolution: 1
+  horizon: 8
 
 # endregion
 # ----------------------------------------
@@ -129,6 +130,7 @@ MODEL:
     pos_bin_size: null
     best_disc_pos: max # max, ens1
     euler_resolution: 1
+    horizon: 8
   loss_config:
     pos_weight: 1
     rot_weight: 1

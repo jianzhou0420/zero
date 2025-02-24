@@ -206,6 +206,7 @@ class ObsProcessLotus:
             # pcd.colors = o3d.utility.Vector3dVector((rgb + 1) / 2)
 
             # o3d.visualization.draw_geometries([pcd])
+        return outs
 
     def dataset_preprocess_single_episode(self, data, episode_path):
         ''' 

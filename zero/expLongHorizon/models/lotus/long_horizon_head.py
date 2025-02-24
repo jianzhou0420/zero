@@ -15,11 +15,13 @@ from ...models.lotus.PointTransformerV3.model import (
 from ...models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
 from ...models.lotus.utils.action_position_utils import get_best_pos_from_disc_pos
 
+# TODO: horizon
+
 
 class ActionHead(nn.Module):
     def __init__(
         self, reduce, pos_pred_type, rot_pred_type, hidden_size, dim_actions,
-        dropout=0, voxel_size=0.01, euler_resolution=5, ptv3_config=None, pos_bins=50,
+        dropout=0, voxel_size=0.01, euler_resolution=5, ptv3_config=None, pos_bins=50, horizon=8,
     ) -> None:
         super().__init__()
         assert reduce in ['max', 'mean', 'attn', 'multiscale_max', 'multiscale_max_large']
@@ -35,30 +37,18 @@ class ActionHead(nn.Module):
         self.euler_resolution = euler_resolution
         self.euler_bins = 360 // euler_resolution
         self.pos_bins = pos_bins
+        self.horizon = horizon
 
-        if self.pos_pred_type == 'heatmap_disc':
-            self.heatmap_mlp = nn.Sequential(
-                nn.Linear(hidden_size, hidden_size),
-                nn.LeakyReLU(0.02),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, 3 * self.pos_bins * 2)
-            )
-        else:
-            output_size = 1 + 3
-            self.heatmap_mlp = nn.Sequential(
-                nn.Linear(hidden_size, hidden_size),
-                nn.LeakyReLU(0.02),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_size, output_size)
-            )
+        self.heatmap_mlp = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.LeakyReLU(0.02),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size, 3 * self.pos_bins * 2 * self.horizon)
+        )
 
-        if self.rot_pred_type == 'euler_disc':
-            output_size = self.euler_bins * 3 + 1
-        else:
-            output_size = dim_actions - 3
-        if self.reduce == 'attn':
-            output_size += 1
-        input_size = hidden_size
+        output_size = self.euler_bins * 3 + 1
+
+        input_size = hidden_size // self.horizon
 
         self.action_mlp = nn.Sequential(
             nn.Linear(input_size, hidden_size),
@@ -67,100 +57,39 @@ class ActionHead(nn.Module):
             nn.Linear(hidden_size, output_size)
         )
 
-    def forward(
-        self, feat, npoints_in_batch, coords=None, temp=1,
-        gt_pos=None, dec_layers_embed=None,
-    ):
+    def forward(self, feat, npoints_in_batch):
         '''
-        Args:
-            point_embeds: (# all points, dim)
-            npoints_in_batch: (batch_size, )
-            coords: (# all points, 3)
-        Return:
-            pred_actions: (batch, num_steps, dim_actions)
+        xt: (npoints,H, 3, pos_bins*2)
+        xr: (B, H, euler_bins, 3)
+        xo: (B, H, 1)
+        B: batch_size, H: horizon
         '''
-        # 1. xt
-        if self.pos_pred_type.startswith('heatmap_mlp'):
-            heatmap_embeds = self.heatmap_mlp(feat)
-            if self.pos_pred_type == 'heatmap_mlp3':
-                heatmaps = torch.split(heatmap_embeds[:, :3], npoints_in_batch)
-                new_coords = coords + heatmap_embeds[:, 3:]
-            else:
-                heatmaps = torch.split(heatmap_embeds[:, :1], npoints_in_batch)
-                new_coords = coords + heatmap_embeds[:, 1:]
-            # temp = 0.01
-            heatmaps = [torch.softmax(x / temp, dim=0)for x in heatmaps]
-            # print([x.sum() for x in heatmaps], [x.size() for x in heatmaps])
-            # print(npoints_in_batch, temp, [x.max() for x in heatmaps], [x.min() for x in heatmaps])
-            new_coords = torch.split(new_coords, npoints_in_batch)
-            if self.pos_pred_type == 'heatmap_mlp3':
-                xt = torch.stack([
-                    torch.einsum('pc,pc->c', h, p) for h, p in zip(heatmaps, new_coords)
-                ], dim=0)
-            else:
-                xt = torch.stack([
-                    torch.einsum('p,pc->c', h.squeeze(1), p) for h, p in zip(heatmaps, new_coords)
-                ], dim=0)
-            if self.pos_pred_type == 'heatmap_mlp_topk':
-                topk = 20  # min(npoints_in_batch)
-                topk_idxs = [torch.topk(x[:, 0], topk)[1] for x in heatmaps]
-                topk_xt = torch.stack([x[i] for x, i in zip(new_coords, topk_idxs)], 0)
-                # topk_xt = new_coords
 
-            # import numpy as np
-            # np.save('debug1.npy', {'coords': coords.data.cpu().numpy(), 'new_coords': new_coords[0].data.cpu().numpy(), 'heatmaps': heatmaps[0].data.cpu().numpy()})
-
-        elif self.pos_pred_type == 'heatmap_disc':
-            xt = self.heatmap_mlp(feat)  # (npoints, 3*pos_bins)
-            xt = einops.rearrange(xt, 'n (c b) -> c n b', c=3)  # (3, #npoints, pos_bins)
+        xt = self.heatmap_mlp(feat)  # (npoints, 3*pos_bins)
+        xt = einops.rearrange(xt, 'n (c h b) -> n h c b', c=3, h=self.horizon)  # (3, #npoints, pos_bins)
 
         # 2. xr
-        if self.reduce == 'max':
-            split_feat = torch.split(feat, npoints_in_batch)  # 按照归属切分 成 64 个tensor，每个tensor(约1050,128)
+        split_feat = torch.split(feat, npoints_in_batch)  # 按照归属切分 成 64 个tensor，每个tensor(约1050,128)
+        pc_embeds111 = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，
+        # 每16个embed
 
-            test0 = split_feat[0]
-            test1 = torch.max(split_feat[0], 0)
-            test2 = test1[0]
-            pc_embeds = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，
-            action_embeds = self.action_mlp(pc_embeds)
-        elif self.reduce.startswith('multiscale_max'):
-            pc_embeds = []
-            for dec_layer_embed in dec_layers_embed:
-                split_dec_embeds = torch.split(dec_layer_embed.feat, offset2bincount(dec_layer_embed.offset).data.cpu().numpy().tolist())
-                pc_embeds.append(
-                    F.normalize(torch.stack([torch.max(x, 0)[0] for x in split_dec_embeds], 0), p=2, dim=1)
-                )
-                # print(torch.stack([torch.max(x, 0)[0] for x in split_dec_embeds], 0).max(), torch.stack([torch.max(x, 0)[0] for x in split_dec_embeds], 0).min())
-            pc_embeds = torch.cat(pc_embeds, dim=1)
-            action_embeds = self.action_mlp(pc_embeds)
-        elif self.reduce == 'mean':
-            split_feat = torch.split(feat, npoints_in_batch)
-            pc_embeds = torch.stack([torch.mean(x, 0) for x in split_feat], 0)
-            action_embeds = self.action_mlp(pc_embeds)
-        else:  # attn
-            action_embeds = self.action_mlp(feat)
-            action_heatmaps = torch.split(action_embeds[:, :1], npoints_in_batch)
-            action_heatmaps = [torch.softmax(x / temp, dim=0)for x in action_heatmaps]
-            split_action_embeds = torch.split(action_embeds[:, 1:], npoints_in_batch)
-            action_embeds = torch.stack([(h * v).sum(dim=0) for h, v in zip(action_heatmaps, split_action_embeds)], 0)
+        pc_embeds = []
+        for i, each_feature in enumerate(split_feat):
+            single_embed = []
+            for j in range(self.horizon):
+                single_chunk = each_feature[:, j * self.hidden_size // self.horizon: (j + 1) * self.hidden_size // self.horizon]
+                single_chunk = torch.max(single_chunk, 0)[0]
+                single_embed.append(single_chunk)
+            pc_embeds.append(torch.stack(single_embed, 0))
+        pc_embeds = torch.stack(pc_embeds, 0)
 
-        if self.rot_pred_type == 'quat':
-            xr = action_embeds[..., :4]
-            xr = xr / xr.square().sum(dim=-1, keepdim=True).sqrt()
-        elif self.rot_pred_type == 'rot6d':
-            xr = action_embeds[..., :6]
-        elif self.rot_pred_type in ['euler', 'euler_delta']:
-            xr = action_embeds[..., :3]
-        elif self.rot_pred_type == 'euler_disc':
-            xr = action_embeds[..., :self.euler_bins * 3].view(-1, self.euler_bins, 3)
+        action_embeds = self.action_mlp(pc_embeds)
+
+        xr = action_embeds[..., :self.euler_bins * 3].view(-1, self.horizon, self.euler_bins, 3)
 
         # 3. xo
         xo = action_embeds[..., -1]
-
-        if self.pos_pred_type == 'heatmap_mlp_topk':
-            return (xt, topk_xt), xr, xo
-        else:
-            return xt, xr, xo
+        return xt, xr, xo
 
 
 class SimplePolicyPTV3AdaNorm(BaseModel):
@@ -169,10 +98,6 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
 
     def __init__(self, config):
         super().__init__()
-
-        config.defrost()
-        config.ptv3_config.pdnorm_only_decoder = config.ptv3_config.get('pdnorm_only_decoder', False)
-        config.freeze()
 
         self.config = config
 
@@ -244,13 +169,9 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         point_outs = self.ptv3_model(ptv3_batch, return_dec_layers=True)
 
         # 2. Action Head
-        pred_actions = self.act_proj_head(  # 只用到了point_outs的最后一层
-            point_outs[-1].feat, batch['npoints_in_batch'], coords=point_outs[-1].coord,
-            temp=self.config.action_config.get('pos_heatmap_temp', 1),
-            gt_pos=batch['gt_actions'][..., :3] if 'gt_actions' in batch else None,
-            # dec_layers_embed=[point_outs[k] for k in [0, 2, 4, 6, 8]] # TODO
-            dec_layers_embed=[point_outs[k] for k in [0, 1, 2, 3, 4]] if self.config.ptv3_config.dec_depths[0] == 1 else [point_outs[k] for k in [0, 2, 4, 6, 8]]  # TODO
-        )
+
+        pred_actions = self.act_proj_head(point_outs[-1].feat, batch['npoints_in_batch'])
+
         # 下面关于pred_pos, pred_rot, pred_open的操作在训练时都是无用的
         # 我修改了，只在eval时生效
         # 3.1 get Ground Truth
@@ -331,51 +252,23 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         tgt_pos, tgt_rot, tgt_open = tgt_actions[..., :3], tgt_actions[..., 3:-1], tgt_actions[..., -1]
 
         # position loss
-        if self.config.action_config.pos_pred_type == 'heatmap_disc':  # 如果预测的是heatmap，对heatmap和gt的heatmap进行交叉熵, gt的pos的heatmap是已经给出的，放在disc_pos_probs里
-            # pos_loss = F.cross_entropy(
-            #     pred_pos.view(-1, 100), disc_pos_probs.view(-1, 100), reduction='mean'
-            # )
-            split_pred_pos = torch.split(pred_pos, npoints_in_batch, dim=1)
-            pos_loss = 0
-            for i in range(len(npoints_in_batch)):
-                pos_loss += F.cross_entropy(
-                    split_pred_pos[i].reshape(3, -1), disc_pos_probs[i].to(device), reduction='mean'
-                )  # input=(3, npoints*pos_bins), target=(3, npoints*pos_bins)
-                # 所以这里学习的是如何从所有bins中选出一个点来。
-            pos_loss /= len(npoints_in_batch)
-        else:
-            pos_loss = F.mse_loss(pred_pos, tgt_pos, reduction='mean')
+        # 如果预测的是heatmap，对heatmap和gt的heatmap进行交叉熵, gt的pos的heatmap是已经给出的，放在disc_pos_probs里
+        # pos_loss = F.cross_entropy(
+        #     pred_pos.view(-1, 100), disc_pos_probs.view(-1, 100), reduction='mean'
+        # )
+        split_pred_pos = torch.split(pred_pos, npoints_in_batch, dim=0)
+        pos_loss = 0
+        for i in range(len(npoints_in_batch)):
+            for j in range(8):  # 8 horizon
+                pos_loss += F.cross_entropy(split_pred_pos[i][:, j, :, :].reshape(3, -1).squeeze(), disc_pos_probs[i][j].to(device), reduction='mean')
 
-        # rotation loss
-        if self.config.action_config.rot_pred_type == 'quat':
-            # Automatically matching the closest quaternions (symmetrical solution)
-            tgt_rot_ = -tgt_rot.clone()
-            rot_loss = F.mse_loss(pred_rot, tgt_rot, reduction='none').mean(-1)
-            rot_loss_ = F.mse_loss(pred_rot, tgt_rot_, reduction='none').mean(-1)
-            select_mask = (rot_loss < rot_loss_).float()
-            rot_loss = (select_mask * rot_loss + (1 - select_mask) * rot_loss_).mean()
-        elif self.config.action_config.rot_pred_type == 'rot6d':
-            tgt_rot6d = self.rot_transform.get_ortho6d_from_rotation_matrix(
-                self.rot_transform.quaternion_to_matrix(tgt_rot.data.cpu())
-            ).float().to(device)
-            rot_loss = F.mse_loss(pred_rot, tgt_rot6d)
-        elif self.config.action_config.rot_pred_type == 'euler':
-            # Automatically matching the closest angles
-            tgt_rot_ = tgt_rot.clone()
-            tgt_rot_[tgt_rot < 0] += 2
-            tgt_rot_[tgt_rot > 0] -= 2
-            rot_loss = F.mse_loss(pred_rot, tgt_rot, reduction='none')
-            rot_loss_ = F.mse_loss(pred_rot, tgt_rot_, reduction='none')
-            select_mask = (rot_loss < rot_loss_).float()
-            rot_loss = (select_mask * rot_loss + (1 - select_mask) * rot_loss_).mean()
-        elif self.config.action_config.rot_pred_type == 'euler_disc':
-            tgt_rot = tgt_rot.long()    # (batch_size, 3)
-            rot_loss = F.cross_entropy(pred_rot, tgt_rot, reduction='mean')
-        else:  # euler_delta
-            rot_loss = F.mse_loss(pred_rot, tgt_rot)
+        pos_loss /= (len(npoints_in_batch) * 8)  # TODO:horizon
+
+        tgt_rot = tgt_rot.long()    # (batch_size, 3)
+        rot_loss = F.cross_entropy(pred_rot.reshape(-1, 360, 3), tgt_rot.reshape(-1, 3), reduction='mean')  # TODO: 360shi euler bins
 
         # openness state loss
-        open_loss = F.binary_cross_entropy_with_logits(pred_open, tgt_open, reduction='mean')
+        open_loss = F.binary_cross_entropy_with_logits(pred_open.reshape(-1, 1), tgt_open.reshape(-1, 1), reduction='mean')
 
         total_loss = self.config.loss_config.pos_weight * pos_loss + \
             self.config.loss_config.rot_weight * rot_loss + open_loss

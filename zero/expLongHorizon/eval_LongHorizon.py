@@ -335,28 +335,27 @@ class Actioner(object):
     ):
         # print(obs_state_dict)
         taskvar = f'{task_str}+{variation}'
-        batch = self.preprocess_obs(
-            taskvar, step_id, obs_state_dict,
-        )
+        batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
+
         with torch.no_grad():
-            actions = []
-            # TODO
+            actions = self.model(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
 
-            action = self.model(batch)[0].data.cpu()
-            actions.append(action)
-            action = actions[0]
+        # sigmoid
 
-        action[-1] = torch.sigmoid(action[-1]) > 0.5
+        for i, action in enumerate(actions):
+            action[-1] = torch.sigmoid(action[-1]) > 0.5
 
-        # action = action.data.cpu().numpy()
-        action = action.numpy()
-        action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
+            # action = action.data.cpu().numpy()
+            action = action.numpy()
+            action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
 
-        # TODO: ensure the action height is above the table
-        action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
+            # TODO: ensure the action height is above the table
+            action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
+
+            actions[i] = action  # 确保更新
 
         out = {
-            'action': action
+            'actions': actions
         }
 
         if self.args.save_obs_outs_dir is not None:
@@ -500,24 +499,28 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             batch_queue.put((k_res, batch))
 
             output = result_queue.get()
-            action = output["action"]
+            actions = output["actions"]
 
-            if action is None:
+            if actions is None:
                 break
 
             # update the observation based on the predicted action
-            try:
-                obs, reward, terminate, _ = move(action, verbose=False)
-                obs_state_dict = env.get_observation(obs)  # type: ignore
+            for action in actions:
+                try:
+                    obs, reward, terminate, _ = move(action, verbose=False)
+                    obs_state_dict = env.get_observation(obs)  # type: ignore
 
-                if reward == 1:
-                    success_rate += 1 / num_demos
+                    if reward == 1:
+                        success_rate += 1 / num_demos
+                        break
+                    if terminate:
+                        print("The episode has terminated!")
+                except (IKError, ConfigurationPathError, InvalidActionError) as e:
+                    print(taskvar, demo_id, step_id, e)
+                    reward = 0
                     break
-                if terminate:
-                    print("The episode has terminated!")
-            except (IKError, ConfigurationPathError, InvalidActionError) as e:
-                print(taskvar, demo_id, step_id, e)
-                reward = 0
+
+            if reward == 1:
                 break
 
         if args.record_video:  # and reward < 1:

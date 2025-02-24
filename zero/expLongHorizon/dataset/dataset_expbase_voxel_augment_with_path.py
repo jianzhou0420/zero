@@ -228,22 +228,21 @@ class LotusDatasetAugmentation(Dataset):
         # rotate around z-axis
         angle = np.random.uniform(-1, 1) * aug_max_rot
         xyz = random_rotate_z(xyz, angle=angle)
+
         action_current[:3] = random_rotate_z(action_current[:3], angle=angle)
         action_current[3:-1] = self._rotate_gripper(action_current[3:-1], angle)
 
-        action_next[:3] = random_rotate_z(action_next[:3], angle=angle)
-        action_next[3:-1] = self._rotate_gripper(action_next[3:-1], angle)
+        new_action_next = []
+        for i, action in enumerate(action_next):
+            action[:3] = random_rotate_z(action[:3], angle=angle)
+            action[3:-1] = self._rotate_gripper(action[3:-1], angle)
+            new_action_next.append(action)
+        action_next = np.stack(new_action_next, 0)
 
-        if self.rot_type == 'quat':
-            gt_rot = action_next[3:-1]
-        elif self.rot_type == 'euler':
-            gt_rot = self.rotation_transform.quaternion_to_euler(
-                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy() / 180.
-        elif self.rot_type == 'euler_disc':
-            gt_rot = quaternion_to_discrete_euler(action_next[3:-1], self.euler_resolution)
-        elif self.rot_type == 'rot6d':
-            gt_rot = self.rotation_transform.quaternion_to_ortho6d(
-                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy()
+        gt_rot = []
+        for action in action_next:
+            gt_rot.append(quaternion_to_discrete_euler(action[3:-1], self.euler_resolution))
+        gt_rot = np.stack(gt_rot, 0)
 
         # add small noises (+-2mm)
         # pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
@@ -262,6 +261,15 @@ class LotusDatasetAugmentation(Dataset):
     def __getitem__(self, g_episode):
         # 0. get single frame
         return self.get_entire_episode(g_episode)
+
+    def _find_gt_actions(self, actions_path, sub_keyframe_dection_mode='avg'):
+        horizon = 8  # TODO: config it
+        if sub_keyframe_dection_mode == 'avg':
+            indices = np.linspace(0, len(actions_path) - 1, horizon).astype(int)  # 我为什么这里减1了？ 哦index从0开始
+            gt_actions = [actions_path[i] for i in indices]
+            return gt_actions
+        elif sub_keyframe_dection_mode == 'xyzpeak':
+            NotImplementedError("XYZPEAK")
 
     def get_entire_episode(self, g_episode):
         '''
@@ -288,11 +296,22 @@ class LotusDatasetAugmentation(Dataset):
 
         # 1.get specific frame data
         for t in range(num_frames):
+            sub_keyframe_dection_mode = 'avg'
+            assert sub_keyframe_dection_mode in ['avg', 'xyzpeak']
+
+            # path process
+
+            # end of path processs
             data_ids = data['data_ids'][t]
             xyz = copy.deepcopy(data['xyz'][t])
             rgb = copy.deepcopy(data['rgb'][t])
             ee_pose = copy.deepcopy(data['action_current'][t])
-            gt_action = copy.deepcopy(data['action_next'][t])
+            action_next = copy.deepcopy(data['action_next'][t])
+            action_path = copy.deepcopy(data['actions_path'][t])
+            gt_actions = self._find_gt_actions(action_path, sub_keyframe_dection_mode)
+            assert (gt_actions[0] == ee_pose).all()
+            assert (gt_actions[-1] == action_next).all()
+
             arm_links_info = copy.deepcopy(data['arm_links_info'][t])
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
@@ -322,8 +341,8 @@ class LotusDatasetAugmentation(Dataset):
 
             # 6. point cloud augmentation
             if self.augment_pc:
-                xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
-                    xyz, ee_pose, gt_action, self.aug_max_rot
+                xyz, ee_pose, gt_actions, gt_rot = self._augment_pc(
+                    xyz, ee_pose, gt_actions, self.aug_max_rot
                 )
 
             # 7. normalize point cloud
@@ -340,35 +359,35 @@ class LotusDatasetAugmentation(Dataset):
 
             xyz = (xyz - centroid) / radius
             height = height / radius
-            gt_action[:3] = (gt_action[:3] - centroid) / radius
+            gt_actions[:, :3] = (gt_actions[:, :3] - centroid) / radius
             ee_pose[:3] = (ee_pose[:3] - centroid) / radius
             outs['pc_centroids'].append(centroid)
             outs['pc_radius'].append(radius)
 
-            gt_action = np.concatenate([gt_action[:3], gt_rot, gt_action[-1:]], 0)
+            gt_actions = np.concatenate([gt_actions[:, :3], gt_rot, gt_actions[:, -1:]], 1)
 
             rgb = (rgb / 255.) * 2 - 1
             pc_ft = np.concatenate([xyz, rgb], 1)
             if self.use_height:
                 pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
 
-            if self.pos_type == 'disc':
-                # (npoints, 3, 100)
+            disc_pos_probs = []
+            for action in gt_actions:
                 disc_pos_prob = get_disc_gt_pos_prob(
-                    xyz, gt_action[:3], pos_bins=self.pos_bins,
+                    xyz, action[:3], pos_bins=self.pos_bins,
                     pos_bin_size=self.pos_bin_size,
                     heatmap_type=self.pos_heatmap_type,
                     robot_point_idxs=robot_point_idxs
                 )
-                outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
-            elif self.pos_type == 'disc_horizon':
-                pass
+                disc_pos_probs.append(torch.from_numpy(disc_pos_prob))
+            outs['disc_pos_probs'].append(disc_pos_probs)
+
             # print(f"{taskvar}: {xyz.shape}")
             outs['data_ids'].append(data_ids)
             outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
             outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
-            outs['gt_actions'].append(torch.from_numpy(gt_action).float())
+            outs['gt_actions'].append(torch.from_numpy(gt_actions).float())
             outs['step_ids'].append(t)
             # break
         return outs
