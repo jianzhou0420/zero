@@ -11,7 +11,7 @@ python  -m zero.expLongHorizon.trainer_expbase \
         dataset augment\
         num_gpus 1 \
         epoches 800 \
-        batch_size 2 \
+        batch_size 4 \
         TRAIN_DATASET.num_points 4096 \
         TRAIN_DATASET.pos_bins 15 \
         TRAIN_DATASET.pos_bin_size 0.005\
@@ -26,7 +26,7 @@ python  -m zero.expLongHorizon.trainer_expbase \
         dataset augment\
         num_gpus 1 \
         epoches 1200\
-        batch_size 2 \
+        batch_size 4 \
         TRAIN_DATASET.num_points 4096 \
         TRAIN_DATASET.pos_bins 15 \
         TRAIN_DATASET.pos_bin_size 0.005\

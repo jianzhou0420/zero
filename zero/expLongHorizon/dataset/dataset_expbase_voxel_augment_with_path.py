@@ -321,8 +321,15 @@ class LotusDatasetAugmentation(Dataset):
             instr_embed = copy.deepcopy(self.instr_embeds[instr])
 
             # 5. downsample point cloud
-            max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
-            point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+            # sampling points
+            if len(xyz) > self.num_points:  # 如果不要它，直接num_points=10000000
+                tmp_flag = True  # TODO： remove tmp_flag
+                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+            else:
+                tmp_flag = False
+                max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
+                point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+
             xyz = xyz[point_idxs]
             rgb = rgb[point_idxs]
             height = xyz[:, -1] - self.TABLE_HEIGHT
@@ -344,6 +351,9 @@ class LotusDatasetAugmentation(Dataset):
                 xyz, ee_pose, gt_actions, gt_rot = self._augment_pc(
                     xyz, ee_pose, gt_actions, self.aug_max_rot
                 )
+            if tmp_flag:
+                pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
+                xyz = pc_noises + xyz
 
             # 7. normalize point cloud
             if self.xyz_shift == 'none':
