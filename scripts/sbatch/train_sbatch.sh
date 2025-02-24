@@ -32,7 +32,7 @@ fi
 # tasks_to_use=("meat_off_grill" "sweep_to_dustpan_of_size" "close_jar" "push_buttons" "light_bulb_in" "insert_onto_square_peg" "put_groceries_in_cupboard" "place_shape_in_shape_sorter" "stack_blocks")
 
 python  -m zero.expBaseV5.trainer_expbase \
-        --exp-config /hpcfs/users/a1946536/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
+        --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
         name 150bins\
         dataset augment\
         num_gpus 1 \

@@ -1,6 +1,6 @@
 module load  Singularity/3.10.5
-export SINGULARITY_IMAGE_PATH='/hpcfs/users/a1946536/singularity/nvcuda_v2.sif'
-export python_bin='/hpcfs/users/a1946536/conda_env/zero/bin/python'
+export SINGULARITY_IMAGE_PATH='/data/singularity/nvcuda_v2.sif'
+export python_bin='/data/conda_env/zero/bin/python'
 
 
 # singularity shell --bind $HOME:$HOME,$SCRATCH:$SCRATCH --nv $SINGULARITY_IMAGE_PATH

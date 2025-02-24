@@ -33,8 +33,8 @@ TRAIN:
   n_workers: 0
   pin_mem: True
 
-#/hpcfs/users/a1946536/
-#/hpcfs/users/a1946536/code/
+#/data/
+#/data/code/
 
 TRAIN_DATASET:
   data_dir: '/media/jian/ssd4t/selfgen/new_1234567'

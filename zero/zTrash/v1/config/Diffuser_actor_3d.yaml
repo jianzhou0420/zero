@@ -5,7 +5,7 @@ relative_path_val_dataset: "data/peract/Peract_packaged/val"
 relative_path_instructions: "data/peract/Peract_packaged/instructions.pkl"
 
 relative_path_gripper_location_boundaries: "tasks/18_peract_tasks_location_bounds.json" # changed in main
-path_log: "/hpcfs/users/a1946536/log/"
+path_log: "/data/log/"
 
 
 cameras: ["left_shoulder", "right_shoulder", "wrist","front"]

@@ -75,7 +75,7 @@ def gen_seq_masks(seq_lens, max_len=None):
 
 
 class EvalArgs(tap.Tap):
-    expr_dir: str = '/hpcfs/users/a1946536/ckpt/'
+    expr_dir: str = '/data/ckpt/'
 
     device: str = 'cuda'  # cpu, cuda
 
@@ -85,7 +85,7 @@ class EvalArgs(tap.Tap):
 
     microstep_data_dir: str = ''
     queue_size: int = 20
-    taskvar_file: str = '/hpcfs/users/a1946536/zero/assets/taskvars_peract.json'
+    taskvar_file: str = '/data/zero/assets/taskvars_peract.json'
     num_ensembles: int = 1
 
     save_obs_outs_dir: str = None
@@ -111,7 +111,7 @@ class EvalArgs(tap.Tap):
     name: str = None
     checkpoint: str = None
     tasks_to_use: List[str] = None
-    # microstep_data_dir = '/hpcfs/users/a1946536/lotus/peract/test/microsteps'
+    # microstep_data_dir = '/data/lotus/peract/test/microsteps'
 
 
 class Actioner(object):
@@ -562,8 +562,8 @@ def main():
     args.remained_args = args.extra_args
     checkpoint_name = args.checkpoint.split('/')[-1]
 
-    args.expr_dir = f'/hpcfs/users/a1946536/zero/3_Eval/eval_log/{checkpoint_name}/preds'
-    args.video_dir = f'/hpcfs/users/a1946536/zero/3_Eval/videos/{checkpoint_name}/videos'
+    args.expr_dir = f'/data/zero/3_Eval/eval_log/{checkpoint_name}/preds'
+    args.video_dir = f'/data/zero/3_Eval/videos/{checkpoint_name}/videos'
     # args.tasks_to_use = ['insert_onto_square_peg']
 
     if not os.path.exists(args.checkpoint):

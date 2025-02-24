@@ -32,8 +32,8 @@ TRAIN:
   n_workers: 16
   pin_mem: True
 
-#/hpcfs/users/a1946536/
-#/hpcfs/users/a1946536/code/
+#/data/
+#/data/code/
 
 TRAIN_DATASET:
   data_dir: '/data/selfgen/test/test/seed42/voxel0.005'

@@ -141,7 +141,7 @@ if __name__ == '__main__':
             save_last=True,
             filename=f'{current_time}' + '{epoch:03d}'  # Checkpoint filename
         )
-        csvlogger1 = CSVLogger('/hpcfs/users/a1946536/logs', name='test')
+        csvlogger1 = CSVLogger('/data/logs', name='test')
         # scale_factor = 8 / config.TRAIN.train_batch_size
         # max_epochs = int(config.TRAIN.num_train_steps // len(train_dataloader) * scale_factor)
         max_epochs = int(1368)

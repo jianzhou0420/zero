@@ -221,11 +221,11 @@ def build_args():
 
 def train(config: yacs.config.CfgNode):
     config.defrost()
-    current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
+    # current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
     exp_name = config.name
-    ckpt_name = f'{current_time}_{exp_name}'
+    ckpt_name = f'{exp_name}'
     log_path = config.log_dir
-    log_name = f'{current_time}_{exp_name}'
+    log_name = f'{exp_name}'
 
     # 0. prepare config
     # check batch size and number of gpus

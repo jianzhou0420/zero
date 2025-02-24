@@ -29,8 +29,8 @@ TRAIN:
   n_workers: 8
   pin_mem: True
 
-#/hpcfs/users/a1946536/
-#/hpcfs/users/a1946536/code/
+#/data/
+#/data/code/
 
 TRAIN_DATASET:
   data_dir: '/data/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'

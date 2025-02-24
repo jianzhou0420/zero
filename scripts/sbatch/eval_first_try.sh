@@ -17,13 +17,13 @@ cd zero
 # module load OpenSSL/1.1.1k-GCCcore-11.2.0
 # module load Mesa/21.1.7-GCCcore-11.2.0
 module load Singularity/3.10.5
-conda activate /hpcfs/users/a1946536/conda_env/zero
+conda activate /data/conda_env/zero
 
 
 
 
-export SINGULARITY_IMAGE_PATH='/hpcfs/users/a1946536/singularity/nvcuda_v2.sif'
-export python_bin='/hpcfs/users/a1946536/conda_env/zero/bin/python'
+export SINGULARITY_IMAGE_PATH='/data/singularity/nvcuda_v2.sif'
+export python_bin='/data/conda_env/zero/bin/python'
 tasks_to_use=("insert_onto_square_peg")
 export SINGULARITYENV_LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${COPPELIASIM_ROOT}
 
@@ -35,9 +35,9 @@ chmod 700 $XDG_RUNTIME_DIR
 
 echo $LD_LIBRARY_PATH
 singularity exec --bind $HOME:$HOME,$SCRATCH:$SCRATCH --nv $SINGULARITY_IMAGE_PATH xvfb-run -a ${python_bin} -m zero.expBaseV5.eval_expbase \
-    --config /hpcfs/users/a1946536/zero/2_Train/2025_02_22__15-35_single_try/version_0/hparams.yaml\
+    --config /data/zero/2_Train/2025_02_22__15-35_single_try/version_0/hparams.yaml\
     --name test \
-    --checkpoint /hpcfs/users/a1946536/zero/2_Train/2025_02_22__15-35_single_try/version_0/checkpoints/2025_02_22__15-35_single_try_epoch=799.ckpt\
+    --checkpoint /data/zero/2_Train/2025_02_22__15-35_single_try/version_0/checkpoints/2025_02_22__15-35_single_try_epoch=799.ckpt\
     --tasks_to_use ${tasks_to_use[@]} \
     --record_video False
 
