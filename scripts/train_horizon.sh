@@ -7,33 +7,34 @@ tasks_to_use='put_groceries_in_cupboard'
 
 python  -m zero.expLongHorizon.trainer_expbase \
         --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
-        name EXP02_24_long_horizon_800 \
+        name EXP02_24_long_horizon_800_256hidden \
         dataset augment\
         num_gpus 1 \
         epoches 800 \
-        batch_size 4 \
+        batch_size 2 \
         TRAIN_DATASET.num_points 4096 \
         TRAIN_DATASET.pos_bins 15 \
         TRAIN_DATASET.pos_bin_size 0.005\
         MODEL.action_config.pos_bins 15\
         MODEL.action_config.pos_bin_size 0.005 \
         tasks_to_use $tasks_to_use \
-        TRAIN.n_workers 4
+        TRAIN.n_workers 4\
+        MODEL.ptv3_config.dec_channels "[256, 256, 256, 512]"
        
-python  -m zero.expLongHorizon.trainer_expbase \
-        --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
-        name EXP02_24_long_horizon_1200 \
-        dataset augment\
-        num_gpus 1 \
-        epoches 1200\
-        batch_size 4 \
-        TRAIN_DATASET.num_points 4096 \
-        TRAIN_DATASET.pos_bins 15 \
-        TRAIN_DATASET.pos_bin_size 0.005\
-        MODEL.action_config.pos_bins 15\
-        MODEL.action_config.pos_bin_size 0.005 \
-        tasks_to_use $tasks_to_use \
-        TRAIN.n_workers 4
+# python  -m zero.expLongHorizon.trainer_expbase \
+#         --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
+#         name EXP02_24_long_horizon_1200 \
+#         dataset augment\
+#         num_gpus 1 \
+#         epoches 1200\
+#         batch_size 4 \
+#         TRAIN_DATASET.num_points 4096 \
+#         TRAIN_DATASET.pos_bins 15 \
+#         TRAIN_DATASET.pos_bin_size 0.005\
+#         MODEL.action_config.pos_bins 15\
+#         MODEL.action_config.pos_bin_size 0.005 \
+#         tasks_to_use $tasks_to_use \
+#         TRAIN.n_workers 4
        
        
         

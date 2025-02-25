@@ -111,7 +111,7 @@ class EvalArgs(tap.Tap):
     ############################
     ckpt_step = 220000
     seed = 2025
-    num_workers = 4
+    num_workers = 1
     num_demos = 20
     config: str = None
     name: str = None
@@ -339,23 +339,23 @@ class Actioner(object):
 
         with torch.no_grad():
             actions = self.model(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
-
+            new_actions = actions.numpy()
         # sigmoid
 
         for i, action in enumerate(actions):
             action[-1] = torch.sigmoid(action[-1]) > 0.5
 
             # action = action.data.cpu().numpy()
-            action = action.numpy()
+
             action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
 
             # TODO: ensure the action height is above the table
             action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
-            actions[i] = action  # 确保更新
+            new_actions[i] = action  # 确保更新
 
         out = {
-            'actions': actions
+            'actions': new_actions
         }
 
         if self.args.save_obs_outs_dir is not None:
@@ -407,7 +407,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         apply_rgb=True,
         apply_pc=True,
         apply_mask=True,
-        headless=True,
+        headless=False,
         image_size=args.image_size,
         cam_rand_factor=0,
     )

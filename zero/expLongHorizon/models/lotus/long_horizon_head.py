@@ -185,14 +185,17 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                 cont_pred_pos = []
                 npoints_in_batch = offset2bincount(point_outs[-1].offset).data.cpu().numpy().tolist()
                 # [(3, npoints, pos_bins)]
-                split_pred_pos = torch.split(pred_pos, npoints_in_batch, dim=1)
+                split_pred_pos = torch.split(pred_pos, npoints_in_batch, dim=0)
                 split_coords = torch.split(point_outs[-1].coord, npoints_in_batch)
                 for i in range(len(npoints_in_batch)):
-                    disc_pos_prob = torch.softmax(
-                        split_pred_pos[i].reshape(3, -1), dim=-1
-                    )
-                    cont_pred_pos.append(
-                        get_best_pos_from_disc_pos(
+                    tmp_var = []
+                    for j in range(8):  # TODO: horizon
+
+                        debug0 = split_pred_pos[i][:, j, :, :]
+                        disc_pos_prob = torch.softmax(
+                            split_pred_pos[i][:, j, :, :].reshape(3, -1), dim=-1
+                        )
+                        best = get_best_pos_from_disc_pos(
                             disc_pos_prob.data.cpu().numpy(),
                             split_coords[i].data.cpu().numpy(),
                             best=self.config.action_config.get('best_disc_pos', 'max'),
@@ -201,29 +204,24 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                             pos_bins=self.config.action_config.pos_bins,
                             # best='ens' , topk=1
                         )
-                    )
+                        tmp_var.append(best)
+                    cont_pred_pos.append(np.vstack(tmp_var))
+
                 cont_pred_pos = torch.from_numpy(np.array(cont_pred_pos)).float().to(device)
                 # print('time', time.time() - st)
                 pred_pos = cont_pred_pos
 
                 # 3.2 figure out predicted action type
-                if self.config.action_config.rot_pred_type == 'rot6d':
-                    # no grad
-                    pred_rot = self.rot_transform.matrix_to_quaternion(
-                        self.rot_transform.compute_rotation_matrix_from_ortho6d(pred_rot.data.cpu())
-                    ).float().to(device)
-                elif self.config.action_config.rot_pred_type == 'euler':
-                    pred_rot = pred_rot * 180
-                    pred_rot = self.rot_transform.euler_to_quaternion(pred_rot.data.cpu()).float().to(device)
-                elif self.config.action_config.rot_pred_type == 'euler_delta':
-                    pred_rot = pred_rot * 180
-                    cur_euler_angles = R.from_quat(batch['ee_poses'][..., 3:7].data.cpu()).as_euler('xyz', degrees=True)
-                    pred_rot = pred_rot.data.cpu() + cur_euler_angles
-                    pred_rot = self.rot_transform.euler_to_quaternion(pred_rot).float().to(device)
-                elif self.config.action_config.rot_pred_type == 'euler_disc':
-                    pred_rot = torch.argmax(pred_rot, 1).data.cpu().numpy()
-                    pred_rot = np.stack([discrete_euler_to_quaternion(x, self.act_proj_head.euler_resolution) for x in pred_rot], 0)
-                    pred_rot = torch.from_numpy(pred_rot).to(device)
+
+                pred_rot = torch.argmax(pred_rot, 2).data.cpu().numpy()
+
+                # (batch, horizon, 3)
+
+                # TODO：这里只是能跑，后面再改
+                B, H = pred_rot.shape[0], pred_rot.shape[1]
+                pred_rot = np.vstack([discrete_euler_to_quaternion(x, self.act_proj_head.euler_resolution) for x in pred_rot.reshape(-1, 3)])
+                pred_rot = pred_rot.reshape(B, H, 4)
+                pred_rot = torch.from_numpy(pred_rot).to(device)
                 final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open.unsqueeze(-1)], dim=-1)
 
                 return final_pred_actions
