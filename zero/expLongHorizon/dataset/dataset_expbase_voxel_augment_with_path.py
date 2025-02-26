@@ -142,9 +142,9 @@ class LotusDatasetAugmentation(Dataset):
         if tasks_to_use is not None:
             tasks_all = [task for task in tasks_all if task in tasks_to_use]
         if len(tasks_all) == 1:
-            use_variation_flag = True
+            can_use_variation_flag = True
         else:
-            use_variation_flag = False
+            can_use_variation_flag = False
         print(f"tasks_all: {tasks_all}")
 
         # 1. episodes-wise list
@@ -156,7 +156,8 @@ class LotusDatasetAugmentation(Dataset):
             task_folder_path = os.path.join(data_dir, task_name)
             variation_list = sorted(os.listdir(task_folder_path), key=natural_sort_key)
             for variation_folder in variation_list:
-                if use_variation_flag == True:
+
+                if can_use_variation_flag == True and self.variations_to_use is not None:
                     if int(variation_folder.split('variation')[-1]) not in self.variations_to_use:
                         print(f"Skip {variation_folder}")
                         continue
