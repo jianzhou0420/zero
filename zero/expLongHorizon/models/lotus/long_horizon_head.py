@@ -70,7 +70,7 @@ class ActionHead(nn.Module):
 
         # 2. xr
         split_feat = torch.split(feat, npoints_in_batch)  # 按照归属切分 成 64 个tensor，每个tensor(约1050,128)
-        pc_embeds111 = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，
+        # pc_embeds111 = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，
         # 每16个embed
 
         pc_embeds = []
@@ -117,7 +117,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             config.ptv3_config.dec_channels[0], act_cfg.dim_actions,
             dropout=act_cfg.dropout, voxel_size=act_cfg.voxel_size,
             ptv3_config=config.ptv3_config, pos_bins=config.action_config.pos_bins,
-            euler_resolution=config.action_config.euler_resolution
+            euler_resolution=config.action_config.euler_resolution, horizon=config.action_config.horizon
         )
 
         self.apply(self._init_weights)
@@ -257,10 +257,10 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         split_pred_pos = torch.split(pred_pos, npoints_in_batch, dim=0)
         pos_loss = 0
         for i in range(len(npoints_in_batch)):
-            for j in range(8):  # 8 horizon
+            for j in range(self.config.action_config.horizon):  # 8 horizon
                 pos_loss += F.cross_entropy(split_pred_pos[i][:, j, :, :].reshape(3, -1).squeeze(), disc_pos_probs[i][j].to(device), reduction='mean')
 
-        pos_loss /= (len(npoints_in_batch) * 8)  # TODO:horizon
+        pos_loss /= (len(npoints_in_batch) * self.config.action_config.horizon)  # TODO:horizon
 
         tgt_rot = tgt_rot.long()    # (batch_size, 3)
         rot_loss = F.cross_entropy(pred_rot.reshape(-1, 360, 3), tgt_rot.reshape(-1, 3), reduction='mean')  # TODO: 360shi euler bins
@@ -299,7 +299,7 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
             config.ptv3_config.dec_channels[0], act_cfg.dim_actions,
             dropout=act_cfg.dropout, voxel_size=act_cfg.voxel_size,
             ptv3_config=config.ptv3_config, pos_bins=config.action_config.pos_bins,
-            euler_resolution=config.action_config.euler_resolution
+            euler_resolution=config.action_config.euler_resolution, horizon=config.action_config.horizon
         )
 
         self.apply(self._init_weights)

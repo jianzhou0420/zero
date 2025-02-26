@@ -18,6 +18,7 @@ batch_size: null
 tasks_to_use: null
 dataset: null # origin, augment
 fp16: False
+horizon: 1
 # endregion
 # ----------------------------------------
 
@@ -65,8 +66,8 @@ TRAIN_DATASET:
   pos_heatmap_no_robot: True
   real_robot: False
   euler_resolution: 1
-  horizon: 8
 
+  variations_to_use: null # valid only when single task detected
 # endregion
 # ----------------------------------------
 
@@ -130,7 +131,7 @@ MODEL:
     pos_bin_size: null
     best_disc_pos: max # max, ens1
     euler_resolution: 1
-    horizon: 8
+    horizon: 1 # TODO:horizon 放到一起
   loss_config:
     pos_weight: 1
     rot_weight: 1

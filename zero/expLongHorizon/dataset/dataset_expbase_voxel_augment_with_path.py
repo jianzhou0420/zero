@@ -136,10 +136,16 @@ class LotusDatasetAugmentation(Dataset):
         if instr_embed_type == 'last':
             self.instr_embeds = {instr: embeds[-1:] for instr, embeds in self.instr_embeds.items()}
 
+        self.variations_to_use = self.config.TRAIN_DATASET.variations_to_use
+
         tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
         if tasks_to_use is not None:
             tasks_all = [task for task in tasks_all if task in tasks_to_use]
-            print(f"tasks_all: {tasks_all}")
+        if len(tasks_all) == 1:
+            use_variation_flag = True
+        else:
+            use_variation_flag = False
+        print(f"tasks_all: {tasks_all}")
 
         # 1. episodes-wise list
         self.g_episode_to_taskvar = []  # Which taskvar is each episode
@@ -150,6 +156,10 @@ class LotusDatasetAugmentation(Dataset):
             task_folder_path = os.path.join(data_dir, task_name)
             variation_list = sorted(os.listdir(task_folder_path), key=natural_sort_key)
             for variation_folder in variation_list:
+                if use_variation_flag == True:
+                    if int(variation_folder.split('variation')[-1]) not in self.variations_to_use:
+                        print(f"Skip {variation_folder}")
+                        continue
                 l_episode = 0
                 variation_folder_path = os.path.join(task_folder_path, variation_folder, 'episodes')
                 episodes_list = sorted(os.listdir(variation_folder_path), key=natural_sort_key)
@@ -263,9 +273,9 @@ class LotusDatasetAugmentation(Dataset):
         return self.get_entire_episode(g_episode)
 
     def _find_gt_actions(self, actions_path, sub_keyframe_dection_mode='avg'):
-        horizon = 8  # TODO: config it
         if sub_keyframe_dection_mode == 'avg':
-            indices = np.linspace(0, len(actions_path) - 1, horizon).astype(int)  # 我为什么这里减1了？ 哦index从0开始
+
+            indices = np.linspace(0, len(actions_path) - 1, self.config.horizon + 1).astype(int)[1:]  # 我为什么这里减1了？ 哦index从0开始
             gt_actions = [actions_path[i] for i in indices]
             return gt_actions
         elif sub_keyframe_dection_mode == 'xyzpeak':
@@ -309,7 +319,7 @@ class LotusDatasetAugmentation(Dataset):
             action_next = copy.deepcopy(data['action_next'][t])
             action_path = copy.deepcopy(data['actions_path'][t])
             gt_actions = self._find_gt_actions(action_path, sub_keyframe_dection_mode)
-            assert (gt_actions[0] == ee_pose).all()
+            # assert (gt_actions[0] == ee_pose).all()
             assert (gt_actions[-1] == action_next).all()
 
             arm_links_info = copy.deepcopy(data['arm_links_info'][t])
@@ -462,7 +472,7 @@ if __name__ == '__main__':
     from ..config.default import build_args
     config = build_args()
 
-    dataset = LotusDatasetAugmentation(config=config, is_single_frame=False, **config.TRAIN_DATASET)
+    dataset = LotusDatasetAugmentation(config=config, is_single_frame=False, tasks_to_use=config.tasks_to_use, data_dir=config.B_Preprocess, **config.TRAIN_DATASET)
 
     # all_data = []
     # for i in trange(len(dataset)):
@@ -495,6 +505,7 @@ if __name__ == '__main__':
     '''
      python  -m zero.expBaseV5.dataset.dataset_expbase_voxel_augment \
             --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
+            
             name expBaseV5_test \
             dataset augment\
             num_gpus 1 \

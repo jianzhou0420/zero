@@ -243,11 +243,16 @@ def train(config: yacs.config.CfgNode):
         total_steps = total_episodes // (bs * gpu)
     else:
         total_steps = 18 * epoches * 100 // (bs * gpu)
-    config.TRAIN.num_train_steps = total_steps
-    config.TRAIN.warmup_steps = total_steps // 15
+
+    if config.TRAIN_DATASET.variations_to_use is not None:
+        if config.TRAIN.num_train_steps is None or config.TRAIN.warmup_steps is None:
+            raise ValueError('Please set num_train_steps and warmup_steps in config.TRAIN when using variations_to_use')
+    else:
+        config.TRAIN.num_train_steps = total_steps
+        config.TRAIN.warmup_steps = total_steps // 15
 
     print('tasks_to_use:', config.tasks_to_use, 'type:', type(config.tasks_to_use), 'len:', len(config.tasks_to_use))
-    print(f"Total steps: {total_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
+    print(f"Total steps: {config.TRAIN.num_train_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
     # raise ValueError('stop here')
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
