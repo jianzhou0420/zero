@@ -132,6 +132,7 @@ MODEL:
     best_disc_pos: max # max, ens1
     euler_resolution: 1
     horizon: 1 # TODO:horizon 放到一起
+    action_head_type: null #multihead, horizon,simple
   loss_config:
     pos_weight: 1
     rot_weight: 1

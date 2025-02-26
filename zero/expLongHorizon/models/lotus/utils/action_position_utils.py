@@ -43,7 +43,6 @@ def get_disc_gt_pos_prob(
             if np.sum(disc_pos_prob[i]) == 0:
                 disc_pos_prob[i, np.argmin(dists[i])] = 1
         disc_pos_prob = disc_pos_prob / np.sum(disc_pos_prob, -1, keepdims=True)
-
     return disc_pos_prob
 
 

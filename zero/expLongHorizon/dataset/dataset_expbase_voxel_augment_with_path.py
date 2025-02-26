@@ -197,17 +197,13 @@ class LotusDatasetAugmentation(Dataset):
             self.check_cache(i)
 
     def check_cache(self, g_episode):
-
         if self.cache.get(g_episode) is None:
-
             episode_path = self.g_episode_to_path[g_episode]
             with open(os.path.join(episode_path, 'data.pkl'), 'rb') as f:
                 data = pickle.load(f)
-
             if len(self.cache) >= self.max_cache_length:
                 first_key = next(iter(self.cache))
                 self.cache.pop(first_key)
-
             self.cache[g_episode] = data
             return data
         else:
