@@ -7,7 +7,7 @@ tasks_to_use='put_groceries_in_cupboard'
 
 python  -m zero.expLongHorizon.trainer_expbase \
         --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
-        name EXP02_24_single_horizon\
+        name EXP02_26_multihead\
         dataset augment\
         num_gpus 1 \
         epoches 800 \

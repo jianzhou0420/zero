@@ -274,10 +274,9 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                 for i in range(len(npoints_in_batch)):
                     tmp_var = []
                     for j in range(self.config.action_config.horizon):  # TODO: horizon
-                        debug0 = split_pred_pos[i][:, j, :, :]
-                        disc_pos_prob = torch.softmax(
-                            split_pred_pos[i][:, j, :, :].reshape(3, -1), dim=-1
-                        )
+                        input = split_pred_pos[i][:, j, :, :]
+                        input = einops.rearrange(input, 'n c b -> c (n b)')
+                        disc_pos_prob = torch.softmax(input, dim=-1)
 
                         best = get_best_pos_from_disc_pos(
                             disc_pos_prob.data.cpu().numpy(),
@@ -306,7 +305,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                 pred_rot = np.vstack([discrete_euler_to_quaternion(x, self.act_proj_head.euler_resolution) for x in pred_rot.reshape(-1, 3)])
                 pred_rot = pred_rot.reshape(B, H, 4)
                 pred_rot = torch.from_numpy(pred_rot).to(device)
-                final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open.unsqueeze(-1)], dim=-1)
+                final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open], dim=-1)
                 return final_pred_actions
 
         else:  # if is_train

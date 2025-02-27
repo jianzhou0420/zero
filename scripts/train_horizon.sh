@@ -7,7 +7,7 @@ tasks_to_use='put_groceries_in_cupboard'
 
 python  -m zero.expLongHorizon.trainer_expbase \
         --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
-        name EXP02_24_long_horizon_800_256hidden \
+        name EXP02_26_multihead\
         dataset augment\
         num_gpus 1 \
         epoches 800 \
@@ -19,7 +19,9 @@ python  -m zero.expLongHorizon.trainer_expbase \
         MODEL.action_config.pos_bin_size 0.005 \
         tasks_to_use $tasks_to_use \
         TRAIN.n_workers 4\
-        MODEL.ptv3_config.dec_channels "[256, 256, 256, 512]"
+        horizon 1  \
+        MODEL.action_config.horizon 1 \
+        MODEL.action_config.action_head_type multihead \
        
 # python  -m zero.expLongHorizon.trainer_expbase \
 #         --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
