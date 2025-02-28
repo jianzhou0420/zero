@@ -16,7 +16,7 @@ python  -m zero.expLongHorizon.trainer_expbase \
         TRAIN_DATASET.pos_bins 15 \
         TRAIN_DATASET.pos_bin_size 0.005\
         MODEL.action_config.pos_bins 15\
-        MODEL.action_config.pos_bin_size 0.005 \
+        MODEL.action_config.pos_bin_size 0.005\
         tasks_to_use $tasks_to_use \
         TRAIN.n_workers 4\
         horizon 1  \

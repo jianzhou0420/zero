@@ -150,6 +150,7 @@ class MultiActionHead(nn.Module):
         xo: (B, H, 1)
         B: batch_size, H: horizon
         '''
+        # 1. xt
         xt = torch.vstack([mlp(feat).unsqueeze(0) for mlp in self.heatmap_mlp_list])  # [h, n, 3 * pos_bins * 2]
         xt = einops.rearrange(xt, 'h n (c b) -> n h c b', c=3, h=self.horizon)  # (3, #npoints, pos_bins)
 
@@ -157,11 +158,12 @@ class MultiActionHead(nn.Module):
         split_feat = torch.split(feat, npoints_in_batch)  # 按照归属切分 成 64 个tensor，每个tensor(约1050,128)
         pc_embeds = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，（B，128）
         action_embeds = torch.vstack([mlp(pc_embeds).unsqueeze(0) for mlp in self.action_mlp_list])  # [h, B,euler_bins * 3 + 1]
+        action_embeds = einops.rearrange(action_embeds, 'h b d -> b h d')  # (B, H, euler_bins * 3 + 1)
         xr = action_embeds[..., :self.euler_bins * 3]
-        xr = einops.rearrange(xr, 'h b (c d) -> b h d c', d=self.euler_bins, c=3)
+        xr = einops.rearrange(xr, 'b h (c d) -> b h d c', d=self.euler_bins, c=3)
+
         # 3. xo
-        xo = action_embeds[..., -1]
-        xo = xo.unsqueeze(-1)
+        xo = action_embeds[..., -1].unsqueeze(-1)  # (B , H,1)
         return xt, xr, xo
 
 
@@ -305,6 +307,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                 pred_rot = np.vstack([discrete_euler_to_quaternion(x, self.act_proj_head.euler_resolution) for x in pred_rot.reshape(-1, 3)])
                 pred_rot = pred_rot.reshape(B, H, 4)
                 pred_rot = torch.from_numpy(pred_rot).to(device)
+                # print('all_shape', pred_pos.shape, pred_rot.shape, pred_open.shape)
                 final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open], dim=-1)
                 return final_pred_actions
 

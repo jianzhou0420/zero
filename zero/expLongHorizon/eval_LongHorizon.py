@@ -111,7 +111,7 @@ class EvalArgs(tap.Tap):
     ############################
     ckpt_step = 220000
     seed = 2025
-    num_workers = 4
+    num_workers = 1
     num_demos = 20
     config: str = None
     name: str = None
@@ -407,7 +407,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         apply_rgb=True,
         apply_pc=True,
         apply_mask=True,
-        headless=True,
+        headless=False,
         image_size=args.image_size,
         cam_rand_factor=0,
     )

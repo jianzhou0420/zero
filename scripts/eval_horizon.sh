@@ -8,8 +8,8 @@ tasks_to_use='put_groceries_in_cupboard'
 
 
 python -m zero.expLongHorizon.eval_LongHorizon \
-    --config /media/jian/ssd4t/zero/2_Train/EXP02_26_multihead/version_0/hparams.yaml\
+    --config /media/jian/ssd4t/zero/2_Train/EXP02_26_multihead/version_1/hparams.yaml\
     --name test \
-    --checkpoint /media/jian/ssd4t/zero/2_Train/EXP02_26_multihead/version_0/checkpoints/EXP02_26_multihead_epoch=799.ckpt \
+    --checkpoint /media/jian/ssd4t/zero/2_Train/EXP02_26_multihead/version_1/checkpoints/EXP02_26_multihead_epoch=799.ckpt\
     --tasks_to_use "${tasks_to_use[@]}" \
 
