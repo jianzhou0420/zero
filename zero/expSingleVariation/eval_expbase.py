@@ -32,8 +32,6 @@ import torch.multiprocessing as mp
 from termcolor import colored
 from .trainer_expbase import TrainerLotus
 
-# region: utils
-
 
 def task_file_to_task_class(task_file):
     import importlib
@@ -75,10 +73,6 @@ def gen_seq_masks(seq_lens, max_len=None):
     masks = masks < seq_lens.reshape(-1, 1)
     return masks
 
-# endregion
-
-# region: args
-
 
 class EvalArgs(tap.Tap):
     expr_dir: str = '/data/ckpt/'
@@ -111,15 +105,13 @@ class EvalArgs(tap.Tap):
     ############################
     ckpt_step = 220000
     seed = 2025
-    num_workers = 1
+    num_workers = 4
     num_demos = 20
     config: str = None
     name: str = None
     checkpoint: str = None
     tasks_to_use: List[str] = None
     # microstep_data_dir = '/data/lotus/peract/test/microsteps'
-
-# endregion
 
 
 class Actioner(object):
@@ -186,6 +178,19 @@ class Actioner(object):
         if len(robot_point_ids) > 0:
             mask[robot_point_ids] = False
         return mask
+
+    def _rm_pc_outliers(self, xyz, rgb=None):
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(xyz)
+        # pcd, idxs = pcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=2.0)
+        # pcd, idxs = pcd.remove_radius_outlier(nb_points=16, radius=0.03)
+        clf = LocalOutlierFactor(n_neighbors=self.data_cfg.rm_pc_outliers_neighbors)
+        preds = clf.fit_predict(xyz)
+        idxs = (preds == 1)
+        xyz = xyz[idxs]
+        if rgb is not None:
+            rgb = rgb[idxs]
+        return xyz, rgb
 
     def process_point_clouds(
         self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
@@ -335,27 +340,35 @@ class Actioner(object):
     ):
         # print(obs_state_dict)
         taskvar = f'{task_str}+{variation}'
-        batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
-
+        batch = self.preprocess_obs(
+            taskvar, step_id, obs_state_dict,
+        )
         with torch.no_grad():
-            actions = self.model(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
-            new_actions = actions.numpy()
-        # sigmoid
+            actions = []
+            # TODO
+            for _ in range(self.args.num_ensembles):
+                action = self.model(batch)[0].data.cpu()
+                actions.append(action)
+            if len(actions) > 1:
+                # print(torch.stack(actions, 0))
+                avg_action = torch.stack(actions, 0).mean(0)
+                pred_rot = torch.from_numpy(R.from_euler(
+                    'xyz', np.mean([R.from_quat(x[3:-1]).as_euler('xyz') for x in actions], 0),
+                ).as_quat())
+                action = torch.cat([avg_action[:3], pred_rot, avg_action[-1:]], 0)
+            else:
+                action = actions[0]
+        action[-1] = torch.sigmoid(action[-1]) > 0.5
 
-        for i, action in enumerate(actions):
-            action[-1] = torch.sigmoid(action[-1]) > 0.5
+        # action = action.data.cpu().numpy()
+        action = action.numpy()
+        action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
 
-            # action = action.data.cpu().numpy()
-
-            action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
-
-            # TODO: ensure the action height is above the table
-            action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
-
-            new_actions[i] = action  # 确保更新
+        # TODO: ensure the action height is above the table
+        action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
         out = {
-            'actions': new_actions
+            'action': action
         }
 
         if self.args.save_obs_outs_dir is not None:
@@ -407,7 +420,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         apply_rgb=True,
         apply_pc=True,
         apply_mask=True,
-        headless=False,
+        headless=True,
         image_size=args.image_size,
         cam_rand_factor=0,
     )
@@ -499,28 +512,24 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             batch_queue.put((k_res, batch))
 
             output = result_queue.get()
-            actions = output["actions"]
+            action = output["action"]
 
-            if actions is None:
+            if action is None:
                 break
 
             # update the observation based on the predicted action
-            for action in actions:
-                try:
-                    obs, reward, terminate, _ = move(action, verbose=False)
-                    obs_state_dict = env.get_observation(obs)  # type: ignore
+            try:
+                obs, reward, terminate, _ = move(action, verbose=False)
+                obs_state_dict = env.get_observation(obs)  # type: ignore
 
-                    if reward == 1:
-                        success_rate += 1 / num_demos
-                        break
-                    if terminate:
-                        print("The episode has terminated!")
-                except (IKError, ConfigurationPathError, InvalidActionError) as e:
-                    print(taskvar, demo_id, step_id, e)
-                    reward = 0
+                if reward == 1:
+                    success_rate += 1 / num_demos
                     break
-
-            if reward == 1:
+                if terminate:
+                    print("The episode has terminated!")
+            except (IKError, ConfigurationPathError, InvalidActionError) as e:
+                print(taskvar, demo_id, step_id, e)
+                reward = 0
                 break
 
         if args.record_video:  # and reward < 1:

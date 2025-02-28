@@ -1,3 +1,4 @@
+import yacs.config
 import yaml
 from typing import Tuple, Dict, List
 
@@ -98,7 +99,7 @@ class EvalArgs(tap.Tap):
 
     best_disc_pos: str = 'max'  # max, ens1
 
-    record_video: bool = False
+    record_video: bool = True
     video_dir: str = None
     not_include_robot_cameras: bool = False
     video_rotate_cam: bool = False
@@ -547,6 +548,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
 
 
 def main():
+    import yacs.config
     mp.set_start_method('spawn')
     # for ckpt_num in check_point_number:
     args = EvalArgs().parse_args(known_only=True)
@@ -575,10 +577,16 @@ def main():
     taskvars = json.load(open(args.taskvar_file))
     taskvars = [taskvar for taskvar in taskvars if taskvar not in existed_taskvars]
     print('checkpoint', args.ckpt_step, '#taskvars', len(taskvars))
-
+    with open(args.config, "r") as f:
+        config = yaml.load(f, Loader=yaml.UnsafeLoader)
+    config = config['config']
     # taskvar_to_use
     if args.tasks_to_use is not None:
         taskvars = [taskvar for taskvar in taskvars if taskvar.split('_peract')[0] in args.tasks_to_use]
+
+    print(config.TRAIN_DATASET.variations_to_use)
+    if config.TRAIN_DATASET.variations_to_use is not None:
+        taskvars = [taskvar for taskvar in taskvars if int(taskvar.split('+')[1]) in config.TRAIN_DATASET.variations_to_use]
 
     batch_queue = mp.Queue(args.queue_size)
     result_queues = [mp.Queue(args.queue_size) for _ in range(args.num_workers)]
