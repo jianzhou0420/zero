@@ -6,7 +6,7 @@
 pl_flag: True
 name: 'exp_tricks_all_together'
 A_Selfgen: /data/zero/1_Data/A_Selfgen/0.005all
-B_Preprocess: '/data/zero/1_Data/B_Preprocess/0.005all_with_path'
+B_Preprocess: '/data/zero/1_Data/B_Preprocess/0.01all_with_path'
 
 log_dir: '/data/zero/2_Train'
 optimizer: 'lotus'
@@ -110,7 +110,7 @@ MODEL:
     add_coords_in_attn: 'none' # none, qk, qkv
 
   action_config:
-    voxel_size: 0.005 # 1cm
+    voxel_size: 0.01 # 1cm
     context_channels: 256
     txt_ft_size: 512
     max_txt_len: 77

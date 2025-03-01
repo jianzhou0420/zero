@@ -8,6 +8,9 @@ name: 'exp_tricks_all_together'
 A_Selfgen: /data/zero/1_Data/A_Selfgen/0.005all
 B_Preprocess: '/data/zero/1_Data/B_Preprocess/0.005all_with_path'
 
+des: null
+
+
 log_dir: '/data/zero/2_Train'
 optimizer: 'lotus'
 num_gpus: null

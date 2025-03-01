@@ -84,11 +84,6 @@ def natural_sort_key(s):
 # endregion
 
 
-# region: args
-
-# endregion
-
-
 class Actioner(object):
     def __init__(self, args) -> None:
         self.args = args
