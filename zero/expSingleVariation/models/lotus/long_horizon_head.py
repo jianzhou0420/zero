@@ -347,13 +347,13 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
 
         #         # xt
         for i in range(len(npoints_in_batch)):
-            for j in range(self.config.action_config.horizon):  # 8 horizon
-                input = split_pred_pos[i][:, j, :, :]
-                input = einops.rearrange(input, 'n c b -> c (n b)')
-                target = disc_pos_probs[i][j].to(device)
-                pos_loss += F.cross_entropy(input, target, reduction='mean')
+            input = split_pred_pos[i]
+            input = einops.rearrange(input, 'n h c b -> (c h) (n b)')
+            target = torch.stack(disc_pos_probs[i], dim=0)
+            target = einops.rearrange(target, 'h c (n b) -> (c h) (n b)', b=self.config.action_config.pos_bins * 2)
+            pos_loss += F.cross_entropy(input, target, reduction='mean')
 
-        pos_loss /= (len(npoints_in_batch) * self.config.action_config.horizon)  # TODO:horizon
+        pos_loss /= len(npoints_in_batch)  # TODO:horizon
 
         # xr
         tgt_rot = tgt_rot.long()    # (batch_size,h, 3)
@@ -366,7 +366,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         target = tgt_open.reshape(-1, 1)
         open_loss = F.binary_cross_entropy_with_logits(input, target, reduction='mean')
 
-        total_loss = self.config.loss_config.pos_weight * pos_loss + \
+        total_loss = self.config.loss_config.pos_weight * pos_loss +\
             self.config.loss_config.rot_weight * rot_loss + open_loss
 
         return {
