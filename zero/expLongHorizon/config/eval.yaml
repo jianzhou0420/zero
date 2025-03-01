@@ -36,3 +36,5 @@ config: null
 name: null
 checkpoint: null
 tasks_to_use: null
+
+headless: True

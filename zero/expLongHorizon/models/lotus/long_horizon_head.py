@@ -150,21 +150,23 @@ class MultiActionHead(nn.Module):
         xo: (B, H, 1)
         B: batch_size, H: horizon
         '''
+
         # 1. xt
-        xt = torch.vstack([mlp(feat).unsqueeze(0) for mlp in self.heatmap_mlp_list])  # [h, n, 3 * pos_bins * 2]
-        xt = einops.rearrange(xt, 'h n (c b) -> n h c b', c=3, h=self.horizon)  # (3, #npoints, pos_bins)
+        xt_h = torch.vstack([mlp(feat).unsqueeze(0) for mlp in self.heatmap_mlp_list])  # [h, n, 3 * pos_bins * 2]
+        xt_h = einops.rearrange(xt_h, 'h n (c b) -> n h c b', c=3, h=self.horizon)  # (3, #npoints, pos_bins)
 
         # 2. xr
         split_feat = torch.split(feat, npoints_in_batch)  # 按照归属切分 成 64 个tensor，每个tensor(约1050,128)
         pc_embeds = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，（B，128）
+
         action_embeds = torch.vstack([mlp(pc_embeds).unsqueeze(0) for mlp in self.action_mlp_list])  # [h, B,euler_bins * 3 + 1]
         action_embeds = einops.rearrange(action_embeds, 'h b d -> b h d')  # (B, H, euler_bins * 3 + 1)
-        xr = action_embeds[..., :self.euler_bins * 3]
-        xr = einops.rearrange(xr, 'b h (c d) -> b h d c', d=self.euler_bins, c=3)
+        xr_h = action_embeds[..., :self.euler_bins * 3]
+        xr_h = einops.rearrange(xr_h, 'b h (c d) -> b h d c', d=self.euler_bins, c=3)
 
         # 3. xo
-        xo = action_embeds[..., -1].unsqueeze(-1)  # (B , H,1)
-        return xt, xr, xo
+        xo_h = action_embeds[..., -1].unsqueeze(-1)  # (B , H,1)
+        return xt_h, xr_h, xo_h
 
 
 class SimplePolicyPTV3AdaNorm(BaseModel):
@@ -325,13 +327,15 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             pred_actions: (batch_size, max_action_len, dim_action)
             tgt_actions: (all_valid_actions, dim_action) / (batch_size, max_action_len, dim_action)
             masks: (batch_size, max_action_len)
+
+            xt: (npoints,H, 3, pos_bins*2)
+            xr: (B, H, euler_bins, 3)
+            xo: (B, H, 1)
+
         """
 
-        # loss_cfg = self.config.loss_config
-        device = tgt_actions.device
-
         # 1. get predicted actions and ground truth
-        pred_pos, pred_rot, pred_open = pred_actions
+        xt_h, xr_h, xo_h = pred_actions
         tgt_pos, tgt_rot, tgt_open = tgt_actions[..., :3], tgt_actions[..., 3:-1], tgt_actions[..., -1]
 
         # position loss
@@ -339,38 +343,34 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         # pos_loss = F.cross_entropy(
         #     pred_pos.view(-1, 100), disc_pos_probs.view(-1, 100), reduction='mean'
         # )
-        split_pred_pos = torch.split(pred_pos, npoints_in_batch, dim=0)  # 这里可以优化
-        pos_loss = 0
+        split_xt_h = torch.split(xt_h, npoints_in_batch, dim=0)  # 这里可以优化
 
-        # for i in range(len(npoints_in_batch)):
-        #     for j in range(self.config.action_config.horizon):
-
-        #         # xt
+        loss_xt = 0
         for i in range(len(npoints_in_batch)):
-            input = split_pred_pos[i]
-            input = einops.rearrange(input, 'n h c b -> (c h) (n b)')
+            input = einops.rearrange(split_xt_h[i], 'n h c b -> (c h) (n b)')
             target = torch.stack(disc_pos_probs[i], dim=0)
             target = einops.rearrange(target, 'h c (n b) -> (c h) (n b)', b=self.config.action_config.pos_bins * 2)
-            pos_loss += F.cross_entropy(input, target, reduction='mean')
+            loss_xt += F.cross_entropy(input, target, reduction='mean')
 
-        pos_loss /= len(npoints_in_batch)  # TODO:horizon
+        loss_xt /= len(npoints_in_batch)  # TODO:horizon
 
-        # xr
+        # xr # cross_entropy should be input (N,C)(batch, classes) target (N)(batch)
         tgt_rot = tgt_rot.long()    # (batch_size,h, 3)
-        input = pred_rot.reshape(-1, pred_rot.shape[-2], pred_rot.shape[-1])
-        target = tgt_rot.reshape(-1, tgt_rot.shape[-1])
+
+        input = einops.rearrange(xr_h, 'b h euler_bins channel -> (b h) euler_bins channel')  # pred_rot (batch_size,horizon, euler_bins or classes,channel)
+        target = einops.rearrange(tgt_rot, 'b h channel -> (b h) channel')  # tgt_rot (batch_size,horizon, 3)
         rot_loss = F.cross_entropy(input, target, reduction='mean')  # TODO: 360shi euler bins
 
         # xo
-        input = pred_open.reshape(-1, 1)
-        target = tgt_open.reshape(-1, 1)
+        input = einops.rearrange(xo_h, 'b h 1 -> (b h)')
+        target = einops.rearrange(tgt_open, 'b h -> (b h)')
         open_loss = F.binary_cross_entropy_with_logits(input, target, reduction='mean')
 
-        total_loss = self.config.loss_config.pos_weight * pos_loss +\
+        total_loss = self.config.loss_config.pos_weight * loss_xt +\
             self.config.loss_config.rot_weight * rot_loss + open_loss
 
         return {
-            'pos': pos_loss, 'rot': rot_loss, 'open': open_loss,
+            'pos': loss_xt, 'rot': rot_loss, 'open': open_loss,
             'total': total_loss
         }
 

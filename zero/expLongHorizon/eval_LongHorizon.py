@@ -369,7 +369,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         apply_rgb=True,
         apply_pc=True,
         apply_mask=True,
-        headless=False,
+        headless=args.headless,
         image_size=args.image_size,
         cam_rand_factor=0,
     )
