@@ -83,18 +83,14 @@ def gen_seq_masks(seq_lens, max_len=None):
 
 class EvalArgs(tap.Tap):
     expr_dir: str = '/data/ckpt/'
-
     device: str = 'cuda'  # cpu, cuda
-
     image_size: List[int] = [512, 512]
     max_tries: int = 3
     max_steps: int = 15
-
     microstep_data_dir: str = ''
     queue_size: int = 20
     taskvar_file: str = '/data/zero/assets/taskvars_peract.json'
     num_ensembles: int = 1
-
     save_obs_outs_dir: str = None
 
     best_disc_pos: str = 'max'  # max, ens1
