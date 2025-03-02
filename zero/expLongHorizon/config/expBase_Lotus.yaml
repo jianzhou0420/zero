@@ -22,6 +22,7 @@ tasks_to_use: null
 dataset: null # origin, augment
 fp16: False
 horizon: 1
+unit_test : False
 # endregion
 # ----------------------------------------
 

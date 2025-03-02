@@ -233,6 +233,7 @@ def train(config: yacs.config.CfgNode):
 
     # num_train_steps
     epoches = config.epoches
+    config.tasks_to_use = config.tasks_to_use.split(',')
 
     if config.tasks_to_use is not None:
         num_tasks = len(config.tasks_to_use)
@@ -244,8 +245,9 @@ def train(config: yacs.config.CfgNode):
 
     config.TRAIN.num_train_steps = total_steps
     config.TRAIN.warmup_steps = total_steps // 15
-    print(config.tasks_to_use)
-    print(f"Total steps: {total_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
+    print('tasks_to_use:', config.tasks_to_use, 'type:', type(config.tasks_to_use), 'len:', len(config.tasks_to_use))
+    print(f"Total steps: {config.TRAIN.num_train_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
+    # raise ValueError('stop here')
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
         every_n_epochs=100,

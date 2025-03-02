@@ -302,10 +302,11 @@ class LotusDatasetAugmentation(Dataset):
             instr_embed = copy.deepcopy(self.instr_embeds[instr])
 
             # 5. downsample point cloud
-            max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
-            point_idxs = np.random.permutation(len(xyz))[:max_npoints]
-            xyz = xyz[point_idxs]
-            rgb = rgb[point_idxs]
+            if self.config.unit_test is False:
+                max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
+                point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+                xyz = xyz[point_idxs]
+                rgb = rgb[point_idxs]
             height = xyz[:, -1] - self.TABLE_HEIGHT
             # print(f"After downsample xyz: {xyz.shape}")
 
@@ -321,10 +322,13 @@ class LotusDatasetAugmentation(Dataset):
                 robot_point_idxs = None
 
             # 6. point cloud augmentation
-            if self.augment_pc:
-                xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
-                    xyz, ee_pose, gt_action, self.aug_max_rot
-                )
+            if self.config.unit_test is False:
+                if self.augment_pc:
+                    xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
+                        xyz, ee_pose, gt_action, self.aug_max_rot
+                    )
+            else:
+                gt_rot = quaternion_to_discrete_euler(gt_action[3:-1], self.euler_resolution)
 
             # 7. normalize point cloud
             if self.xyz_shift == 'none':

@@ -318,7 +318,7 @@ class LotusDatasetAugmentation(Dataset):
             gt_actions = self._find_gt_actions(action_path, sub_keyframe_dection_mode)
             # assert (gt_actions[0] == ee_pose).all()
             assert (gt_actions[-1] == action_next).all()
-
+            assert len(gt_actions) == self.config.horizon
             arm_links_info = copy.deepcopy(data['arm_links_info'][t])
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
@@ -329,16 +329,18 @@ class LotusDatasetAugmentation(Dataset):
 
             # 5. downsample point cloud
             # sampling points
-            if len(xyz) > self.num_points:  # 如果不要它，直接num_points=10000000
-                tmp_flag = True  # TODO： remove tmp_flag
-                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
-            else:
-                tmp_flag = False
-                max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
-                point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+            if self.config.unit_test == False:
+                if len(xyz) > self.num_points:  # 如果不要它，直接num_points=10000000
+                    tmp_flag = True  # TODO： remove tmp_flag
+                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+                else:
+                    tmp_flag = False
+                    max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
+                    point_idxs = np.random.permutation(len(xyz))[:max_npoints]
 
-            xyz = xyz[point_idxs]
-            rgb = rgb[point_idxs]
+                xyz = xyz[point_idxs]
+                rgb = rgb[point_idxs]
+
             height = xyz[:, -1] - self.TABLE_HEIGHT
             # print(f"After downsample xyz: {xyz.shape}")
 
@@ -354,13 +356,20 @@ class LotusDatasetAugmentation(Dataset):
                 robot_point_idxs = None
 
             # 6. point cloud augmentation
-            if self.augment_pc:
-                xyz, ee_pose, gt_actions, gt_rot = self._augment_pc(
-                    xyz, ee_pose, gt_actions, self.aug_max_rot
-                )
-            if tmp_flag:
-                pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
-                xyz = pc_noises + xyz
+            if self.config.unit_test is False:
+                if self.augment_pc:
+                    xyz, ee_pose, gt_actions, gt_rot = self._augment_pc(
+                        xyz, ee_pose, gt_actions, self.aug_max_rot
+                    )
+                if tmp_flag:
+                    pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
+                    xyz = pc_noises + xyz
+            else:
+                gt_rot = []
+                for action in gt_actions:
+                    gt_rot.append(quaternion_to_discrete_euler(action[3:-1], self.euler_resolution))
+                gt_rot = np.stack(gt_rot, 0)
+                gt_actions = np.stack(gt_actions, 0)
 
             # 7. normalize point cloud
             if self.xyz_shift == 'none':

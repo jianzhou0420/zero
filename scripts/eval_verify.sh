@@ -1,7 +1,8 @@
 conda activate zero
 # tasks_to_use=("close_jar")
-# tasks_to_use=("insert_onto_square_peg" "close_jar")
-tasks_to_use=("insert_onto_square_peg" "close_jar" "light_bulb_in" "put_groceries_in_cupboard")
+tasks_to_use=("insert_onto_square_peg")
+# tasks_to_use=("insert_onto_square_peg" "close_jar" "light_bulb_in" "put_groceries_in_cupboard")
+
 # tasks_to_use=("put_groceries_in_cupboard")
 # tasks_to_use=("place_shape_in_shape_sorter")
 # python /data/zero/zero/v3/eval_verify.py \
@@ -12,14 +13,14 @@ tasks_to_use=("insert_onto_square_peg" "close_jar" "light_bulb_in" "put_grocerie
 # conda activate zero
 
 
-for item in 1299 799 399 1199 1099
+for item in 1299
 do
     python -m zero.expBaseV5.eval_expbase \
-    --config /media/jian/ssd4t/zero/2_Train/2025_02_17__15-20_expBaseV5_4ge/version_0/hparams.yaml\
+    --config /data/zero/2_Train/2025_03_02__13-50_EXP03_02_rollback/version_1/hparams.yaml\
     --name test \
-    --checkpoint /media/jian/ssd4t/zero/2_Train/2025_02_17__15-20_expBaseV5_4ge/version_0/checkpoints/2025_02_17__15-20_expBaseV5_test_epoch=$item.ckpt\
+    --checkpoint /data/zero/2_Train/2025_03_02__13-50_EXP03_02_rollback/version_1/checkpoints/2025_03_02__13-49_EXP03_02_rollback_epoch=399_insert.ckpt\
     --tasks_to_use "${tasks_to_use[@]}" \
-    --record_video True
+
 done
 
 # tasks_to_use=("place_shape_in_shape_sorter")
