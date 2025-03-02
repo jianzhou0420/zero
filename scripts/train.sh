@@ -5,7 +5,7 @@ tasks_to_use='close_jar'
 # tasks_to_use=("meat_off_grill" "sweep_to_dustpan_of_size" "close_jar" "push_buttons" "light_bulb_in" "insert_onto_square_peg" "put_groceries_in_cupboard" "place_shape_in_shape_sorter" "stack_blocks")
 
 python  -m zero.expBaseV5.trainer_expbase \
-        --exp-config /data/zero/zero/expBaseV5_copy/config/expBase_Lotus.yaml \
+        --exp-config /data/zero/zero/expBaseV5_rollback/config/expBase_Lotus.yaml \
         name expBaseV5_test \
         dataset augment\
         num_gpus 1 \
