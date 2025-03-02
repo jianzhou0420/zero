@@ -7,44 +7,45 @@ tasks_to_use='close_jar'
 
 python  -m zero.expLongHorizon.trainer_expbase \
         --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
-        name EXP02_26_multihead_val_for_0.01_with_horizon_8\
+        name EXP03_01_roll_back\
         dataset augment\
         num_gpus 1 \
-        epoches 200 \
+        epoches 800 \
         batch_size 4 \
-        TRAIN_DATASET.num_points 4096 \
-        TRAIN_DATASET.pos_bins 30 \
-        TRAIN_DATASET.pos_bin_size 0.01 \
-        MODEL.action_config.pos_bins 30 \
-        MODEL.action_config.pos_bin_size 0.01 \
+        TRAIN_DATASET.num_points 409600 \
+        TRAIN_DATASET.pos_bins 75 \
+        TRAIN_DATASET.pos_bin_size 0.001 \
+        MODEL.action_config.pos_bins 75 \
+        MODEL.action_config.pos_bin_size 0.001 \
         tasks_to_use $tasks_to_use \
         TRAIN.n_workers 4\
-        horizon 8 \
-        MODEL.action_config.horizon 8 \
         MODEL.action_config.action_head_type multihead \
-        B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.01all_with_path \
-        des "Validation on multihead horizon=8 close_jar 0.01 voxels, in order to fast validation "
+        B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all \
+        with_path False \
+        des "Validation on multihead horizon=8 close_jar 0.01 voxels, in order to fast validation "\
+        # horizon 1 \
+        # MODEL.action_config.horizon 1 \
 
 
-python  -m zero.expLongHorizon.trainer_expbase \
-        --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
-        name EXP02_26_multihead_val_for_0.01_with_horizon_8\
-        dataset augment\
-        num_gpus 1 \
-        epoches 200 \
-        batch_size 4 \
-        TRAIN_DATASET.num_points 4096 \
-        TRAIN_DATASET.pos_bins 30 \
-        TRAIN_DATASET.pos_bin_size 0.01 \
-        MODEL.action_config.pos_bins 30 \
-        MODEL.action_config.pos_bin_size 0.01 \
-        tasks_to_use $tasks_to_use \
-        TRAIN.n_workers 4\
-        horizon 8 \
-        MODEL.action_config.horizon 8 \
-        MODEL.action_config.action_head_type multihead \
-        B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.01all_with_path \
-        des "Validation on multihead horizon=8 close_jar 0.01 voxels, in order to fast validation "
+# python  -m zero.expLongHorizon.trainer_expbase \
+#         --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
+#         name EXP02_26_multihead_val_for_0.01_with_horizon_8\
+#         dataset augment\
+#         num_gpus 1 \
+#         epoches 200 \
+#         batch_size 4 \
+#         TRAIN_DATASET.num_points 4096 \
+#         TRAIN_DATASET.pos_bins 30 \
+#         TRAIN_DATASET.pos_bin_size 0.01 \
+#         MODEL.action_config.pos_bins 30 \
+#         MODEL.action_config.pos_bin_size 0.01 \
+#         tasks_to_use $tasks_to_use \
+#         TRAIN.n_workers 4\
+#         horizon 8 \
+#         MODEL.action_config.horizon 8 \
+#         MODEL.action_config.action_head_type multihead \
+#         B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.01all_with_path \
+#         des "Validation on multihead horizon=8 close_jar 0.01 voxels, in order to fast validation "
 
 
 

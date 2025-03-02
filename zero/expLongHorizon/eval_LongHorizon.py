@@ -301,6 +301,8 @@ class Actioner(object):
 
         with torch.no_grad():
             actions = self.model(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
+            if len(actions.shape) == 1:
+                actions = actions.unsqueeze(0)
             new_actions = actions.numpy()
         # sigmoid
 
@@ -605,4 +607,5 @@ def main():
 
 
 if __name__ == '__main__':
+
     main()

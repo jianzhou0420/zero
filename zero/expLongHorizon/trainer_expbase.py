@@ -13,8 +13,14 @@ import pytorch_lightning as pl
 # zero package
 from .config.default import get_config
 from .models.lotus.optim.misc import build_optimizer
-from .dataset.dataset_expbase_voxel_augment_with_path import LotusDatasetAugmentation, ptv3_collate_fn
-from .models.lotus.long_horizon_head import SimplePolicyPTV3CA
+# # from .dataset.dataset_expbase_voxel_augment_with_path import LotusDatasetAugmentation, ptv3_collate_fn
+# # from .models.lotus.long_horizon_head import SimplePolicyPTV3CA
+
+
+from .dataset.dataset_expbase_voxel_augment import LotusDatasetAugmentation, ptv3_collate_fn
+from .models.lotus.model_expbase import SimplePolicyPTV3CA
+
+
 from zero.z_utils import *
 
 # helper package
@@ -286,72 +292,18 @@ def train(config: yacs.config.CfgNode):
     # print(profiler.key_averages().table(max_len=200))
 
 
-def resume():
-    config.defrost()
-    current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
-    exp_name = config.name
-    ckpt_name = f'{current_time}_{exp_name}'
-    log_path = config.log_dir
-    log_name = f'{current_time}_{exp_name}'
-
-    # 0. prepare config
-    # check batch size and number of gpus
-    bs = config.batch_size
-    gpu = config.num_gpus
-    assert 100 % (bs * gpu) == 0, "Batch size should be divisible by 100, please change the batch size or number of gpus"
-
-    # num_train_steps
-    epoches = config.epoches
-
-    if config.tasks_to_use is not None:
-        num_tasks = len(config.tasks_to_use)
-        num_episodes = num_tasks * 100
-        total_episodes = num_episodes * epoches
-        total_steps = total_episodes // (bs * gpu)
-    else:
-        total_steps = 18 * epoches * 100 // (bs * gpu)
-
-    config.TRAIN.num_train_steps = total_steps
-    config.TRAIN.warmup_steps = total_steps // 15
-    print(config.tasks_to_use)
-    print(f"Total steps: {total_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
-    # 1.trainer
-    checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=100,
-        save_top_k=-1,
-        save_last=False,
-        filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
-    )
-    csvlogger1 = CSVLogger(
-        save_dir=log_path,
-        name=log_name,
-        version=None
-    )
-    epoch_callback = EpochCallback()
-    print('fp16:', config.fp16)
-    trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
-                         max_epochs=config.epoches,
-                         devices='auto',
-                         strategy='ddp' if config.num_gpus > 1 else 'auto',
-                         logger=csvlogger1,
-                         #  profiler=profiler，
-                         #  profiler='simple',
-                         use_distributed_sampler=False,
-                         precision=16 if config.fp16 else None,
-                         sync_batchnorm=True,
-                         )
-    config.freeze()
-    trainer_model = TrainerLotus(config)
-    data_module = MyDataModule(config)
-    # trainer.fit(trainer_model, datamodule=data_module,ckpt_path=)
-    # print(profiler.key_averages().table(max_len=200))
-
-
 # endregion
 # ---------------------------------------------------------------
 if __name__ == '__main__':
     # 0.1 args & 0.2 config
     config = build_args()
+    # if config.with_path:
+    #     from .dataset.dataset_expbase_voxel_augment_with_path import LotusDatasetAugmentation, ptv3_collate_fn
+    #     from .models.lotus.long_horizon_head import SimplePolicyPTV3CA
+    # else:
+    #     from .dataset.dataset_expbase_voxel_augment import LotusDatasetAugmentation, ptv3_collate_fn
+    #     from .models.lotus.model_expbase import SimplePolicyPTV3CA
+
     # 1. train
     train(config)
     # TODO: automatically record list as element of list
