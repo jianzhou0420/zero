@@ -300,10 +300,17 @@ class Actioner(object):
         batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
 
         with torch.no_grad():
-            actions = self.model(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
+            actions = self.model(batch).data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
+            # actions analysis
+            if type(actions) == list:
+                actions = torch.stack(actions, 0)
             if len(actions.shape) == 1:
+                # single horizon
                 actions = actions.unsqueeze(0)
-            new_actions = actions.numpy()
+            # check actions shape
+            assert len(actions.shape) == 2
+            assert actions.shape[1] == 8
+            actions = actions.numpy()
         # sigmoid
 
         for i, action in enumerate(actions):
@@ -316,10 +323,10 @@ class Actioner(object):
             # TODO: ensure the action height is above the table
             action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
-            new_actions[i] = action  # 确保更新
+            actions[i] = action  # 确保更新
 
         out = {
-            'actions': new_actions
+            'actions': actions
         }
 
         if self.args.save_obs_outs_dir is not None:

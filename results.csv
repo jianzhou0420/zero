@@ -54,6 +54,7 @@ ckpt_name,task_name,total_demos,total_success,sr
 2025_02_17__15-20_expBaseV5_test_epoch=1199.ckpt,put_groceries_in_cupboard_peract,180,63,[0.35]
 2025_03_02__13-50_EXP03_02_rollback_epoch=399.ckpt,close_jar_peract,400,348,[0.87]
 2025_03_02__16-45_EXP03_02_rollback_epoch=799.ckpt,insert_onto_square_peg_peract,400,357,[0.8925]
+2025_03_03__13-03_EXP03_03_rollback_change_datasettowipath_epoch=399.ckpt,close_jar_peract,400,341,[0.8525]
 20250122_163025after_shock.yamlepoch=199.ckpt,close_jar_peract,200,170,[0.85]
 20250122_163025after_shock.yamlepoch=299.ckpt,close_jar_peract,200,191,[0.955]
 20250122_163025after_shock.yamlepoch=399.ckpt,close_jar_peract,200,190,[0.95]

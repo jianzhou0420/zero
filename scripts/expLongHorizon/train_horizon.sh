@@ -8,7 +8,7 @@ tasks_to_use='insert_onto_square_peg'
 
 python  -m zero.expLongHorizon.trainer_expbase \
         --exp-config /data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml \
-        name EXP03_02_insert\
+        name EXP03_03_onlyfordebug\
         dataset augment\
         num_gpus 1 \
         epoches 800 \
@@ -21,7 +21,7 @@ python  -m zero.expLongHorizon.trainer_expbase \
         tasks_to_use $tasks_to_use \
         TRAIN.n_workers 4\
         MODEL.action_config.action_head_type multihead \
-        B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all \
+        B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all_with_path \
         des "debug"\
         
         # horizon 1 \

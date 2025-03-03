@@ -12,6 +12,7 @@ from ...models.lotus.utils.rotation_transform import RotationMatrixTransform
 from ...models.lotus.PointTransformerV3.model import (
     PointTransformerV3, offset2bincount, offset2batch
 )
+
 from ...models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
 from ...models.lotus.utils.action_position_utils import get_best_pos_from_disc_pos
 

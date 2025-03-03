@@ -1,6 +1,6 @@
 conda activate zero
-# tasks_to_use=("close_jar")
-tasks_to_use=("insert_onto_square_peg")
+tasks_to_use=("close_jar")
+# tasks_to_use=("insert_onto_square_peg")
 # tasks_to_use=("insert_onto_square_peg" "close_jar" "light_bulb_in" "put_groceries_in_cupboard")
 
 # tasks_to_use=("put_groceries_in_cupboard")
@@ -16,9 +16,9 @@ tasks_to_use=("insert_onto_square_peg")
 for item in 1299
 do
     python -m zero.expBaseV5.eval_expbase \
-    --config /data/zero/2_Train/2025_03_02__16-45_EXP03_02_rollback/version_0/hparams.yaml \
+    --config /data/zero/2_Train/2025_03_03__13-03_EXP03_03_rollback_change_datasettowipath/version_0/hparams.yaml\
     --name test \
-    --checkpoint /data/zero/2_Train/2025_03_02__16-45_EXP03_02_rollback/version_0/checkpoints/2025_03_02__16-45_EXP03_02_rollback_epoch=799.ckpt \
+    --checkpoint /data/zero/2_Train/2025_03_03__13-03_EXP03_03_rollback_change_datasettowipath/version_0/checkpoints/2025_03_03__13-03_EXP03_03_rollback_change_datasettowipath_epoch=399.ckpt\
     --tasks_to_use "${tasks_to_use[@]}" \
 
 done

@@ -383,7 +383,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         rot_loss = F.cross_entropy(input, target, reduction='mean')  # TODO: 360shi euler bins
 
         # xo
-        input = einops.rearrange(xo_h, 'b h 1 -> (b h)')
+        input = einops.rearrange(xo_h.squeeze(-1), 'b h -> (b h)')
         target = einops.rearrange(tgt_open, 'b h -> (b h)')
         if self.unit_test is True:
             xo_input = input.detach().clone()
