@@ -16,9 +16,9 @@ tasks_to_use=("insert_onto_square_peg")
 for item in 1299
 do
     python -m zero.expBaseV5.eval_expbase \
-    --config /data/zero/2_Train/2025_03_02__13-50_EXP03_02_rollback/version_1/hparams.yaml\
+    --config /data/zero/2_Train/2025_03_02__16-45_EXP03_02_rollback/version_0/hparams.yaml \
     --name test \
-    --checkpoint /data/zero/2_Train/2025_03_02__13-50_EXP03_02_rollback/version_1/checkpoints/2025_03_02__13-49_EXP03_02_rollback_epoch=399_insert.ckpt\
+    --checkpoint /data/zero/2_Train/2025_03_02__16-45_EXP03_02_rollback/version_0/checkpoints/2025_03_02__16-45_EXP03_02_rollback_epoch=799.ckpt \
     --tasks_to_use "${tasks_to_use[@]}" \
 
 done

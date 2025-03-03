@@ -99,7 +99,7 @@ class ActionHead(nn.Module):
 class MultiActionHead(nn.Module):
     def __init__(
         self, reduce, pos_pred_type, rot_pred_type, hidden_size, dim_actions,
-        dropout=0, voxel_size=0.01, euler_resolution=5, ptv3_config=None, pos_bins=50, horizon=8,
+        dropout=0, voxel_size=0.01, euler_resolution=5, ptv3_config=None, pos_bins=50, horizon=8, unit_test=False,
     ) -> None:
         super().__init__()
         assert reduce in ['max', 'mean', 'attn', 'multiscale_max', 'multiscale_max_large']
@@ -116,6 +116,7 @@ class MultiActionHead(nn.Module):
         self.euler_bins = 360 // euler_resolution
         self.pos_bins = pos_bins
         self.horizon = horizon
+        self.unit_test = unit_test
 
         self.heatmap_mlp_list = nn.ModuleList(
             [
@@ -152,6 +153,9 @@ class MultiActionHead(nn.Module):
         '''
 
         # 1. xt
+        if self.unit_test is True:
+            torch.manual_seed(42)
+            print('multihead is in unit test')
         xt_h = torch.vstack([mlp(feat).unsqueeze(0) for mlp in self.heatmap_mlp_list])  # [h, n, 3 * pos_bins * 2]
         xt_h = einops.rearrange(xt_h, 'h n (c b) -> n h c b', c=3, h=self.horizon)  # (3, #npoints, pos_bins)
 
@@ -159,10 +163,13 @@ class MultiActionHead(nn.Module):
         split_feat = torch.split(feat, npoints_in_batch)  # 按照归属切分 成 64 个tensor，每个tensor(约1050,128)
         pc_embeds = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，（B，128）
 
+        if self.unit_test is True:
+            torch.manual_seed(42)
+            # print('pc_embeds', pc_embeds)
         action_embeds = torch.vstack([mlp(pc_embeds).unsqueeze(0) for mlp in self.action_mlp_list])  # [h, B,euler_bins * 3 + 1]
         action_embeds = einops.rearrange(action_embeds, 'h b d -> b h d')  # (B, H, euler_bins * 3 + 1)
         xr_h = action_embeds[..., :self.euler_bins * 3]
-        xr_h = einops.rearrange(xr_h, 'b h (c d) -> b h d c', d=self.euler_bins, c=3)
+        xr_h = einops.rearrange(xr_h, 'b h (d c) -> b h d c', d=self.euler_bins, c=3)
 
         # 3. xo
         xo_h = action_embeds[..., -1].unsqueeze(-1)  # (B , H,1)
@@ -254,10 +261,13 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         ptv3_batch = self.prepare_ptv3_batch(batch)
 
         # 1. Point Transformer V3
+        if self.unit_test is True:
+            torch.manual_seed(42)
         point_outs = self.ptv3_model(ptv3_batch, return_dec_layers=True)
 
         # 2. Action Head
-
+        if self.unit_test is True:
+            torch.manual_seed(42)
         pred_actions = self.act_proj_head(point_outs[-1].feat, batch['npoints_in_batch'])
 
         # 下面关于pred_pos, pred_rot, pred_open的操作在训练时都是无用的
@@ -272,7 +282,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                 # st = time.time()
                 cont_pred_pos = []
                 npoints_in_batch = offset2bincount(point_outs[-1].offset).data.cpu().numpy().tolist()
-                # [(3, npoints, pos_bins)]
+                # (n_points, horizon, channel,pos_bins)
                 split_pred_pos = torch.split(pred_pos, npoints_in_batch, dim=0)
                 split_coords = torch.split(point_outs[-1].coord, npoints_in_batch)
                 for i in range(len(npoints_in_batch)):
@@ -299,7 +309,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                 pred_pos = cont_pred_pos
 
                 # 3.2 figure out predicted action type
-
+                # (batch,horizon,euler_bins,3) (1,8,360,3)
                 pred_rot = torch.argmax(pred_rot, 2).data.cpu().numpy()
 
                 # (batch, horizon, 3)
@@ -336,6 +346,10 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
 
         # 1. get predicted actions and ground truth
         xt_h, xr_h, xo_h = pred_actions
+        if self.unit_test is True:
+            xt = xt_h.detach().clone()
+            xr = xr_h.detach().clone()
+            xo = xo_h.detach().clone()
         tgt_pos, tgt_rot, tgt_open = tgt_actions[..., :3], tgt_actions[..., 3:-1], tgt_actions[..., -1]
 
         # position loss
@@ -350,6 +364,10 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             input = einops.rearrange(split_xt_h[i], 'n h c b -> (c h) (n b)')
             target = torch.stack(disc_pos_probs[i], dim=0)
             target = einops.rearrange(target, 'h c (n b) -> (c h) (n b)', b=self.config.action_config.pos_bins * 2)
+
+            if self.unit_test is True and i == 0:
+                xt_input = input.detach().clone()
+                xt_target = target.detach().clone()
             loss_xt += F.cross_entropy(input, target, reduction='mean')
 
         loss_xt /= len(npoints_in_batch)  # TODO:horizon
@@ -359,16 +377,23 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
 
         input = einops.rearrange(xr_h, 'b h euler_bins channel -> (b h) euler_bins channel')  # pred_rot (batch_size,horizon, euler_bins or classes,channel)
         target = einops.rearrange(tgt_rot, 'b h channel -> (b h) channel')  # tgt_rot (batch_size,horizon, 3)
+        if self.unit_test is True:
+            xr_input = input.detach().clone()
+            xr_target = target.detach().clone()
         rot_loss = F.cross_entropy(input, target, reduction='mean')  # TODO: 360shi euler bins
 
         # xo
         input = einops.rearrange(xo_h, 'b h 1 -> (b h)')
         target = einops.rearrange(tgt_open, 'b h -> (b h)')
+        if self.unit_test is True:
+            xo_input = input.detach().clone()
+            xo_target = target.detach().clone()
         open_loss = F.binary_cross_entropy_with_logits(input, target, reduction='mean')
 
-        total_loss = self.config.loss_config.pos_weight * loss_xt +\
-            self.config.loss_config.rot_weight * rot_loss + open_loss
+        total_loss = self.config.loss_config.pos_weight * loss_xt + self.config.loss_config.rot_weight * rot_loss + open_loss
 
+        if self.unit_test is True:
+            return xt, xr, xo, xt_input, xt_target, xr_input, xr_target, xo_input, xo_target
         return {
             'pos': loss_xt, 'rot': rot_loss, 'open': open_loss,
             'total': total_loss
@@ -379,11 +404,12 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
     """Cross attention conditioned on text/pose/stepid
     """
 
-    def __init__(self, config):
+    def __init__(self, config, unit_test=False):
         BaseModel.__init__(self)
-
+        self.unit_test = unit_test
         self.config = config
-
+        if self.unit_test is True:
+            torch.manual_seed(42)
         self.ptv3_model = PointTransformerV3CA(**config.ptv3_config)
 
         act_cfg = config.action_config
@@ -398,7 +424,7 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
                 config.ptv3_config.dec_channels[0], act_cfg.dim_actions,
                 dropout=act_cfg.dropout, voxel_size=act_cfg.voxel_size,
                 ptv3_config=config.ptv3_config, pos_bins=config.action_config.pos_bins,
-                euler_resolution=config.action_config.euler_resolution, horizon=config.action_config.horizon
+                euler_resolution=config.action_config.euler_resolution, horizon=config.action_config.horizon, unit_test=self.unit_test
             )
         elif config.action_config.action_head_type == 'multihead':
             self.act_proj_head = MultiActionHead(
@@ -406,7 +432,7 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
                 config.ptv3_config.dec_channels[0], act_cfg.dim_actions,
                 dropout=act_cfg.dropout, voxel_size=act_cfg.voxel_size,
                 ptv3_config=config.ptv3_config, pos_bins=config.action_config.pos_bins,
-                euler_resolution=config.action_config.euler_resolution, horizon=config.action_config.horizon
+                euler_resolution=config.action_config.euler_resolution, horizon=config.action_config.horizon, unit_test=self.unit_test
             )
         else:
             raise ValueError('Unknown multi_action_head type')

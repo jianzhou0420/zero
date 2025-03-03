@@ -16,10 +16,21 @@ from ...models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
 from ...models.lotus.utils.action_position_utils import get_best_pos_from_disc_pos
 
 
+# utils for unit_test
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        nn.init.xavier_uniform_(m.weight)
+        if m.bias is not None:
+            m.bias.data.fill_(0.0)
+
+##
+
+
 class ActionHead(nn.Module):
     def __init__(
         self, reduce, pos_pred_type, rot_pred_type, hidden_size, dim_actions,
         dropout=0, voxel_size=0.01, euler_resolution=5, ptv3_config=None, pos_bins=50,
+        unit_test=False,
     ) -> None:
         super().__init__()
         assert reduce in ['max', 'mean', 'attn', 'multiscale_max', 'multiscale_max_large']
@@ -35,6 +46,10 @@ class ActionHead(nn.Module):
         self.euler_resolution = euler_resolution
         self.euler_bins = 360 // euler_resolution
         self.pos_bins = pos_bins
+        self.unit_test = unit_test
+
+        if unit_test is True:
+            torch.manual_seed(42)
 
         if self.pos_pred_type == 'heatmap_disc':
             self.heatmap_mlp = nn.Sequential(
@@ -111,17 +126,24 @@ class ActionHead(nn.Module):
             # np.save('debug1.npy', {'coords': coords.data.cpu().numpy(), 'new_coords': new_coords[0].data.cpu().numpy(), 'heatmaps': heatmaps[0].data.cpu().numpy()})
 
         elif self.pos_pred_type == 'heatmap_disc':
+            if self.unit_test is True:
+                torch.manual_seed(42)
+                print('original actionhead is in unit_test')
             xt = self.heatmap_mlp(feat)  # (npoints, 3*pos_bins)
             xt = einops.rearrange(xt, 'n (c b) -> c n b', c=3)  # (3, #npoints, pos_bins)
 
         # 2. xr
         if self.reduce == 'max':
+
             split_feat = torch.split(feat, npoints_in_batch)  # 按照归属切分 成 64 个tensor，每个tensor(约1050,128)
 
             test0 = split_feat[0]
             test1 = torch.max(split_feat[0], 0)
             test2 = test1[0]
             pc_embeds = torch.stack([torch.max(x, 0)[0] for x in split_feat], 0)  # 每个tensor是一个点云，
+            if self.unit_test is True:
+                torch.manual_seed(42)
+                # print('pc_embeds is', pc_embeds)
             action_embeds = self.action_mlp(pc_embeds)
         elif self.reduce.startswith('multiscale_max'):
             pc_embeds = []
@@ -239,10 +261,12 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
         device = batch['pc_fts'].device
 
         ptv3_batch = self.prepare_ptv3_batch(batch)
-
+        if self.unit_test is True:
+            torch.manual_seed(42)
         # 1. Point Transformer V3
         point_outs = self.ptv3_model(ptv3_batch, return_dec_layers=True)
-
+        if self.unit_test is True:
+            torch.manual_seed(42)
         # 2. Action Head
         pred_actions = self.act_proj_head(  # 只用到了point_outs的最后一层
             point_outs[-1].feat, batch['npoints_in_batch'], coords=point_outs[-1].coord,
@@ -328,6 +352,10 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
 
         # 1. get predicted actions and ground truth
         pred_pos, pred_rot, pred_open = pred_actions
+        if self.unit_test is True:
+            xt = pred_pos.detach().clone()
+            xr = pred_rot.detach().clone()
+            xo = pred_open.detach().clone()
         tgt_pos, tgt_rot, tgt_open = tgt_actions[..., :3], tgt_actions[..., 3:-1], tgt_actions[..., -1]
 
         # position loss
@@ -338,6 +366,10 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             split_pred_pos = torch.split(pred_pos, npoints_in_batch, dim=1)
             pos_loss = 0
             for i in range(len(npoints_in_batch)):
+                if self.unit_test is True and i == 0:
+                    xt_input = split_pred_pos[i].reshape(3, -1).detach().clone()
+                    xt_target = disc_pos_probs[i].detach().clone()
+
                 pos_loss += F.cross_entropy(
                     split_pred_pos[i].reshape(3, -1), disc_pos_probs[i].to(device), reduction='mean'
                 )  # input=(3, npoints*pos_bins), target=(3, npoints*pos_bins)
@@ -370,16 +402,24 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
             rot_loss = (select_mask * rot_loss + (1 - select_mask) * rot_loss_).mean()
         elif self.config.action_config.rot_pred_type == 'euler_disc':
             tgt_rot = tgt_rot.long()    # (batch_size, 3)
+            if self.unit_test is True:
+                xr_input = pred_rot.data.detach().clone()
+                xr_target = tgt_rot.data.detach().clone()
             rot_loss = F.cross_entropy(pred_rot, tgt_rot, reduction='mean')
         else:  # euler_delta
             rot_loss = F.mse_loss(pred_rot, tgt_rot)
 
         # openness state loss
+        if self.unit_test is True:
+            open_input = pred_open.detach().clone()
+            open_target = tgt_open.detach().clone()
         open_loss = F.binary_cross_entropy_with_logits(pred_open, tgt_open, reduction='mean')
 
         total_loss = self.config.loss_config.pos_weight * pos_loss + \
             self.config.loss_config.rot_weight * rot_loss + open_loss
 
+        if self.unit_test is True:
+            return xt, xr, xo, xt_input, xt_target, xr_input, xr_target, open_input, open_target
         return {
             'pos': pos_loss, 'rot': rot_loss, 'open': open_loss,
             'total': total_loss
@@ -390,11 +430,13 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
     """Cross attention conditioned on text/pose/stepid
     """
 
-    def __init__(self, config):
+    def __init__(self, config, unit_test=False):
         BaseModel.__init__(self)
 
         self.config = config
-
+        self.unit_test = unit_test
+        if unit_test is True:
+            torch.manual_seed(42)
         self.ptv3_model = PointTransformerV3CA(**config.ptv3_config)
 
         act_cfg = config.action_config
@@ -408,7 +450,7 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
             config.ptv3_config.dec_channels[0], act_cfg.dim_actions,
             dropout=act_cfg.dropout, voxel_size=act_cfg.voxel_size,
             ptv3_config=config.ptv3_config, pos_bins=config.action_config.pos_bins,
-            euler_resolution=config.action_config.euler_resolution
+            euler_resolution=config.action_config.euler_resolution, unit_test=self.unit_test
         )
 
         self.apply(self._init_weights)

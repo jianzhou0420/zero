@@ -13,12 +13,12 @@ import pytorch_lightning as pl
 # zero package
 from .config.default import get_config
 from .models.lotus.optim.misc import build_optimizer
-from .dataset.dataset_expbase_voxel_augment_with_path import LotusDatasetAugmentation, ptv3_collate_fn
-from .models.lotus.long_horizon_head import SimplePolicyPTV3CA
+# from .dataset.dataset_expbase_voxel_augment_with_path import LotusDatasetAugmentation, ptv3_collate_fn
+# from .models.lotus.long_horizon_head import SimplePolicyPTV3CA
 
 
-# from .dataset.dataset_expbase_voxel_augment import LotusDatasetAugmentation, ptv3_collate_fn
-# from .models.lotus.model_expbase import SimplePolicyPTV3CA
+from .dataset.dataset_expbase_voxel_augment import LotusDatasetAugmentation, ptv3_collate_fn
+from .models.lotus.model_expbase import SimplePolicyPTV3CA
 
 
 from zero.z_utils import *
