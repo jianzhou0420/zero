@@ -65,6 +65,8 @@ class TrainerLotus(pl.LightningModule):
         self.save_hyperparameters()
         self.config = config
         self.model = SimplePolicyPTV3CA(config.MODEL)
+        if config.num_gpus > 1:
+            self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
     def training_step(self, batch, batch_idx):
 
@@ -78,7 +80,7 @@ class TrainerLotus(pl.LightningModule):
 
         losses = self.model(batch, is_train=True)
         self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)        # if self.global_step % 10 == 0:
-        if self.global_step % 50 == 0:
+        if self.global_step % 20 == 0:
             print(f"Step {self.global_step}, Loss: {losses['total']}")
         return losses['total']
 
