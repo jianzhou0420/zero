@@ -42,8 +42,8 @@ class ClusterManager:
         print('test1')
 
 
-sort_shape_path = "/media/jian/ssd4t/zero/1_Data/B_Preprocess/train/0.005_sort_shape/place_shape_in_shape_sorter/variation0/episodes/episode0/data.pkl"
-insert_peg_path = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/train/insert_0.005/insert_onto_square_peg/variation0/episodes/episode0/data.pkl'
+sort_shape_path = "/data/zero/1_Data/B_Preprocess/train/0.005_sort_shape/place_shape_in_shape_sorter/variation0/episodes/episode0/data.pkl"
+insert_peg_path = '/data/zero/1_Data/B_Preprocess/train/insert_0.005/insert_onto_square_peg/variation0/episodes/episode0/data.pkl'
 with open(sort_shape_path, 'rb') as f:
     data = pickle.load(f)
 

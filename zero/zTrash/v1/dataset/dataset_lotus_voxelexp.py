@@ -46,7 +46,7 @@ def natural_sort_key(s):
 
 class test(Dataset):
     def __init__(self,
-                 data_dir='/media/jian/ssd4t/selfgen/20250105/train_dataset/post_process_keysteps/seed42/voxel0.005',
+                 data_dir='/data/selfgen/20250105/train_dataset/post_process_keysteps/seed42/voxel0.005',
                  tasks_to_use=None,
                  ):
         # TODO:Complete the parameters

@@ -36,7 +36,7 @@ def natural_sort_key(s):
 
 
 class TrainerArgs(tap.Tap):
-    config: str = '/media/jian/ssd4t/zero/zero/v3/config/exp_11_1_insert_peg_edge.yaml'
+    config: str = '/data/zero/zero/v3/config/exp_11_1_insert_peg_edge.yaml'
     name: str = 'default'
     resume_version_dir: str = None
 

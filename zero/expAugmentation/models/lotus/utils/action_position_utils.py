@@ -34,7 +34,7 @@ def get_disc_gt_pos_prob(
         disc_pos_prob = 1 / np.maximum(dists, 1e-4)
         # TODO
         # disc_pos_prob[dists > 0.02] = 0
-        disc_pos_prob[dists > pos_bin_size] = 0
+        disc_pos_prob[dists > 2 * pos_bin_size] = 0
         if robot_point_idxs is not None and len(robot_point_idxs) > 0:
             disc_pos_prob = einops.rearrange(disc_pos_prob, 'c (n b) -> c n b', n=xyz.shape[0])
             disc_pos_prob[:, robot_point_idxs] = 0

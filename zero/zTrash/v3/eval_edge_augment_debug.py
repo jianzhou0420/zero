@@ -555,9 +555,9 @@ def main():
     mp.set_start_method('spawn')
     # for ckpt_num in check_point_number:
     args = EvalArgs().parse_args(known_only=True)
-    args.config = '/media/jian/ssd4t/zero/zero/v3/config/exp_11_1_insert_peg_edge.yaml'
+    args.config = '/data/zero/zero/v3/config/exp_11_1_insert_peg_edge.yaml'
     args.name = 'test'
-    args.checkpoint = '/media/jian/ssd4t/zero/2_Train/2025_01_28__14:22_exp_11_1_insert_peg_edge/version_0/checkpoints/2025_01_28__14:22_exp_11_1_insert_peg_edge_epoch=199.ckpt'
+    args.checkpoint = '/data/zero/2_Train/2025_01_28__14:22_exp_11_1_insert_peg_edge/version_0/checkpoints/2025_01_28__14:22_exp_11_1_insert_peg_edge_epoch=199.ckpt'
     args.tasks_to_use = ['insert_onto_square_peg']
     args.remained_args = args.extra_args
     checkpoint_name = args.checkpoint.split('/')[-1]

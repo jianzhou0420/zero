@@ -653,7 +653,7 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/data/zero/zero/v3/config/after_shock.yaml'
-    args.checkpoint = '/media/jian/ssd4t/logs/after_shock.yaml/lightning_logs/version_11/checkpoints/20250121_235201after_shock.yamlepoch=2499.ckpt'
+    args.checkpoint = '/data/logs/after_shock.yaml/lightning_logs/version_11/checkpoints/20250121_235201after_shock.yamlepoch=2499.ckpt'
 
     checkpoint_name = args.checkpoint.split('/')[-1]
 

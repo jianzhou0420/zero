@@ -4,7 +4,7 @@ import cv2
 import pickle
 
 
-test_data_path = "/media/jian/ssd4t/zero/1_Data/A_Selfgen/train/with_sem/insert_onto_square_peg_peract/variation0/episodes/episode0/data.pkl"
+test_data_path = "/data/zero/1_Data/A_Selfgen/train/with_sem/insert_onto_square_peg_peract/variation0/episodes/episode0/data.pkl"
 
 
 with open(test_data_path, 'rb') as f:

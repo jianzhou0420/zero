@@ -479,6 +479,6 @@ if __name__ == '__main__':
     datamodule.setup('fit')
     train_loader = datamodule.train_dataloader()
 
-    datamodule.train_dataset.create_refer_list(16000, '/media/jian/ssd4t/data/peract/Peract_packaged/train/a_refer_list')
+    datamodule.train_dataset.create_refer_list(16000, '/data/data/peract/Peract_packaged/train/a_refer_list')
     # print(datamodule.train_dataset.__len__())
     # print(datamodule.train_dataset._episodes[0:4])

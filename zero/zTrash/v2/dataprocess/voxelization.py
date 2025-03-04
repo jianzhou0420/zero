@@ -171,8 +171,8 @@ for voxel_size in [0.001, 0.002, 0.003]:
     config = config.TRAIN_DATASET
 
     # region test
-    tasks_list = voxelizer.retrieve_all_episodes("/media/jian/ssd4t/selfgen/20250105/train_dataset/keysteps/seed42")
-    output_dir = f'/media/jian/ssd4t/selfgen/test/test/seed42/voxel{args.voxel_size}'
+    tasks_list = voxelizer.retrieve_all_episodes("/data/selfgen/20250105/train_dataset/keysteps/seed42")
+    output_dir = f'/data/selfgen/test/test/seed42/voxel{args.voxel_size}'
 
     taskvar_instr_file = '/workspace/zero/zero/v2/models/lotus/assets/taskvars_instructions_peract.json'
     instr_embed_file = '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'

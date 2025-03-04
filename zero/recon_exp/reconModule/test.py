@@ -141,7 +141,7 @@ class PerceptionManager:
 
 
 if __name__ == '__main__':
-    example_episodes_path = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/train/insert_0.005/insert_onto_square_peg/variation0/episodes/episode0/data.pkl'
+    example_episodes_path = '/data/zero/1_Data/B_Preprocess/train/insert_0.005/insert_onto_square_peg/variation0/episodes/episode0/data.pkl'
     with open(example_episodes_path, 'rb') as f:
         data = pickle.load(f)
     print(data.keys())

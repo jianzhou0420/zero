@@ -21,7 +21,7 @@ python  -m zero.expLongHorizon.trainer_expbase \
         tasks_to_use $tasks_to_use \
         TRAIN.n_workers 4\
         MODEL.action_config.action_head_type multihead \
-        B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all_with_path \
+        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path \
         des "debug"\
         
         # horizon 1 \

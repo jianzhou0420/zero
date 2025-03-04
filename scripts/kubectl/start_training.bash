@@ -1,1 +1,1 @@
-kubectl create -f /media/jian/ssd4t/zero/scripts/kubectl/helper/training_zhong.yaml
+kubectl create -f /data/zero/scripts/kubectl/helper/training_zhong.yaml

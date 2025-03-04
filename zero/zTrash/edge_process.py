@@ -32,8 +32,8 @@ version 1:
 '''
 import copy
 
-single_episode_path = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/seed42/place_shape_in_shape_sorter/variation0/episodes/episode0/data.pkl'
-config_path = '/media/jian/ssd4t/zero/zero/v3/config/sort_shape_edge.yaml'
+single_episode_path = '/data/zero/1_Data/A_Selfgen/seed42/place_shape_in_shape_sorter/variation0/episodes/episode0/data.pkl'
+config_path = '/data/zero/zero/v3/config/sort_shape_edge.yaml'
 config = yacs.config.CfgNode(new_allowed=True)
 config.merge_from_file(config_path)
 

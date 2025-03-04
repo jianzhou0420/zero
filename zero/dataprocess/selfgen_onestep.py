@@ -320,8 +320,8 @@ current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 seed = random.randint(0, 1000000)
 print('Seed:', seed)
 config = dict()
-config['save_path'] = f'/media/jian/ssd4t/zero/1_Data/A_Selfgen/val/{seed}'
-config['all_task_file'] = '/media/jian/ssd4t/zero/assets/peract_tasks.json'
+config['save_path'] = f'/data/zero/1_Data/A_Selfgen/val/{seed}'
+config['all_task_file'] = '/data/zero/assets/peract_tasks.json'
 config['tasks'] = None
 config['image_size'] = [512, 512]
 config['renderer'] = 'opengl'

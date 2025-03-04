@@ -584,7 +584,7 @@ def main():
         args = ServerArguments().parse_args(known_only=True)
         args.remained_args = args.extra_args
         args.exp_config = '/data/zero/zero/v2/config/lotus_exp2_0.01_close_jar.yaml'
-        args.checkpoint = f'/media/jian/ssd4t/logs/lotus_exp2_0.01_close_jar.yaml/lightning_logs/version_1/checkpoints/20250118_164143lotus_exp2_0.01_close_jar.yamlepoch={ckpt_num}.ckpt'
+        args.checkpoint = f'/data/logs/lotus_exp2_0.01_close_jar.yaml/lightning_logs/version_1/checkpoints/20250118_164143lotus_exp2_0.01_close_jar.yamlepoch={ckpt_num}.ckpt'
 
         checkpoint_name = args.checkpoint.split('/')[-1]
 

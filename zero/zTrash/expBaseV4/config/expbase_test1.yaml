@@ -5,7 +5,7 @@
 pl_flag: True
 exp_name: 'exp_base_insert_peg_0.005'
 selfgen_dir: '/data/zero/1_Data/A_Selfgen/train/seed42'
-preprocess_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/train/sort_shape_edge'
+preprocess_dir: '/data/zero/1_Data/B_Preprocess/train/sort_shape_edge'
 # tasks_to_use: ['insert_onto_square_peg']
 
 tasks_to_use: ['place_shape_in_shape_sorter']

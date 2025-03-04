@@ -2,7 +2,7 @@ import open3d as o3d
 import pickle
 import numpy as np
 import torch
-file_path = '/media/jian/ssd4t/selfgen/after_shock3/close_jar/variation4/episodes/episode0/data.pkl'
+file_path = '/data/selfgen/after_shock3/close_jar/variation4/episodes/episode0/data.pkl'
 
 with open(file_path, 'rb') as f:
     data = pickle.load(f)

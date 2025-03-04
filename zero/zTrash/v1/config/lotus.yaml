@@ -36,7 +36,7 @@ TRAIN:
 #/data/code/
 
 TRAIN_DATASET:
-  data_dir: '/media/jian/ssd4t/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'
+  data_dir: '/data/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/zero/v1/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/zero/v1/models/lotus/assets/taskvars_peract.json'

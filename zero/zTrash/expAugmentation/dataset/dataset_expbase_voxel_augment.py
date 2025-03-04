@@ -459,7 +459,7 @@ if __name__ == '__main__':
     np.random.seed(42)
     random.seed(42)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_all_together.yaml')
+    parser.add_argument('--config', type=str, default='/data/zero/zero/expAugmentation/config/expBase_all_together.yaml')
     parser.add_argument('--output', type=str)
 
     args = parser.parse_args()

@@ -37,7 +37,7 @@ TRAIN:
 
 
 TRAIN_DATASET:
-  # data_dir: '/media/jian/ssd4t/selfgen/after_shock3'
+  # data_dir: '/data/selfgen/after_shock3'
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'

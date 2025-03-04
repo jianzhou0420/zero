@@ -590,9 +590,9 @@ if __name__ == '__main__':
     config.merge_from_file(config_path)
     op = ObsProcessLotus(config, selfgen=True)
 
-    origin_data_root = '/media/jian/ssd4t/selfgen/20250105/train_dataset/keysteps/seed42'
+    origin_data_root = '/data/selfgen/20250105/train_dataset/keysteps/seed42'
     # from datetime import datetime
 
-    output_dir = f'/media/jian/ssd4t/selfgen/voxellizationexp_outlier/'
+    output_dir = f'/data/selfgen/voxellizationexp_outlier/'
     tasks_to_use = ['close_jar']
     op.dataset_generation(origin_data_root, output_dir, tasks_to_use=tasks_to_use)

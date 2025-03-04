@@ -8,7 +8,7 @@ tasks_to_use="close_jar"
 exp_dir=/data/zero/2_Train/EXP03_03_close_jar/version_0
 
 python -m zero.expLongHorizon.eval_LongHorizon \
-    --exp-config /media/jian/ssd4t/zero/zero/expLongHorizon/config/eval.yaml\
+    --exp-config /data/zero/zero/expLongHorizon/config/eval.yaml\
     exp_dir $exp_dir \
     headless True \
     num_workers 4 \

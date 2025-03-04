@@ -479,7 +479,7 @@ if __name__ == '__main__':
     np.random.seed(42)
     random.seed(42)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/media/jian/ssd4t/zero/zero/v4/config/sort_shape_edge.yaml')
+    parser.add_argument('--config', type=str, default='/data/zero/zero/v4/config/sort_shape_edge.yaml')
     parser.add_argument('--output', type=str)
 
     args = parser.parse_args()

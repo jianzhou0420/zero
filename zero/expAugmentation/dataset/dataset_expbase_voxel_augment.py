@@ -445,7 +445,8 @@ if __name__ == '__main__':
     from zero.expBaseV5.config.default import build_args
     config = build_args()
 
-    dataset = LotusDatasetAugmentation(config=config, is_single_frame=False, **config.TRAIN_DATASET)
+    train_data_path = os.path.join(config.B_Preprocess, 'train')
+    dataset = LotusDatasetAugmentation(config=config, tasks_to_use=config.tasks_to_use, data_dir=train_data_path, **config.TRAIN_DATASET)
 
     # all_data = []
     # for i in trange(len(dataset)):
@@ -476,17 +477,20 @@ if __name__ == '__main__':
         # dataset[i]
         # break
     '''
-     python  -m zero.expBaseV5.dataset.dataset_expbase_voxel_augment \
-            --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
-            name expBaseV5_test \
+     python  -m zero.expAugmentation.dataset.dataset_expbase_voxel_augment \
+            --exp-config /data/zero/zero/expAugmentation/config/expBase_Lotus.yaml \
+            name EXP03_04_insert_close_jar_0.005\
             dataset augment\
             num_gpus 1 \
             epoches 800 \
             batch_size 4 \
-            TRAIN_DATASET.num_points 100000 \
+            TRAIN_DATASET.num_points 4096 \
             TRAIN_DATASET.pos_bins 75 \
-            TRAIN_DATASET.pos_bin_size 0.001\
-            MODEL.action_config.pos_bins 75\
+            TRAIN_DATASET.pos_bin_size 0.001 \
+            MODEL.action_config.pos_bins 75 \
             MODEL.action_config.pos_bin_size 0.001 \
-            tasks_to_use "['insert_onto_square_peg','close_jar']" 
+            MODEL.action_config.voxel_size 0.005\
+            TRAIN.n_workers 4\
+            B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all \
+            des "to see close_jar and insert at 0.005"\
     '''

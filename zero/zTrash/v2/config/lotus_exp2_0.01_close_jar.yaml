@@ -37,7 +37,7 @@ TRAIN:
 #/data/code/
 
 TRAIN_DATASET:
-  data_dir: '/media/jian/ssd4t/selfgen/new_1234567'
+  data_dir: '/data/selfgen/new_1234567'
   instr_embed_file: '/data/lotus/peract/train/keysteps_bbox_pcd/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/zero/v2/models/lotus/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/zero/v2/models/lotus/assets/taskvars_peract.json'

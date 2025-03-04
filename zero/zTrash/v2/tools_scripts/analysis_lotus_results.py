@@ -15,7 +15,7 @@ def get_all_data():
 
     first_time_flag = True
     for s in seed:
-        file_path = f"/media/jian/ssd4t/preds/seed{s}/results.jsonl"
+        file_path = f"/data/preds/seed{s}/results.jsonl"
 
         # Open and load the file
         data = []
@@ -63,7 +63,7 @@ def get_all_data():
         summary_data['all']['total'] += overall_total
         summary_data['all']['success'] += overall_success
 
-        # save_path = f"/media/jian/ssd4t/preds/seed{s}/collected_results.jsonl"
+        # save_path = f"/data/preds/seed{s}/collected_results.jsonl"
         # with open(save_path, "w") as file:
         #     for entry in collected_data:
         #         json_line = json.dumps(collected_data[entry])
@@ -76,7 +76,7 @@ def get_all_data():
         summary_data[item]['sr'] = summary_data[item]['success'] / summary_data[item]['total']
     summary_data['all']['sr'] = summary_data['all']['success'] / summary_data['all']['total']
 
-    save_path = f"/media/jian/ssd4t/preds/summary_results.jsonl"
+    save_path = f"/data/preds/summary_results.jsonl"
     with open(save_path, "w") as file:
         for entry in summary_data:
             json_line = json.dumps(summary_data[entry])
@@ -137,4 +137,4 @@ def jsonl_to_csv(jsonl_file_path, csv_file_path):
 
 
 data, path = get_all_data()
-jsonl_to_csv(path, "/media/jian/ssd4t/preds/summary_results.csv")
+jsonl_to_csv(path, "/data/preds/summary_results.csv")

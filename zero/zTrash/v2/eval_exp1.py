@@ -81,7 +81,7 @@ def gen_seq_masks(seq_lens, max_len=None):
 
 
 class ServerArguments(tap.Tap):
-    expr_dir: str = '/media/jian/ssd4t/exp/exp2_singletask'
+    expr_dir: str = '/data/exp/exp2_singletask'
     ckpt_step: int
     device: str = 'cuda'  # cpu, cuda
 
@@ -102,7 +102,7 @@ class ServerArguments(tap.Tap):
     best_disc_pos: str = 'max'  # max, ens1
 
     record_video: bool = True
-    video_dir: str = '/media/jian/ssd4t/exp/exp2_singletask'
+    video_dir: str = '/data/exp/exp2_singletask'
     not_include_robot_cameras: bool = False
     video_rotate_cam: bool = False
     video_resolution: int = 480
@@ -553,9 +553,9 @@ def main():
     args = ServerArguments().parse_args(known_only=True)
     args.remained_args = args.extra_args
     args.exp_config = '/data/zero/zero/v2/config/lotus_0.005.yaml'
-    args.checkpoint = '/media/jian/ssd4t/lotus_exp2_0.005_close_jar.yamlepoch=6499.ckpt'
-    args.expr_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_1_voxel003'
-    args.video_dir = '/media/jian/ssd4t/exp/exp1_voxelsize/eval/eval_1_voxel003'
+    args.checkpoint = '/data/lotus_exp2_0.005_close_jar.yamlepoch=6499.ckpt'
+    args.expr_dir = '/data/exp/exp1_voxelsize/eval/eval_1_voxel003'
+    args.video_dir = '/data/exp/exp1_voxelsize/eval/eval_1_voxel003'
     # args.tasks_to_use = ['close_jar']
     seeds = [42]
     for i in seeds:
