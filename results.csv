@@ -56,6 +56,7 @@ ckpt_name,task_name,total_demos,total_success,sr
 2025_03_02__16-45_EXP03_02_rollback_epoch=799.ckpt,insert_onto_square_peg_peract,400,357,[0.8925]
 2025_03_03__13-03_EXP03_03_rollback_change_datasettowipath_epoch=399.ckpt,close_jar_peract,400,341,[0.8525]
 2025_03_04__14-15_EXP03_04_augmentation_valid_epoch=399.ckpt,close_jar_peract,400,358,[0.895]
+2025_03_04__15-55_EXP03_04_insert_0.01_epoch=799.ckpt,insert_onto_square_peg_peract,400,47,[0.1175]
 20250122_163025after_shock.yamlepoch=199.ckpt,close_jar_peract,200,170,[0.85]
 20250122_163025after_shock.yamlepoch=299.ckpt,close_jar_peract,200,191,[0.955]
 20250122_163025after_shock.yamlepoch=399.ckpt,close_jar_peract,200,190,[0.95]

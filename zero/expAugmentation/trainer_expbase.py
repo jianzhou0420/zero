@@ -68,16 +68,18 @@ class TrainerLotus(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
 
-        if batch_idx % (int(100 / (self.config.batch_size * self.config.num_gpus))) == 0:
-            # # print('batch_idx:', batch_idx)
-            # print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
-            # print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
-            torch.cuda.empty_cache()
-            # print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
-            # print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
+        # if batch_idx % (int(100 / (self.config.batch_size * self.config.num_gpus))) == 0:
+        #     # # print('batch_idx:', batch_idx)
+        #     # print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
+        #     # print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
+        #     torch.cuda.empty_cache()
+        #     # print('At batch_idx:', batch_idx, 'each_step_allocated_cache:', torch.cuda.memory_allocated() / 1024 / 1024 / 1024, 'GB')
+        #     # print('At batch_idx:', batch_idx, 'each_step_reserved_cache:', torch.cuda.memory_reserved() / 1024 / 1024 / 1024, 'GB')
 
         losses = self.model(batch, is_train=True)
         self.log('train_loss', losses['total'], batch_size=len(batch['data_ids']), on_step=True, on_epoch=True, prog_bar=True, logger=True)        # if self.global_step % 10 == 0:
+        if self.global_step % 50 == 0:
+            print(f"Step {self.global_step}, Loss: {losses['total']}")
         return losses['total']
 
     def validation_step(self, batch, batch_idx):
@@ -229,7 +231,7 @@ def train(config: yacs.config.CfgNode):
     # check batch size and number of gpus
     bs = config.batch_size
     gpu = config.num_gpus
-    assert 100 % (bs * gpu) == 0, "Batch size should be divisible by 100, please change the batch size or number of gpus"
+    # assert 100 % (bs * gpu) == 0, "Batch size should be divisible by 100, please change the batch size or number of gpus"
 
     # num_train_steps
     epoches = config.epoches
