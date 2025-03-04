@@ -6,9 +6,9 @@ from typing import Tuple, Dict, List
 import os
 import json
 import jsonlines
-import tap
+
 import copy
-from pathlib import Path
+
 from filelock import FileLock
 from pyrep.objects.dummy import Dummy
 from pyrep.objects.vision_sensor import VisionSensor
@@ -307,24 +307,29 @@ class Actioner(object):
             if len(actions.shape) == 1:
                 # single horizon
                 actions = actions.unsqueeze(0)
+            if len(actions.shape) == 3:
+                # single batch
+                actions = actions.squeeze(0)
             # check actions shape
+            # print(actions.shape)
             assert len(actions.shape) == 2
             assert actions.shape[1] == 8
-            actions = actions.numpy()
+            # actions = actions.numpy()
         # sigmoid
-
+        new_actions = []
         for i, action in enumerate(actions):
             action[-1] = torch.sigmoid(action[-1]) > 0.5
 
             # action = action.data.cpu().numpy()
-
+            action = action.numpy()
             action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
 
             # TODO: ensure the action height is above the table
             action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
-            actions[i] = action  # 确保更新
+            new_actions.append(action)
 
+        actions = np.stack(new_actions, 0)
         out = {
             'actions': actions
         }

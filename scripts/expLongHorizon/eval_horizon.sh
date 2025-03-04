@@ -5,7 +5,17 @@ conda activate zero
 tasks_to_use="close_jar"
 
 
-exp_dir=/data/zero/2_Train/EXP03_03_close_jar/version_0
+exp_dir=/data/zero/2_Train/EXP03_03_close_jar_multihead_800_epochs/version_2
+
+python -m zero.expLongHorizon.eval_LongHorizon \
+    --exp-config /media/jian/ssd4t/zero/zero/expLongHorizon/config/eval.yaml\
+    exp_dir $exp_dir \
+    headless True \
+    num_workers 4 \
+    tasks_to_use $tasks_to_use \
+    
+
+exp_dir=/data/zero/2_Train/EXP03_03_close_jar_multihead_200_epochs/version_3
 
 python -m zero.expLongHorizon.eval_LongHorizon \
     --exp-config /media/jian/ssd4t/zero/zero/expLongHorizon/config/eval.yaml\
