@@ -18,6 +18,7 @@ batch_size: null
 tasks_to_use: null
 dataset: null # origin, augment
 fp16: False
+des: null
 # endregion
 # ----------------------------------------
 
@@ -61,6 +62,7 @@ TRAIN_DATASET:
   pos_heatmap_no_robot: True
   real_robot: False
   euler_resolution: 1
+
 # endregion
 # ----------------------------------------
 

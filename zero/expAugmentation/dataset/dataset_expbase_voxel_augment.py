@@ -308,6 +308,10 @@ class LotusDatasetAugmentation(Dataset):
             instr_embed = copy.deepcopy(self.instr_embeds[instr])
 
             # 5. downsample point cloud
+            if len(xyz) > self.num_points:
+                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+                xyz = xyz[point_idxs]
+                rgb = rgb[point_idxs]
             max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
             point_idxs = np.random.permutation(len(xyz))[:max_npoints]
             xyz = xyz[point_idxs]
