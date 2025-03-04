@@ -21,20 +21,20 @@ python  -m zero.expLongHorizon.trainer_expbase \
         tasks_to_use $tasks_to_use \
         TRAIN.n_workers 4\
         MODEL.action_config.action_head_type multihead \
-        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path \
+        B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all_with_path \
         horizon 8 \
         MODEL.action_config.horizon 8 \
         des "validate"\
         # horizon 1 \
         # MODEL.action_config.horizon 1 \
 
-# exp_dir=/data/zero/zero/2_Train/$name/version_0
-# python -m zero.expLongHorizon.eval_LongHorizon \
-#     --exp-config /data/zero/zero/expLongHorizon/config/eval.yaml\
-#     exp_dir $exp_dir \
-#     headless True \
-#     num_workers 4 \
-#     tasks_to_use $tasks_to_use \
+exp_dir=/media/jian/ssd4t/zero/zero/2_Train/$name/version_0
+python -m zero.expLongHorizon.eval_LongHorizon \
+    --exp-config /media/jian/ssd4t/zero/zero/expLongHorizon/config/eval.yaml\
+    exp_dir $exp_dir \
+    headless True \
+    num_workers 4 \
+    tasks_to_use $tasks_to_use \
     
 
 
@@ -57,18 +57,18 @@ python  -m zero.expLongHorizon.trainer_expbase \
         tasks_to_use $tasks_to_use \
         TRAIN.n_workers 4\
         MODEL.action_config.action_head_type multihead \
-        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path \
+        B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all_with_path \
         horizon 8 \
         MODEL.action_config.horizon 8 \
         des "validate"\
         # horizon 1 \
         # MODEL.action_config.horizon 1 \
 
-# exp_dir=/data/zero/zero/2_Train/$name/version_0
-# python -m zero.expLongHorizon.eval_LongHorizon \
-#     --exp-config /data/zero/zero/expLongHorizon/config/eval.yaml\
-#     exp_dir $exp_dir \
-#     headless True \
-#     num_workers 4 \
-#     tasks_to_use $tasks_to_use \
+exp_dir=/media/jian/ssd4t/zero/zero/2_Train/$name/version_0
+python -m zero.expLongHorizon.eval_LongHorizon \
+    --exp-config /media/jian/ssd4t/zero/zero/expLongHorizon/config/eval.yaml\
+    exp_dir $exp_dir \
+    headless True \
+    num_workers 4 \
+    tasks_to_use $tasks_to_use \
     

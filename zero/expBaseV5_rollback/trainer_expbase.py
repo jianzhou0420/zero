@@ -65,8 +65,6 @@ class TrainerLotus(pl.LightningModule):
         self.save_hyperparameters()
         self.config = config
         self.model = SimplePolicyPTV3CA(config.MODEL)
-        if config.num_gpus > 1:
-            self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
     def training_step(self, batch, batch_idx):
 
@@ -221,11 +219,11 @@ def build_args():
 
 def train(config: yacs.config.CfgNode):
     config.defrost()
-    # current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
+    current_time = datetime.now().strftime("%Y_%m_%d__%H-%M")
     exp_name = config.name
-    ckpt_name = f'{exp_name}'
+    ckpt_name = f'{current_time}_{exp_name}'
     log_path = config.log_dir
-    log_name = f'{exp_name}'
+    log_name = f'{current_time}_{exp_name}'
 
     # 0. prepare config
     # check batch size and number of gpus
@@ -244,11 +242,11 @@ def train(config: yacs.config.CfgNode):
         total_steps = total_episodes // (bs * gpu)
     else:
         total_steps = 18 * epoches * 100 // (bs * gpu)
+
     config.TRAIN.num_train_steps = total_steps
     config.TRAIN.warmup_steps = total_steps // 15
-
     print('tasks_to_use:', config.tasks_to_use, 'type:', type(config.tasks_to_use), 'len:', len(config.tasks_to_use))
-    print(f"Total steps: {total_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
+    print(f"Total steps: {config.TRAIN.num_train_steps}, Warmup steps: {config.TRAIN.warmup_steps}")
     # raise ValueError('stop here')
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
@@ -350,4 +348,3 @@ if __name__ == '__main__':
     config = build_args()
     # 1. train
     train(config)
-    # TODO: automatically record list as element of list
