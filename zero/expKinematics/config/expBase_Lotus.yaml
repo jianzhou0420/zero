@@ -62,9 +62,6 @@ TRAIN_DATASET:
   pos_heatmap_no_robot: True
   real_robot: False
   euler_resolution: 1
-  rm_table: True
-  rm_pc_outliers: False
-  rm_pc_outliers_neighbors: 25
 
 # endregion
 # ----------------------------------------
