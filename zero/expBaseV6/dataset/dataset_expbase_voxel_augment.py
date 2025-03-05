@@ -34,6 +34,8 @@ import open3d as o3d
 # import open3d as o3d
 import tap
 
+# region utils
+
 
 def random_rotate_z(pc, angle=None):
     # Randomly rotate around z-axis
@@ -82,6 +84,10 @@ def gen_seq_masks(seq_lens, max_len=None):
 
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+
+# endregion
+
+# region dataset
 
 
 class LotusDatasetAugmentation(Dataset):
@@ -302,6 +308,10 @@ class LotusDatasetAugmentation(Dataset):
             instr_embed = copy.deepcopy(self.instr_embeds[instr])
 
             # 5. downsample point cloud
+            if len(xyz) > self.num_points:
+                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+                xyz = xyz[point_idxs]
+                rgb = rgb[point_idxs]
             max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
             point_idxs = np.random.permutation(len(xyz))[:max_npoints]
             xyz = xyz[point_idxs]
@@ -347,12 +357,6 @@ class LotusDatasetAugmentation(Dataset):
 
             gt_action = np.concatenate([gt_action[:3], gt_rot, gt_action[-1:]], 0)
 
-            #
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(xyz)
-            pcd.colors = o3d.utility.Vector3dVector(rgb / 255)
-            o3d.visualization.draw_geometries([pcd])
-
             rgb = (rgb / 255.) * 2 - 1
             pc_ft = np.concatenate([xyz, rgb], 1)
             if self.use_height:
@@ -377,6 +381,8 @@ class LotusDatasetAugmentation(Dataset):
             outs['step_ids'].append(t)
             # break
         return outs
+# endregion
+# region methods
 
 
 def base_collate_fn(data):
@@ -429,6 +435,7 @@ def ptv3_collate_fn(data):
         batch['pc_centroids'] = np.stack(batch['pc_centroids'], 0)
 
     return batch
+# endregion
 
 
 if __name__ == '__main__':
@@ -438,7 +445,8 @@ if __name__ == '__main__':
     from zero.expBaseV5.config.default import build_args
     config = build_args()
 
-    dataset = LotusDatasetAugmentation(config=config, is_single_frame=False, **config.TRAIN_DATASET)
+    train_data_path = os.path.join(config.B_Preprocess, 'train')
+    dataset = LotusDatasetAugmentation(config=config, tasks_to_use=config.tasks_to_use, data_dir=train_data_path, **config.TRAIN_DATASET)
 
     # all_data = []
     # for i in trange(len(dataset)):
@@ -469,17 +477,20 @@ if __name__ == '__main__':
         # dataset[i]
         # break
     '''
-     python  -m zero.expBaseV5.dataset.dataset_expbase_voxel_augment \
-            --exp-config /data/zero/zero/expBaseV5/config/expBase_Lotus.yaml \
-            name expBaseV5_test \
+     python  -m zero.expAugmentation.dataset.dataset_expbase_voxel_augment \
+            --exp-config /data/zero/zero/expAugmentation/config/expBase_Lotus.yaml \
+            name EXP03_04_insert_close_jar_0.005\
             dataset augment\
             num_gpus 1 \
             epoches 800 \
             batch_size 4 \
-            TRAIN_DATASET.num_points 100000 \
+            TRAIN_DATASET.num_points 4096 \
             TRAIN_DATASET.pos_bins 75 \
-            TRAIN_DATASET.pos_bin_size 0.001\
-            MODEL.action_config.pos_bins 75\
+            TRAIN_DATASET.pos_bin_size 0.001 \
+            MODEL.action_config.pos_bins 75 \
             MODEL.action_config.pos_bin_size 0.001 \
-            tasks_to_use "['insert_onto_square_peg','close_jar']" 
+            MODEL.action_config.voxel_size 0.005\
+            TRAIN.n_workers 4\
+            B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all \
+            des "to see close_jar and insert at 0.005"\
     '''

@@ -178,18 +178,31 @@ class ObsProcessLotus:
             xyz = xyz[mask]
             rgb = rgb[mask]
 
-            # 3. voxelization
+            # # 3. voxelization
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd, _, trace = pcd.voxel_down_sample_and_trace(
+            #     self.config.MODEL.action_config.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
+            # )
+            # xyz = np.asarray(pcd.points)
+            # trace = np.array([v[0] for v in trace])
+            # rgb = rgb[trace]
+
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(xyz)
-            pcd, _, trace = pcd.voxel_down_sample_and_trace(
-                self.config.MODEL.action_config.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
-            )
-            xyz = np.asarray(pcd.points)
-            trace = np.array([v[0] for v in trace])
-            rgb = rgb[trace]
+            pcd.colors = o3d.utility.Vector3dVector(rgb)
 
-            xyz = np.array(xyz, dtype=np.float32)
-            rgb = np.array(rgb, dtype=np.float32)
+            voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.config.MODEL.action_config.voxel_size)
+
+            points = []
+            colors = []
+            for voxel in voxel_grid.get_voxels():
+                voxel_center = voxel_grid.origin + voxel.grid_index * voxel_grid.voxel_size + voxel_grid.voxel_size / 2
+                points.append(voxel.grid_index)
+                colors.append(voxel.color)
+
+            xyz = np.array(points, dtype=np.float32)
+            rgb = np.array(colors, dtype=np.float32)
             action_current = np.array(action_current, dtype=np.float32)
             action_next = np.array(action_next, dtype=np.float32)
             # arm_links_info = np.array(arm_links_info, dtype=np.float32)
@@ -422,7 +435,11 @@ class ObsProcessLotus:
         for task in tasks_list:
             # test = task[0][0].split('/')
             task_name = task[0][0].split('/')[-5]
+            print(task_name)
+            print(tasks_to_use)
             if tasks_to_use is not None and task_name not in tasks_to_use:
+                print(f'{task_name} not in tasks_to_use')
+                print('tasks_to_use:', tasks_to_use)
                 pbar.update(100)
                 continue
             for variation in task:
@@ -652,8 +669,8 @@ if __name__ == '__main__':
     config = build_args()
 
     op = ObsProcessLotus(config, selfgen=True)
-
-    op.dataset_preprocess_train_val_with_path(config.A_Selfgen, config.B_Preprocess, tasks_to_use=None)
+    tasks_to_use = ['insert_onto_square_peg']
+    op.dataset_preprocess_train_val_with_path(config.A_Selfgen, config.B_Preprocess, tasks_to_use=tasks_to_use)
 
     '''
     python -m zero.dataprocess.ObsProcessor\
@@ -663,6 +680,8 @@ if __name__ == '__main__':
         TRAIN_DATASET.pos_bin_size 0.001\
         MODEL.action_config.pos_bins 75\
         MODEL.action_config.pos_bin_size 0.001 \
+        MODEL.action_config.voxel_size 0.005 \
+        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter \
         tasks_to_use "insert_onto_square_peg" \
         
      

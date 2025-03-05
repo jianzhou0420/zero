@@ -491,6 +491,6 @@ if __name__ == '__main__':
             MODEL.action_config.pos_bin_size 0.001 \
             MODEL.action_config.voxel_size 0.005\
             TRAIN.n_workers 4\
-            B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all \
+            B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter \
             des "to see close_jar and insert at 0.005"\
     '''

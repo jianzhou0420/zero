@@ -1,5 +1,3 @@
-import re
-from .config.default import build_args
 import yaml
 from typing import Tuple, Dict, List
 
@@ -33,8 +31,6 @@ from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
 from .trainer_expbase import TrainerLotus
-
-# region: utils
 
 
 def task_file_to_task_class(task_file):
@@ -78,10 +74,44 @@ def gen_seq_masks(seq_lens, max_len=None):
     return masks
 
 
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+class EvalArgs(tap.Tap):
+    expr_dir: str = '/data/ckpt/'
 
-# endregion
+    device: str = 'cuda'  # cpu, cuda
+
+    image_size: List[int] = [512, 512]
+    max_tries: int = 3
+    max_steps: int = 15
+
+    microstep_data_dir: str = ''
+    queue_size: int = 20
+    taskvar_file: str = '/data/zero/assets/taskvars_peract.json'
+    num_ensembles: int = 1
+
+    save_obs_outs_dir: str = None
+
+    best_disc_pos: str = 'max'  # max, ens1
+
+    record_video: bool = False
+    video_dir: str = None
+    not_include_robot_cameras: bool = False
+    video_rotate_cam: bool = False
+    video_resolution: int = 480
+
+    real_robot: bool = False
+
+    ############################
+    # sbatch
+    ############################
+    ckpt_step = 220000
+    seed = 2025
+    num_workers = 4
+    num_demos = 20
+    config: str = None
+    name: str = None
+    checkpoint: str = None
+    tasks_to_use: List[str] = None
+    # microstep_data_dir = '/data/lotus/peract/test/microsteps'
 
 
 class Actioner(object):
@@ -93,8 +123,8 @@ class Actioner(object):
         self.WORKSPACE = get_robot_workspace(real_robot=args.real_robot)
         self.device = torch.device(args.device)
 
-        # config = get_config(args.model_config_path, args.remained_args)
-        with open(args.model_config_path, "r") as f:
+        # config = get_config(args.config, args.remained_args)
+        with open(args.config, "r") as f:
             config = yaml.load(f, Loader=yaml.UnsafeLoader)
         self.config = config['config']
         self.config.defrost()
@@ -148,6 +178,19 @@ class Actioner(object):
         if len(robot_point_ids) > 0:
             mask[robot_point_ids] = False
         return mask
+
+    def _rm_pc_outliers(self, xyz, rgb=None):
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(xyz)
+        # pcd, idxs = pcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=2.0)
+        # pcd, idxs = pcd.remove_radius_outlier(nb_points=16, radius=0.03)
+        clf = LocalOutlierFactor(n_neighbors=self.data_cfg.rm_pc_outliers_neighbors)
+        preds = clf.fit_predict(xyz)
+        idxs = (preds == 1)
+        xyz = xyz[idxs]
+        if rgb is not None:
+            rgb = rgb[idxs]
+        return xyz, rgb
 
     def process_point_clouds(
         self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
@@ -223,14 +266,6 @@ class Actioner(object):
                 point_idxs = np.random.choice(xyz.shape[0], self.data_cfg.num_points, replace=True)
             else:
                 point_idxs = np.arange(xyz.shape[0])
-            # 5. downsample point cloud
-        # if len(xyz) > self.data_cfg.num_points:
-        #     point_idxs = np.random.choice(len(xyz), self.data_cfg.num_points, replace=False)
-        #     xyz = xyz[point_idxs]
-        #     rgb = rgb[point_idxs]
-
-        # max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
-        # point_idxs = np.random.permutation(len(xyz))[:max_npoints]
 
         xyz = xyz[point_idxs]
         rgb = rgb[point_idxs]
@@ -305,39 +340,35 @@ class Actioner(object):
     ):
         # print(obs_state_dict)
         taskvar = f'{task_str}+{variation}'
-        batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
-
+        batch = self.preprocess_obs(
+            taskvar, step_id, obs_state_dict,
+        )
         with torch.no_grad():
-            actions = self.model(batch).data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
-            # actions analysis
-            if type(actions) == list:
-                actions = torch.stack(actions, 0)
-            if len(actions.shape) == 1:
-                # single horizon
-                actions = actions.unsqueeze(0)
-            if len(actions.shape) == 3:
-                actions = actions.squeeze(0)
-            # check actions shape
-            assert len(actions.shape) == 2
-            assert actions.shape[1] == 8
+            actions = []
+            # TODO
+            for _ in range(self.args.num_ensembles):
+                action = self.model(batch)[0].data.cpu()
+                actions.append(action)
+            if len(actions) > 1:
+                # print(torch.stack(actions, 0))
+                avg_action = torch.stack(actions, 0).mean(0)
+                pred_rot = torch.from_numpy(R.from_euler(
+                    'xyz', np.mean([R.from_quat(x[3:-1]).as_euler('xyz') for x in actions], 0),
+                ).as_quat())
+                action = torch.cat([avg_action[:3], pred_rot, avg_action[-1:]], 0)
+            else:
+                action = actions[0]
+        action[-1] = torch.sigmoid(action[-1]) > 0.5
 
-        # sigmoid
-        new_actions = []
-        for i, action in enumerate(actions):
-            action[-1] = torch.sigmoid(action[-1]) > 0.5
+        # action = action.data.cpu().numpy()
+        action = action.numpy()
+        action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
 
-            # action = action.data.cpu().numpy()
-            action = action.numpy()
-            action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
-
-            # TODO: ensure the action height is above the table
-            action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
-
-            new_actions.append(action)
-        actions = np.stack(new_actions, 0)
+        # TODO: ensure the action height is above the table
+        action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
 
         out = {
-            'actions': actions
+            'action': action
         }
 
         if self.args.save_obs_outs_dir is not None:
@@ -389,7 +420,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         apply_rgb=True,
         apply_pc=True,
         apply_mask=True,
-        headless=args.headless,
+        headless=True,
         image_size=args.image_size,
         cam_rand_factor=0,
     )
@@ -481,28 +512,24 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             batch_queue.put((k_res, batch))
 
             output = result_queue.get()
-            actions = output["actions"]
+            action = output["action"]
 
-            if actions is None:
+            if action is None:
                 break
 
             # update the observation based on the predicted action
-            for action in actions:
-                try:
-                    obs, reward, terminate, _ = move(action, verbose=False)
-                    obs_state_dict = env.get_observation(obs)  # type: ignore
+            try:
+                obs, reward, terminate, _ = move(action, verbose=False)
+                obs_state_dict = env.get_observation(obs)  # type: ignore
 
-                    if reward == 1:
-                        success_rate += 1 / num_demos
-                        break
-                    if terminate:
-                        print("The episode has terminated!")
-                except (IKError, ConfigurationPathError, InvalidActionError) as e:
-                    print(taskvar, demo_id, step_id, e)
-                    reward = 0
+                if reward == 1:
+                    success_rate += 1 / num_demos
                     break
-
-            if reward == 1:
+                if terminate:
+                    print("The episode has terminated!")
+            except (IKError, ConfigurationPathError, InvalidActionError) as e:
+                print(taskvar, demo_id, step_id, e)
+                reward = 0
                 break
 
         if args.record_video:  # and reward < 1:
@@ -529,47 +556,21 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
 
 
 def main():
-    '''
-    get expriment folder which should be the version folder of pytorch lightning
-    args:
-    exp-config: the path of the eval config file
-
-    '''
     mp.set_start_method('spawn')
-    eval_config = build_args()
-    eval_config.defrost()
-
-    exp_dir = eval_config.exp_dir
-
-    # choose ckpt
-    ckpt_path_all = sorted(os.listdir(os.path.join(exp_dir, 'checkpoints')), key=natural_sort_key)
-    if eval_config.epoch is not None:
-        for i, ckpt_path in enumerate(ckpt_path_all):
-            if f'epoch={eval_config.epoch}' in ckpt_path:
-                ckpt_path = os.path.join(exp_dir, 'checkpoints', ckpt_path)
-                ckpt_name = ckpt_path.split('/')[-1].split('.')[0]
-                break
-    else:
-        ckpt_path = os.path.join(exp_dir, 'checkpoints', ckpt_path_all[-1])
-        ckpt_name = ckpt_path.split('/')[-1].split('.')[0]
-
-    # get model config
-
-    model_config_path = os.path.join(exp_dir, 'hparams.yaml')
-    eval_config.model_config_path = model_config_path
     # for ckpt_num in check_point_number:
+    args = EvalArgs().parse_args(known_only=True)
+    args.remained_args = args.extra_args
+    checkpoint_name = args.checkpoint.split('/')[-1]
 
-    ckpt_name = ckpt_path.split('/')[-1].split('.')[0]
+    args.expr_dir = f'/data/zero/3_Eval/eval_log/{checkpoint_name}/preds'
+    args.video_dir = f'/data/zero/3_Eval/videos/{checkpoint_name}/videos'
+    # args.tasks_to_use = ['insert_onto_square_peg']
 
-    eval_config.expr_dir = f'/data/zero/3_Eval/eval_log/{ckpt_name}/preds'
-    eval_config.video_dir = f'/data/zero/3_Eval/videos/{ckpt_name}/videos'
-    eval_config.checkpoint = ckpt_path
-
-    if not os.path.exists(eval_config.checkpoint):
-        print(eval_config.checkpoint, 'not exists')
+    if not os.path.exists(args.checkpoint):
+        print(args.checkpoint, 'not exists')
         return
 
-    pred_dir = os.path.join(eval_config.expr_dir, f'seed{eval_config.seed}')
+    pred_dir = os.path.join(args.expr_dir, f'seed{args.seed}')
     os.makedirs(pred_dir, exist_ok=True)
     pred_file = os.path.join(pred_dir, 'results.jsonl')
     existed_taskvars = set()
@@ -577,33 +578,33 @@ def main():
         with jsonlines.open(pred_file, 'r') as f:
             for item in f:
                 item_step = int(os.path.basename(item['checkpoint']).split('.')[0].split('_')[-1])
-                if item_step == eval_config.ckpt_step:
+                if item_step == args.ckpt_step:
                     existed_taskvars.add(f"{item['task']}+{item['variation']}")
 
-    taskvars = json.load(open(eval_config.taskvar_file))
+    taskvars = json.load(open(args.taskvar_file))
     taskvars = [taskvar for taskvar in taskvars if taskvar not in existed_taskvars]
-    print('checkpoint', eval_config.ckpt_step, '#taskvars', len(taskvars))
+    print('checkpoint', args.ckpt_step, '#taskvars', len(taskvars))
 
     # taskvar_to_use
-    if eval_config.tasks_to_use is not None:
-        taskvars = [taskvar for taskvar in taskvars if taskvar.split('_peract')[0] in eval_config.tasks_to_use]
+    if args.tasks_to_use is not None:
+        taskvars = [taskvar for taskvar in taskvars if taskvar.split('_peract')[0] in args.tasks_to_use]
 
-    batch_queue = mp.Queue(eval_config.queue_size)
-    result_queues = [mp.Queue(eval_config.queue_size) for _ in range(eval_config.num_workers)]
-    producer_queue = mp.Queue(eval_config.queue_size)
+    batch_queue = mp.Queue(args.queue_size)
+    result_queues = [mp.Queue(args.queue_size) for _ in range(args.num_workers)]
+    producer_queue = mp.Queue(args.queue_size)
 
-    consumer = mp.Process(target=consumer_fn, args=(eval_config, batch_queue, result_queues))
+    consumer = mp.Process(target=consumer_fn, args=(args, batch_queue, result_queues))
     consumer.start()
 
     producers = {}
     i, k_res = 0, 0
     while i < len(taskvars):
         taskvar = taskvars[i]
-        if len(producers) < eval_config.num_workers:
+        if len(producers) < args.num_workers:
             print('start', i, taskvar)
             producer = mp.Process(
                 target=producer_fn,
-                args=(i, k_res, eval_config, taskvar, pred_file, batch_queue, result_queues[k_res], producer_queue),
+                args=(i, k_res, args, taskvar, pred_file, batch_queue, result_queues[k_res], producer_queue),
                 name=taskvar
             )
             producer.start()
@@ -625,5 +626,4 @@ def main():
 
 
 if __name__ == '__main__':
-
     main()

@@ -1,7 +1,7 @@
 conda activate zero
 
 
-tasks_to_use="insert_onto_square_peg,close_jar,put_groceries_in_cupboard,meat_off_grill"
+tasks_to_use="insert_onto_square_peg"
 
 
 
@@ -13,5 +13,8 @@ python -m zero.expAugmentation.eval_LongHorizon \
     headless True \
     num_workers 4 \
     tasks_to_use "$tasks_to_use" \
+    record_video True \
+    num_demos 10
+
     
 
