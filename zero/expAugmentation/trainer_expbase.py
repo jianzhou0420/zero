@@ -26,8 +26,8 @@ import yacs.config
 import math
 import os
 import warnings
+
 warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
-torch.set_float32_matmul_precision('medium')
 
 # ---------------------------------------------------------------
 # region 0.Some tools

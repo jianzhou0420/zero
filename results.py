@@ -84,7 +84,7 @@ for dir_name in dir_list:
             'sr': []
         }
 
-with open('results.csv', 'w', newline='') as csvfile:
+with open('/data/zero/results.csv', 'w', newline='') as csvfile:
     fieldnames = ['ckpt_name', 'task_name', 'total_demos', 'total_success', 'sr']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     # sort the according to the checkpoint name

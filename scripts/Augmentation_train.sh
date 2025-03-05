@@ -8,7 +8,7 @@ python  -m zero.expAugmentation.trainer_expbase \
         name EXP03_04_insert_close_jar_0.005\
         dataset augment\
         num_gpus 1 \
-        epoches 1200 \
+        epoches 1500 \
         batch_size 4 \
         TRAIN_DATASET.num_points 4096 \
         TRAIN_DATASET.pos_bins 75 \

@@ -65,6 +65,7 @@ TRAIN_DATASET:
   rm_table: True
   rm_pc_outliers: False
   rm_pc_outliers_neighbors: 25
+  sample_points_by_distance: False
 
 # endregion
 # ----------------------------------------
