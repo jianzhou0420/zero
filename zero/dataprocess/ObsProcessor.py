@@ -25,11 +25,6 @@ from zero.expBaseV5.models.lotus.utils.action_position_utils import get_disc_gt_
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
-'''
-
-
-
-'''
 
 
 def get_robot_workspace(real_robot=False, use_vlm=False):

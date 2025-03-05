@@ -11,7 +11,7 @@ python  -m zero.expAugmentation.trainer_expbase \
         name EXP03_04_insert_close_jar_0.005\
         dataset augment\
         num_gpus 1 \
-        epoches 1500 \
+        epoches 1800 \
         batch_size 1 \
         TRAIN_DATASET.num_points 4096 \
         TRAIN_DATASET.pos_bins 75 \
@@ -23,7 +23,7 @@ python  -m zero.expAugmentation.trainer_expbase \
         MODEL.action_config.euler_resolution 1\
         tasks_to_use "$tasks_to_use" \
         TRAIN.n_workers 4\
-        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter \
+        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all \
         des "to see close_jar and insert at 0.005"\
         
         # horizon 1 \

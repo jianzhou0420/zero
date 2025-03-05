@@ -308,7 +308,8 @@ class Actioner(object):
         batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
 
         with torch.no_grad():
-            actions = self.model(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
+            actions, for_visual = self.model(batch)  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
+            actions = actions.data.cpu()
             # actions analysis
             if type(actions) == list:
                 actions = torch.stack(actions, 0)
@@ -320,6 +321,50 @@ class Actioner(object):
             # check actions shape
             assert len(actions.shape) == 2
             assert actions.shape[1] == 8
+
+        # visual
+
+        pc_fts = batch['pc_fts']
+        xyz = pc_fts[:, :3].cpu().numpy()
+        rgb = (pc_fts[:, 3:6].cpu().numpy() + 1) / 2
+        point_idx = for_visual[0]
+        bin_idx = for_visual[1]
+        shift = np.arange(-75, 75) * 0.001
+        bin_pos1 = xyz[point_idx[0]] + np.array([shift[bin_idx[0]], 0, 0])
+        bin_pos2 = xyz[point_idx[1]] + np.array([0, shift[bin_idx[1]], 0])
+        bin_pos3 = xyz[point_idx[2]] + np.array([0, 0, shift[bin_idx[2]]])
+
+        target = np.array([
+            xyz[point_idx[0]][0] + shift[bin_idx[0]],
+            xyz[point_idx[1]][1] + shift[bin_idx[1]],
+            xyz[point_idx[2]][2] + shift[bin_idx[2]]
+        ]
+        ).reshape(1, 3)
+        color_target = np.array([0, 0, 0]).reshape(1, 3)
+        origin1 = xyz[point_idx[0]]
+        origin2 = xyz[point_idx[1]]
+        origin3 = xyz[point_idx[2]]
+
+        # draw line between points with numpy
+        line1 = np.linspace(origin1, bin_pos1, num=100)
+        line2 = np.linspace(origin2, bin_pos2, num=100)
+        line3 = np.linspace(origin3, bin_pos3, num=100)
+
+        color_1 = np.repeat(np.array([1, 0, 0])[None, :], 100, axis=0)
+        color_2 = np.repeat(np.array([0, 1, 0])[None, :], 100, axis=0)
+        color_3 = np.repeat(np.array([0, 0, 1])[None, :], 100, axis=0)
+
+        xyz = np.concatenate([xyz, line1, line2, line3, target], 0)
+        rgb = np.concatenate([rgb, color_1, color_2, color_3, color_target], 0)
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(xyz)
+        pcd.colors = o3d.utility.Vector3dVector(rgb)
+        o3d.visualization.draw_geometries([pcd])
+
+        print('actions', actions)
+
+        ##########################
 
         # sigmoid
         new_actions = []

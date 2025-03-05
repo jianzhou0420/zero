@@ -270,17 +270,16 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                     disc_pos_prob = torch.softmax(
                         split_pred_pos[i].reshape(3, -1), dim=-1
                     )
-                    cont_pred_pos.append(
-                        get_best_pos_from_disc_pos(
-                            disc_pos_prob.data.cpu().numpy(),
-                            split_coords[i].data.cpu().numpy(),
-                            best=self.config.action_config.get('best_disc_pos', 'max'),
-                            topk=split_coords[i].size(1) * 10,
-                            pos_bin_size=self.config.action_config.pos_bin_size,
-                            pos_bins=self.config.action_config.pos_bins,
-                            # best='ens' , topk=1
-                        )
+                    pred_pos, for_visual = get_best_pos_from_disc_pos(
+                        disc_pos_prob.data.cpu().numpy(),
+                        split_coords[i].data.cpu().numpy(),
+                        best=self.config.action_config.get('best_disc_pos', 'max'),
+                        topk=split_coords[i].size(1) * 10,
+                        pos_bin_size=self.config.action_config.pos_bin_size,
+                        pos_bins=self.config.action_config.pos_bins,
+                        # best='ens' , topk=1
                     )
+                    cont_pred_pos.append(pred_pos)
                 cont_pred_pos = torch.from_numpy(np.array(cont_pred_pos)).float().to(device)
                 # print('time', time.time() - st)
                 pred_pos = cont_pred_pos
@@ -305,7 +304,7 @@ class SimplePolicyPTV3AdaNorm(BaseModel):
                     pred_rot = torch.from_numpy(pred_rot).to(device)
                 final_pred_actions = torch.cat([pred_pos, pred_rot, pred_open.unsqueeze(-1)], dim=-1)
 
-                return final_pred_actions
+                return final_pred_actions, for_visual
 
         else:  # if is_train
             losses = self.compute_loss(
