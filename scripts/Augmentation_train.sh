@@ -12,7 +12,7 @@ python  -m zero.expAugmentation.trainer_expbase \
         dataset augment\
         num_gpus 1 \
         epoches 1500 \
-        batch_size 4 \
+        batch_size 1 \
         TRAIN_DATASET.num_points 4096 \
         TRAIN_DATASET.pos_bins 75 \
         TRAIN_DATASET.pos_bin_size 0.001 \
@@ -23,7 +23,7 @@ python  -m zero.expAugmentation.trainer_expbase \
         MODEL.action_config.euler_resolution 1\
         tasks_to_use "$tasks_to_use" \
         TRAIN.n_workers 4\
-        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all \
+        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter \
         des "to see close_jar and insert at 0.005"\
         
         # horizon 1 \

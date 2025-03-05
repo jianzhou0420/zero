@@ -446,38 +446,6 @@ class SimplePolicyPTV3CA(SimplePolicyPTV3AdaNorm):
         return outs
 
 
-class SimplePolicyPTV3Concat(SimplePolicyPTV3AdaNorm):
-    """Adaptive batch/layer normalization conditioned on text/pose/stepid
-    """
-
-    def prepare_ptv3_batch(self, batch):
-        outs = {
-            'coord': batch['pc_fts'][:, :3],
-            'grid_size': self.config.action_config.voxel_size,
-            'offset': batch['offset'],
-            'batch': offset2batch(batch['offset']),
-            'feat': batch['pc_fts'],
-        }
-        # concatenate context for each point cloud
-        ctx_embeds = self.txt_fc(batch['txt_embeds'])
-
-        if self.config.action_config.use_ee_pose:
-            pose_embeds = self.pose_embedding(batch['ee_poses'])
-            ctx_embeds += pose_embeds
-
-        if self.config.action_config.use_step_id:
-            step_embeds = self.stepid_embedding(batch['step_ids'])
-            ctx_embeds += step_embeds
-
-        npoints_in_batch = torch.from_numpy(
-            np.array(batch['npoints_in_batch'])
-        ).to(outs['feat'].device)
-        ctx_embeds = torch.repeat_interleave(ctx_embeds, npoints_in_batch, 0)
-        outs['feat'] = torch.cat([batch['pc_fts'], ctx_embeds], -1)
-
-        return outs
-
-
 if __name__ == '__main__':
     from genrobo3d.configs.default import get_config
 

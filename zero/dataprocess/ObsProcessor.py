@@ -669,8 +669,8 @@ if __name__ == '__main__':
     config = build_args()
 
     op = ObsProcessLotus(config, selfgen=True)
-    tasks_to_use = ['insert_onto_square_peg']
-    op.dataset_preprocess_train_val_with_path(config.A_Selfgen, config.B_Preprocess, tasks_to_use=tasks_to_use)
+    # tasks_to_use = ['insert_onto_square_peg']
+    op.dataset_preprocess_train_val_with_path(config.A_Selfgen, config.B_Preprocess, tasks_to_use=None)
 
     '''
     python -m zero.dataprocess.ObsProcessor\
@@ -682,7 +682,7 @@ if __name__ == '__main__':
         MODEL.action_config.pos_bin_size 0.001 \
         MODEL.action_config.voxel_size 0.005 \
         B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter \
-        tasks_to_use "insert_onto_square_peg" \
+     
         
      
      # tasks_to_use "[meat_off_grill, sweep_to_dustpan_of_size, close_jar, push_buttons, light_bulb_in, insert_onto_square_peg, put_groceries_in_cupboard,place_shape_in_shape_sorter,stack_blocks]" \
