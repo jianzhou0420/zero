@@ -849,7 +849,7 @@ if __name__ == '__main__':
         MODEL.action_config.pos_bins 75\
         MODEL.action_config.pos_bin_size 0.001 \
         MODEL.action_config.voxel_size 0.01 \
-        A_Selfgen /media/jian/ssd4t/zero/1_Data/A_Selfgen/with_path_with_position\
+        A_Selfgen /datazero/1_Data/A_Selfgen/with_path_with_position\
         B_Preprocess /data/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions \
      
         

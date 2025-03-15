@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 
-example_joint_postion_path = '/media/jian/ssd4t/code/zero/1_Data/A_Selfgen/with_path_with_position/train/756636/close_jar_peract/variation0/episodes/episode0/positions_all.pkl'
+example_joint_postion_path = '/datacode/zero/1_Data/A_Selfgen/with_path_with_position/train/756636/close_jar_peract/variation0/episodes/episode0/positions_all.pkl'
 
 with open(example_joint_postion_path, 'rb') as f:
     data = pickle.load(f)

@@ -375,7 +375,7 @@ class LotusDatasetAugmentation(Dataset):
             test = einops.rearrange(test, 'h a -> a h')  # 现在channel是各个纬度的action
             outs['theta_positions'].append(torch.from_numpy(np.array(gt_theta_actions)).float())
         #     print(gt_theta_actions)
-        # with open('/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example.pkl', 'wb') as f:
+        # with open('/datazero/1_Data/C_Dataset_Example/example.pkl', 'wb') as f:
         #     pickle.dump(outs, f)
         return outs
 
@@ -465,7 +465,7 @@ if __name__ == '__main__':
     # break
     '''
      python  -m zero.expAugmentation.dataset.dataset_expbase_DP \
-            --exp-config /media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_Lotus.yaml \
+            --exp-config /datazero/zero/expAugmentation/config/expBase_Lotus.yaml \
             name EXP03_04_insert_close_jar_0.005\
             dataset augment\
             num_gpus 1 \
@@ -478,6 +478,6 @@ if __name__ == '__main__':
             MODEL.action_config.pos_bin_size 0.001 \
             MODEL.action_config.voxel_size 0.005\
             TRAIN.n_workers 4\
-            B_Preprocess /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all_with_path_with_positionactions/train \
+            B_Preprocess /datazero/1_Data/B_Preprocess/0.005all_with_path_with_positionactions/train \
             tasks_to_use close_jar \
     '''

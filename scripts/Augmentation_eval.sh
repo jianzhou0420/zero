@@ -5,7 +5,7 @@ tasks_to_use="insert_onto_square_peg"
 
 
 
-exp_dir=/media/jian/ssd4t/zero/2_Train/2025_03_04__server/version_0
+exp_dir=/datazero/2_Train/2025_03_04__server/version_0
 
 python -m zero.expAugmentation.eval_LongHorizon \
     --exp-config /data/zero/zero/expAugmentation/config/eval.yaml\
