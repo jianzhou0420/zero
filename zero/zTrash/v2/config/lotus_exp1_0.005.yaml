@@ -29,7 +29,7 @@ TRAIN:
   pin_mem: True
 
 #/data/
-#/data/code/
+#/data/
 
 TRAIN_DATASET:
   data_dir: '/data/selfgen/20250115/seed42/voxel0.005'

@@ -1,0 +1,98 @@
+
+B_Preprocess: /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all_with_path_with_positionactions
+horizon: 8
+unit_test: False
+
+Train:
+  name: test
+  tasks_to_use: "close_jar"
+  n_workers: 4
+  batch_size: 4
+  epochs: 1200
+  lr: 0.0001
+  pin_mem: True
+  num_gpus: 1
+
+TRAIN_DATASET:
+  # data_dir: '/data/selfgen/after_shock3'
+  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
+  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/data/zero/assets/taskvars_peract.json'
+  num_points: 4096
+  xyz_shift: center # none, center, gripper
+  xyz_norm: False
+  use_height: True
+
+  rot_type: euler_disc # quat, rot6d, euler, euler_delta, euler_disc
+  pos_type: disc # disc, cont
+  instr_embed_type: 'all' # last, all
+
+  rm_robot: box_keep_gripper  # none, gt, box, box_keep_gripper
+  augment_pc: True
+  aug_max_rot: 45
+  same_npoints_per_example: False
+  pos_bins: null
+  pos_bin_size: null
+  pos_heatmap_type: 'dist' # plain, dist
+  pos_heatmap_no_robot: True
+  real_robot: False
+  euler_resolution: 1
+  rm_table: True
+  rm_pc_outliers: False
+  rm_pc_outliers_neighbors: 25
+  sample_points_by_distance: False
+  variations_to_use: null
+
+FeatureaExtractor:
+  ptv3:
+    in_channels: 7
+    order: ["z", "z-trans", "hilbert", "hilbert-trans"]
+    stride: [2, 2, 2, 2]
+    enc_depths: [1, 1, 1, 1, 1]
+    enc_channels: [64, 128, 256, 512, 768]
+    enc_num_head: [2, 4, 8, 16, 32]
+    enc_patch_size: [128, 128, 128, 128, 128]
+    dec_depths: [1, 1, 1, 1]
+    dec_channels: [128, 128, 256, 512]
+    dec_num_head: [4, 4, 8, 16]
+    dec_patch_size: [128, 128, 128, 128]
+    mlp_ratio: 4
+    qkv_bias: True
+    qk_scale: null
+    qk_norm: True
+    scaled_cosine_attn: False
+    attn_drop: 0.1
+    proj_drop: 0.1
+    drop_path: 0
+    pre_norm: True
+    shuffle_orders: True
+    enable_rpe: False
+    enable_flash: False
+    upcast_attention: False
+    upcast_softmax: False
+    cls_mode: True ####这里改了
+    pdnorm_bn: False
+    pdnorm_ln: False
+    pdnorm_decouple: False
+    pdnorm_adaptive: False
+    pdnorm_affine: True
+    pdnorm_conditions: null
+    pdnorm_only_decoder: False
+    add_coords_in_attn: 'none' # none, qk, qkv
+
+ActionHead:
+  horizon: 8
+  action_dim: 8
+
+
+Dataset:
+  voxel_size: 0.005
+  txt_ft_size: 512
+  context_channels: 256
+  txt_reduce: 'attn' # mean, attn
+
+
+Tmp:
+  txt_ft_size: 512
+  context_channels: 256
+  txt_reduce: 'attn' # mean, attn

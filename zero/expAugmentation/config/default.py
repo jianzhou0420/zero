@@ -59,21 +59,26 @@ def get_config(
     return config
 
 
-def build_args():
+def build_args(path=None):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--exp-config",
         type=str,
-        required=True,
+        required=False,
         help="path to config yaml containing info about experiment",
+        default='/media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_Lotus.yaml',
     )
+
     parser.add_argument(
         "opts",
         default=None,
         nargs=argparse.REMAINDER,
         help="Modify config options from command line (use , to separate values in a list)",
     )
+
     args = parser.parse_args()
 
+    if path is not None:
+        args.exp_config = path
     config = get_config(args.exp_config, args.opts)
     return config

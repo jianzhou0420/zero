@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: exp4096 # Your training job name
+  name: expvoxelcenter # Your training job name
 spec:
   backoffLimit: 0   # add this line so --> If your pod failed, the training job will stop.
   template:
@@ -36,7 +36,7 @@ spec:
                         name EXP03_04_insert_close_jar_0.005\
                         dataset augment\
                         num_gpus 4 \
-                        epoches 1200 \
+                        epoches 1800 \
                         batch_size 4 \
                         TRAIN_DATASET.num_points 4096 \
                         TRAIN_DATASET.pos_bins 75 \
@@ -46,7 +46,7 @@ spec:
                         MODEL.action_config.voxel_size 0.005\
                         tasks_to_use "insert_onto_square_peg,close_jar,put_groceries_in_cupboard,meat_off_grill" \
                         TRAIN.n_workers 4\
-                        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all \
+                        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter   \
                         des "to see close_jar and insert at 0.005"\
                        
 

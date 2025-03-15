@@ -101,7 +101,7 @@ class TrainerLotus(pl.LightningModule):
 if __name__ == '__main__':
     def train():
         config = yacs.config.CfgNode(new_allowed=True)
-        config.merge_from_file('/data/code/zero/zero/v1/config/lotus.yaml')
+        config.merge_from_file('/data/zero/zero/v1/config/lotus.yaml')
 
         trainer_model = TrainerLotus(config)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
     def train_resume(checkpoint_path):
         config = yacs.config.CfgNode(new_allowed=True)
-        config.merge_from_file('/data/code/zero/zero/v1/config/lotus.yaml')
+        config.merge_from_file('/data/zero/zero/v1/config/lotus.yaml')
 
         trainer_model = TrainerLotus.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")

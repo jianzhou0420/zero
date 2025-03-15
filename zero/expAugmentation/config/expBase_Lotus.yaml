@@ -19,6 +19,9 @@ tasks_to_use: null
 dataset: null # origin, augment
 fp16: False
 des: null
+variations_to_use: null
+horizon: 8
+unit_test: False
 # endregion
 # ----------------------------------------
 
@@ -66,6 +69,7 @@ TRAIN_DATASET:
   rm_pc_outliers: False
   rm_pc_outliers_neighbors: 25
   sample_points_by_distance: False
+  variations_to_use: null
 
 # endregion
 # ----------------------------------------

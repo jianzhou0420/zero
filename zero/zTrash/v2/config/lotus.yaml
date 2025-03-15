@@ -30,7 +30,7 @@ TRAIN:
   pin_mem: True
 
 #/data/
-#/data/code/
+#/data/
 
 TRAIN_DATASET:
   data_dir: '/data/lotus/peract/train/keysteps_bbox_pcd/voxel1cm'

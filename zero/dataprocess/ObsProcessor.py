@@ -422,9 +422,149 @@ class ObsProcessLotus:
 
         return outs
 
+    def dataset_preprocess_single_episode_with_path_with_posactions(self, data, ee_pose_all, theta_actions_all, episode_path):
+        ''' 
+        receive data from selfgen_one_step, this function process single episode data
+        input = {
+            'key_frameids': [],
+            'rgb': [],  # (T, N, H, W, 3)
+            'pc': [],  # (T, N, H, W, 3)
+            'action': [],  # (T, A)
+            'bbox': [],  # [T of dict]
+            'pose': []  # [T of dict]
+        }
+
+        outs = {
+            'pc_fts': [], 
+            'step_ids': [],
+            'pc_centroids': [],
+            'pc_radius': [], 
+            'ee_poses': [],
+            'txt_embeds': [], 
+            'gt_actions': [],
+        }
+        '''
+        outs = {
+            'xyz': [],
+            'rgb': [],
+            'action_current': [],
+            'action_next': [],
+            'data_ids': [],
+            'arm_links_info': [],
+            'actions_path': [],
+            'theta_actions_path': [],
+        }
+
+        all_names = episode_path.split('/')
+        task_name = all_names[6]
+        variation_name = all_names[7].split('variation')[-1]
+        episode_name = all_names[9]
+        taskvar = f'{task_name}_peract+{variation_name}'
+        '''
+        1. remove outside workspace
+        2. remove table
+        3. voxelization
+        '''
+        gt_rots = self._get_groundtruth_rotations(data['action'][:, 3:7])
+        for t in range(len(data['key_frameids']) - 1):  # last frame dont train
+
+            # actions_all process
+            action_current = copy.deepcopy(data['action'][t])
+            action_next = copy.deepcopy(data['action'][t + 1])
+            action_current_frame_id = copy.deepcopy(data['key_frameids'][t])
+            action_next_frame_id = copy.deepcopy(data['key_frameids'][t + 1])
+            action_path = copy.deepcopy(ee_pose_all[action_current_frame_id:action_next_frame_id + 1])  # 需要包头包尾
+            theta_actions_path = copy.deepcopy(theta_actions_all[action_current_frame_id:action_next_frame_id + 1])  # 需要包头包尾
+            assert (action_path[0] == action_current).all(), f'{action_path[0]} != {action_current}'
+            assert (action_path[-1] == action_next).all(), f'{action_path[-1]} != {action_next}'
+            outs['actions_path'].append(action_path)
+            outs['theta_actions_path'].append(theta_actions_path)
+
+            del action_current, action_next, action_current_frame_id, action_next_frame_id
+            # 0.retrieve data
+            xyz = data['pc'][t].reshape(-1, 3)
+            rgb = data['rgb'][t].reshape(-1, 3)
+
+            arm_links_info = (data['bbox'][t], data['pose'][t])
+            action_current = copy.deepcopy(data['action'][t])
+            action_next = copy.deepcopy(data['action'][t + 1])
+
+            gt_rot = gt_rots[t]
+
+            # 1.remove ouside workspace
+            in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
+                      (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
+                      (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+
+            # 2. remove table
+            in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
+            xyz = xyz[in_mask]
+            rgb = rgb[in_mask]
+
+            # 4. remove robot
+            mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.config.TRAIN_DATASET.rm_robot)
+            xyz = xyz[mask]
+            rgb = rgb[mask]
+
+            # # 3. voxelization
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd, _, trace = pcd.voxel_down_sample_and_trace(
+            #     self.config.MODEL.action_config.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
+            # )
+            # xyz = np.asarray(pcd.points)
+            # trace = np.array([v[0] for v in trace])
+            # rgb = rgb[trace]
+            voxel_center_flag = False
+
+            if voxel_center_flag:
+                pcd = o3d.geometry.PointCloud()
+                pcd.points = o3d.utility.Vector3dVector(xyz)
+                pcd.colors = o3d.utility.Vector3dVector(rgb)
+
+                voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.config.MODEL.action_config.voxel_size)
+
+                points = []
+                colors = []
+                for voxel in voxel_grid.get_voxels():
+                    voxel_center = voxel_grid.origin + voxel.grid_index * voxel_grid.voxel_size + voxel_grid.voxel_size / 2
+                    points.append(voxel.grid_index)
+                    colors.append(voxel.color)
+                xyz = np.array(points, dtype=np.float32)
+                rgb = np.array(colors, dtype=np.float32)
+            else:
+                pcd = o3d.geometry.PointCloud()
+                pcd.points = o3d.utility.Vector3dVector(xyz)
+                pcd, _, trace = pcd.voxel_down_sample_and_trace(
+                    self.config.MODEL.action_config.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
+                )
+                xyz = np.asarray(pcd.points)
+                trace = np.array([v[0] for v in trace])
+                rgb = rgb[trace]
+
+            action_current = np.array(action_current, dtype=np.float32)
+            action_next = np.array(action_next, dtype=np.float32)
+            # arm_links_info = np.array(arm_links_info, dtype=np.float32)
+
+            outs['xyz'].append(xyz)
+            outs['rgb'].append(rgb)
+            outs['action_current'].append(action_current)
+            outs['action_next'].append(action_next)
+            outs['data_ids'].append(f'{task_name}-{variation_name}-{episode_name}-t{t}')
+            outs['arm_links_info'].append(arm_links_info)
+
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd.colors = o3d.utility.Vector3dVector((rgb + 1) / 2)
+
+            # o3d.visualization.draw_geometries([pcd])
+        return outs
+        pass
     # level 2
+
     def dataset_preprocess_with_path(self, origin_data_root, output_dir, tasks_to_use=None):
         tasks_list = self._retrieve_all_episodes(origin_data_root)  # 304706
+        print(tasks_list)
         total = sum([len(variation) for task in tasks_list for variation in task])    # nested sum
         pbar = tqdm(total=total)
         for task in tasks_list:
@@ -486,6 +626,46 @@ class ObsProcessLotus:
                         pickle.dump(new_data, f)
                     pbar.update(1)
 
+    def dataset_preprocess_with_path_with_posactions(self, origin_data_root, output_dir, tasks_to_use=None):
+        tasks_list = self._retrieve_all_episodes(origin_data_root)  # 304706
+        total = sum([len(variation) for task in tasks_list for variation in task])    # nested sum
+        pbar = tqdm(total=total)
+        for task in tasks_list:
+            # test = task[0][0].split('/')
+            task_name = task[0][0].split('/')[-5]
+            print(task_name)
+            print(tasks_to_use)
+            if tasks_to_use is not None and task_name not in tasks_to_use:
+                print(f'{task_name} not in tasks_to_use')
+                print('tasks_to_use:', tasks_to_use)
+                pbar.update(100)
+                continue
+            for variation in task:
+                for episode in variation:
+                    data_path = episode
+                    sub = data_path.split('/')
+                    export_path = os.path.join(output_dir, *sub[-5:])
+                    if os.path.exists(export_path):
+                        pbar.update(1)
+                        continue
+                    os.makedirs(os.path.dirname(export_path), exist_ok=True)
+                    with open(data_path, 'rb') as f:
+                        data = pickle.load(f)
+
+                    theta_actions_all = os.path.join('/'.join(data_path.split('/')[:-1]), 'positions_all.pkl')
+                    with open(theta_actions_all, 'rb') as f:
+                        theta_actions_all = pickle.load(f)
+
+                    ee_pose_all_path = os.path.join('/'.join(data_path.split('/')[:-1]), 'actions_all.pkl')
+                    with open(ee_pose_all_path, 'rb') as f:
+                        ee_pose_all = pickle.load(f)
+                    # print(rgb.shape, xyz.shape)
+                    new_data = self.dataset_preprocess_single_episode_with_path_with_posactions(data, ee_pose_all, theta_actions_all, episode)
+
+                    with open(export_path, 'wb') as f:
+                        pickle.dump(new_data, f)
+                    pbar.update(1)
+
     # level 3
     def dataset_preprocess_train_val(self, origin_data_root, output_dir, tasks_to_use=None):
         train_path = os.path.join(origin_data_root, 'train')
@@ -508,6 +688,17 @@ class ObsProcessLotus:
         os.makedirs(val_output_path, exist_ok=1)
         self.dataset_preprocess_with_path(train_path, train_output_path, tasks_to_use)
         self.dataset_preprocess_with_path(val_path, val_output_path, tasks_to_use)
+
+    def dataset_preprocess_train_val_with_path_with_posactions(self, origin_data_root, output_dir, tasks_to_use=None):
+        train_path = os.path.join(origin_data_root, 'train')
+        val_path = os.path.join(origin_data_root, 'val')
+        train_output_path = os.path.join(output_dir, 'train')
+        val_output_path = os.path.join(output_dir, 'val')
+
+        os.makedirs(train_output_path, exist_ok=1)
+        os.makedirs(val_output_path, exist_ok=1)
+        self.dataset_preprocess_with_path_with_posactions(train_path, train_output_path, tasks_to_use)
+        self.dataset_preprocess_with_path_with_posactions(val_path, val_output_path, tasks_to_use)
 
     def dataset_preprocess_edge_detection(self, origin_data_root, output_dir, tasks_to_use=None):
         tasks_list = self._retrieve_all_episodes(origin_data_root)
@@ -633,29 +824,11 @@ class ObsProcessLotus:
         gripper_rot = (rot * gripper_rot).as_quat()
         return gripper_rot
 
-    ##########################################
-    ##########     Functions   ###############
-    ##########################################
-
-    def inside_workspace(self, xyz, rgb):
-        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
-            (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
-            (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
-        return xyz[in_mask], rgb[in_mask]
-
     def visualize_pc(self, xyz, rgb):
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
         pcd.colors = o3d.utility.Vector3dVector(rgb)
         o3d.visualization.draw_geometries([pcd])
-
-    def remove_table(self, xyz, rgb):
-        in_mask = xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT']
-        return xyz[in_mask], rgb[in_mask]
-
-    def remove_robot(self, xyz, rgb):
-        mask = self._get_mask_with_robot_box(xyz, self.rm_robot_type)
-        return xyz[mask], rgb[mask]
 
 
 if __name__ == '__main__':
@@ -665,7 +838,7 @@ if __name__ == '__main__':
 
     op = ObsProcessLotus(config, selfgen=True)
     # tasks_to_use = ['insert_onto_square_peg']
-    op.dataset_preprocess_train_val_with_path(config.A_Selfgen, config.B_Preprocess, tasks_to_use=None)
+    op.dataset_preprocess_train_val_with_path_with_posactions(config.A_Selfgen, config.B_Preprocess, tasks_to_use=None)
 
     '''
     python -m zero.dataprocess.ObsProcessor\
@@ -676,7 +849,8 @@ if __name__ == '__main__':
         MODEL.action_config.pos_bins 75\
         MODEL.action_config.pos_bin_size 0.001 \
         MODEL.action_config.voxel_size 0.005 \
-        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter \
+        A_Selfgen /media/jian/ssd4t/zero/1_Data/A_Selfgen/with_path_with_position\
+        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_with_positionactions \
      
         
      
