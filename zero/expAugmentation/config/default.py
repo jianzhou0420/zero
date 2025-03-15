@@ -66,7 +66,7 @@ def build_args(path=None):
         type=str,
         required=False,
         help="path to config yaml containing info about experiment",
-        default='/datazero/zero/expAugmentation/config/expBase_Lotus.yaml',
+        default='/data/zero/zero/expAugmentation/config/expBase_Lotus.yaml',
     )
 
     parser.add_argument(

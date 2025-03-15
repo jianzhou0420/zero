@@ -1,5 +1,5 @@
 
-B_Preprocess: /datazero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions
+B_Preprocess: /data/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions
 horizon: 8
 unit_test: False
 

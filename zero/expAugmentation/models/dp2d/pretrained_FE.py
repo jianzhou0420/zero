@@ -214,10 +214,10 @@ class TestPolicy(BasePolicy):
 
 def test():
     import pickle
-    config_path = '/datazero/zero/expAugmentation/config/DP.yaml'
+    config_path = '/data/zero/zero/expAugmentation/config/DP.yaml'
     config = build_args(config_path)
     policy = TestPolicy(config)
-    example_data = '/datazero/1_Data/C_Dataset_Example/example.pkl'
+    example_data = '/data/zero/1_Data/C_Dataset_Example/example.pkl'
     with open(example_data, 'rb') as f:
         data = pickle.load(f)
     lotus_batch = ptv3_collate_fn([data])
