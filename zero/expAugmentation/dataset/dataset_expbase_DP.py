@@ -1,15 +1,6 @@
+import einops
 import pickle
 import re
-# from ..models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
-# from ..models.lotus.utils.robot_box import RobotBox
-# from ..models.lotus.utils.rotation_transform import (
-#     RotationMatrixTransform, quaternion_to_discrete_euler
-# )
-# from ..config.constants import (
-#     get_rlbench_labels, get_robot_workspace
-# )
-
-from ..models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 from ..models.lotus.utils.robot_box import RobotBox
 from ..models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
@@ -17,10 +8,7 @@ from ..models.lotus.utils.rotation_transform import (
 from ..config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
-
-
 from scipy.spatial.transform import Rotation as R
-from sklearn.neighbors import LocalOutlierFactor
 from torch.utils.data import Dataset
 import torch
 import os
@@ -28,11 +16,6 @@ import numpy as np
 import json
 import copy
 import random
-from scipy.special import softmax
-import open3d as o3d
-
-# import open3d as o3d
-import tap
 
 
 def random_rotate_z(pc, angle=None):
@@ -91,15 +74,13 @@ class LotusDatasetAugmentation(Dataset):
         rot_type='quat', instr_embed_type='last',
         rm_robot='none', augment_pc=False,
         euler_resolution=5,
-        pos_type='cont', pos_bins=50, pos_bin_size=0.01,
-        pos_heatmap_type='plain', pos_heatmap_no_robot=False,
         aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, data_dir=None,
         **kwargs
     ):
         # 0. Parameters
         assert instr_embed_type in ['last', 'all']
         assert xyz_shift in ['none', 'center', 'gripper']
-        assert pos_type in ['cont', 'disc']
+
         assert rot_type in ['quat', 'rot6d', 'euler', 'euler_delta', 'euler_disc']
         assert rm_robot in ['none', 'gt', 'box', 'box_keep_gripper']
 
@@ -114,16 +95,9 @@ class LotusDatasetAugmentation(Dataset):
         self.use_height = use_height
 
         # augment & action head
-        self.rot_type = rot_type
         self.augment_pc = augment_pc
         self.aug_max_rot = np.deg2rad(aug_max_rot)
         self.euler_resolution = euler_resolution
-
-        self.pos_type = pos_type
-        self.pos_bins = pos_bins
-        self.pos_bin_size = pos_bin_size
-        self.pos_heatmap_type = pos_heatmap_type
-        self.pos_heatmap_no_robot = pos_heatmap_no_robot
 
         # 0.1. Load some pheripheral information
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
@@ -308,8 +282,6 @@ class LotusDatasetAugmentation(Dataset):
             sub_keyframe_dection_mode = 'avg'
             assert sub_keyframe_dection_mode in ['avg', 'xyzpeak']
 
-            # path process
-
             # end of path processs
             data_ids = data['data_ids'][t]
             xyz = copy.deepcopy(data['xyz'][t])
@@ -327,8 +299,6 @@ class LotusDatasetAugmentation(Dataset):
             for i in range(len(gt_theta_actions)):
                 gt_theta_actions[i] = np.append(gt_theta_actions[i], gt_actions[i][-1])
 
-            arm_links_info = copy.deepcopy(data['arm_links_info'][t])
-
             xyz, rgb = data['xyz'][t], data['rgb'][t]
 
             # randomly select one instruction
@@ -337,31 +307,20 @@ class LotusDatasetAugmentation(Dataset):
 
             # 5. downsample point cloud
             # sampling points
-            if self.config.unit_test == False:
-                if len(xyz) > self.num_points:  # 如果不要它，直接num_points=10000000
-                    tmp_flag = True  # TODO： remove tmp_flag
-                    point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
-                else:
-                    tmp_flag = False
-                    max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
-                    point_idxs = np.random.permutation(len(xyz))[:max_npoints]
 
-                xyz = xyz[point_idxs]
-                rgb = rgb[point_idxs]
+            if len(xyz) > self.num_points:  # 如果不要它，直接num_points=10000000
+                tmp_flag = True  # TODO： remove tmp_flag
+                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
+            else:
+                tmp_flag = False
+                max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
+                point_idxs = np.random.permutation(len(xyz))[:max_npoints]
+
+            xyz = xyz[point_idxs]
+            rgb = rgb[point_idxs]
 
             height = xyz[:, -1] - self.TABLE_HEIGHT
             # print(f"After downsample xyz: {xyz.shape}")
-
-            if self.pos_heatmap_no_robot:
-                robot_box = RobotBox(
-                    arm_links_info=arm_links_info,
-                    env_name='rlbench', selfgen=True
-                )
-                robot_point_idxs = np.array(
-                    list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])
-                )
-            else:
-                robot_point_idxs = None
 
             # 6. point cloud augmentation
             if self.config.unit_test is False:
@@ -412,6 +371,8 @@ class LotusDatasetAugmentation(Dataset):
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
             outs['gt_actions'].append(torch.from_numpy(gt_actions).float())
             outs['step_ids'].append(t)
+            test = torch.from_numpy(np.array(gt_theta_actions)).float()
+            test = einops.rearrange(test, 'h a -> a h')  # 现在channel是各个纬度的action
             outs['theta_positions'].append(torch.from_numpy(np.array(gt_theta_actions)).float())
         #     print(gt_theta_actions)
         # with open('/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example.pkl', 'wb') as f:

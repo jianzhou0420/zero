@@ -69,9 +69,8 @@ class TrainerLotus(pl.LightningModule):
 
     def configure_optimizers(self):
         # 1. default optimizer
-        optimizer = torch.optim.Adam(self.policy.parameters(), lr=1e-3)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-5)
-        return [optimizer], [scheduler]
+        optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.config.Train.lr)
+        return optimizer
 
 
 # endregion
@@ -84,10 +83,6 @@ class MyDataModule(pl.LightningDataModule):
         super().__init__()
         self.config = config
 
-    def prepare_data(self):
-        # Download or preprocess data if necessary
-        pass
-
     def setup(self, stage=None):
         train_data_path = os.path.join(self.config.B_Preprocess, 'train')
         val_data_path = os.path.join(self.config.B_Preprocess, 'val')
@@ -99,7 +94,7 @@ class MyDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         batch_size = self.config.Train.batch_size
-        sampler = DistributedSampler(self.train_dataset, shuffle=False) if self.config.Train.num_gpus > 1 else None
+        sampler = DistributedSampler(self.train_dataset, shuffle=self.config.Train.shuffle,) if self.config.Train.num_gpus > 1 else None
 
         print(f"batch_size: {batch_size}")
         loader = DataLoader(
@@ -111,7 +106,7 @@ class MyDataModule(pl.LightningDataModule):
             sampler=sampler,
             drop_last=False,
             prefetch_factor=2 if self.config.Train.n_workers > 0 else None,
-            shuffle=False,
+            shuffle=self.config.Train.shuffle,
             persistent_workers=True
         )
         return loader
@@ -128,7 +123,7 @@ class MyDataModule(pl.LightningDataModule):
             sampler=sampler,
             drop_last=False,
             prefetch_factor=2 if self.config.Train.n_workers > 0 else None,
-            shuffle=False,
+            shuffle=self.config.Train.shuffle,
             persistent_workers=True
         )
         return loader
@@ -162,11 +157,12 @@ def train(config: yacs.config.CfgNode):
     log_name = ckpt_name
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=100,
+        every_n_epochs=200,
         save_top_k=-1,
         save_last=False,
         filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
     )
+
     csvlogger1 = CSVLogger(
         save_dir=log_path,
         name=log_name,

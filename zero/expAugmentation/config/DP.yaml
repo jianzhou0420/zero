@@ -1,5 +1,5 @@
 
-B_Preprocess: /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.005all_with_path_with_positionactions
+B_Preprocess: /media/jian/ssd4t/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions
 horizon: 8
 unit_test: False
 
@@ -8,10 +8,11 @@ Train:
   tasks_to_use: "close_jar"
   n_workers: 4
   batch_size: 4
-  epochs: 1200
-  lr: 0.0001
+  epochs: 6000
+  lr: 0.001
   pin_mem: True
   num_gpus: 1
+  shuffle: True
 
 TRAIN_DATASET:
   # data_dir: '/data/selfgen/after_shock3'
@@ -44,18 +45,16 @@ TRAIN_DATASET:
   variations_to_use: null
 
 FeatureaExtractor:
+
+  pool: 'max' # max, mean
   ptv3:
     in_channels: 7
     order: ["z", "z-trans", "hilbert", "hilbert-trans"]
     stride: [2, 2, 2, 2]
     enc_depths: [1, 1, 1, 1, 1]
-    enc_channels: [64, 128, 256, 512, 768]
+    enc_channels: [64, 64, 128, 256, 256] 
     enc_num_head: [2, 4, 8, 16, 32]
     enc_patch_size: [128, 128, 128, 128, 128]
-    dec_depths: [1, 1, 1, 1]
-    dec_channels: [128, 128, 256, 512]
-    dec_num_head: [4, 4, 8, 16]
-    dec_patch_size: [128, 128, 128, 128]
     mlp_ratio: 4
     qkv_bias: True
     qk_scale: null
@@ -83,6 +82,9 @@ FeatureaExtractor:
 ActionHead:
   horizon: 8
   action_dim: 8
+  global_cond_dim: 256 #与
+  diffusion_step_embed_dim: 256
+
 
 
 Dataset:
