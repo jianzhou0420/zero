@@ -4,24 +4,17 @@ import open3d as o3d
 import numpy as np
 import torch
 from zero.expBaseV5.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
-from rlbench.tasks import *
 import einops
-from rlbench.demo import Demo
+# from rlbench.demo import Demo
 from multiprocessing import Process, Manager, Semaphore
 
-from rlbench.action_modes.action_mode import MoveArmThenGripper
-from rlbench.action_modes.arm_action_modes import JointVelocity
-from rlbench.action_modes.gripper_action_modes import Discrete
-from rlbench.backend.utils import task_file_to_task_class
-from rlbench.environment import Environment
-import rlbench.backend.task as task
+
 from tqdm import tqdm
 import os
 import pickle
 import json
 from PIL import Image
-from rlbench.backend import utils
-from rlbench.backend.const import *
+
 import numpy as np
 import random
 import collections
@@ -145,8 +138,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
         :param obs: incoming obs
         :return: required observation (rgb, depth, pc, gripper state)
         """
-        assert self.train_flag and isinstance(input, Demo)
-        assert not self.train_flag and isinstance(input, dict)
 
         key_frames = keypoint_discovery(input)
         key_frames.insert(0, 0)
