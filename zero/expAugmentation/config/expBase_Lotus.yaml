@@ -46,7 +46,7 @@ TRAIN_DATASET:
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
-  num_points: null
+  num_points: 4096
   xyz_shift: center # none, center, gripper
   xyz_norm: False
   use_height: True
@@ -59,8 +59,8 @@ TRAIN_DATASET:
   augment_pc: True
   aug_max_rot: 45
   same_npoints_per_example: False
-  pos_bins: null
-  pos_bin_size: null
+  pos_bins: 15
+  pos_bin_size: 0.01 
   pos_heatmap_type: 'dist' # plain, dist
   pos_heatmap_no_robot: True
   real_robot: False

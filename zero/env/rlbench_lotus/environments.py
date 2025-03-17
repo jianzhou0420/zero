@@ -1,3 +1,4 @@
+from rlbench.action_modes.arm_action_modes import JointPosition
 from typing import List, Dict, Optional, Sequence, Tuple, TypedDict, Union, Any
 import os
 from pathlib import Path
@@ -123,6 +124,7 @@ class RLBenchEnv(object):
         gripper_pose=None,
         image_size=[128, 128],
         cam_rand_factor=0.0,
+        action_mode=None,
     ):
 
         # setup required inputs
@@ -140,10 +142,19 @@ class RLBenchEnv(object):
         self.obs_config = self.create_obs_config(
             apply_rgb, apply_depth, apply_pc, apply_mask, apply_cameras, image_size,
         )
-        self.action_mode = MoveArmThenGripper(
-            arm_action_mode=EndEffectorPoseViaPlanning(collision_checking=False),
-            gripper_action_mode=Discrete(),
-        )
+
+        if action_mode == "ee_pose":
+            self.action_mode = MoveArmThenGripper(
+                arm_action_mode=EndEffectorPoseViaPlanning(collision_checking=False),
+                gripper_action_mode=Discrete(),
+            )
+        elif action_mode == "theta_position":
+            print("Using theta position action mode")
+            self.action_mode = MoveArmThenGripper(
+                arm_action_mode=JointPosition(),
+                gripper_action_mode=Discrete(),
+            )
+
         self.env = Environment(
             self.action_mode, str(data_path), self.obs_config, headless=headless
         )

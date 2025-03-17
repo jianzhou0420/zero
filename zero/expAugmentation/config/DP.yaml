@@ -6,8 +6,8 @@ unit_test: False
 Train:
   name: test
   tasks_to_use: "close_jar"
-  n_workers: 4
-  batch_size: 4
+  n_workers: 1
+  batch_size: 1
   epochs: 6000
   lr: 0.001
   pin_mem: True
@@ -15,7 +15,7 @@ Train:
   shuffle: True
 
 TRAIN_DATASET:
-  # data_dir: '/data/selfgen/after_shock3'
+  data_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions'
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
@@ -43,6 +43,8 @@ TRAIN_DATASET:
   rm_pc_outliers_neighbors: 25
   sample_points_by_distance: False
   variations_to_use: null
+  tasks_to_use: "close_jar"
+
 
 FeatureaExtractor:
 

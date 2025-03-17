@@ -149,14 +149,15 @@ class ActionHead(BaseActionHead):
 
         model = self.model
         scheduler = self.noise_scheduler
-        trajectory = torch.randn(action_shape)
+        trajectory = torch.randn(action_shape).unsqueeze(0).to('cuda')
 
         # set step values
         scheduler.set_timesteps(self.num_inference_steps)
 
         for t in scheduler.timesteps:
-
-            model_output = model(trajectory, t, local_cond=None, global_cond=cond)
+            timestep = torch.tensor([t]).long().unsqueeze(0).to('cuda')
+            # cond = cond.squeeze(0)
+            model_output = model(trajectory, timestep, local_cond=None, global_cond=cond)
 
             trajectory = scheduler.step(model_output, t, trajectory,).prev_sample
 
@@ -206,7 +207,9 @@ class TestPolicy(BasePolicy):
         loss = self.ActionHead.train_one_step(batch['theta_positions'], features)
         return loss
 
-    def inference_one_sample(self, cond):
+    def inference_one_sample(self, batch):
+        ptv3_batch = self.FeatureExtractor.prepare_ptv3_batch(batch)
+        cond = self.FeatureExtractor(ptv3_batch)
         return self.ActionHead.inference_one_sample(cond)
 
 # endregion

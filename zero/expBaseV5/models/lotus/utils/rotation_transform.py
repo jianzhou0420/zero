@@ -6,7 +6,7 @@ import numpy as np
 
 class RotationMatrixTransform():
     # https://github.com/papagina/RotationContinuity/blob/758b0ce551c06372cab7022d4c0bdf331c89c696/shapenet/code/tools.py
-    
+
     @staticmethod
     def normalize_vector(v):
         '''
@@ -17,7 +17,7 @@ class RotationMatrixTransform():
         '''
         device = v.device
         batch = v.shape[0]
-        v_mag = torch.sqrt(v.pow(2).sum(1))# batch
+        v_mag = torch.sqrt(v.pow(2).sum(1))  # batch
         v_mag = torch.max(v_mag, torch.autograd.Variable(torch.FloatTensor([1e-8]).to(device)))
         v_mag = v_mag.view(batch, 1).expand(batch, v.shape[1])
         v = v / v_mag
@@ -36,8 +36,8 @@ class RotationMatrixTransform():
         i = u[:, 1] * v[:, 2] - u[:, 2] * v[:, 1]
         j = u[:, 2] * v[:, 0] - u[:, 0] * v[:, 2]
         k = u[:, 0] * v[:, 1] - u[:, 1] * v[:, 0]
-            
-        out = torch.cat((i.view(batch, 1), j.view(batch, 1), k.view(batch, 1)), 1)    
+
+        out = torch.cat((i.view(batch, 1), j.view(batch, 1), k.view(batch, 1)), 1)
         return out
 
     @staticmethod
@@ -50,17 +50,17 @@ class RotationMatrixTransform():
         '''
         x_raw = poses[:, 0:3]    # (batch, 3)
         y_raw = poses[:, 3:6]    # (batch, 3)
-            
-        x = RotationMatrixTransform.normalize_vector(x_raw) # (batch, 3)
-        z = RotationMatrixTransform.cross_product(x, y_raw) # (batch, 3)
+
+        x = RotationMatrixTransform.normalize_vector(x_raw)  # (batch, 3)
+        z = RotationMatrixTransform.cross_product(x, y_raw)  # (batch, 3)
         z = RotationMatrixTransform.normalize_vector(z)     # (batch, 3)
         y = RotationMatrixTransform.cross_product(z, x)     # (batch, 3)
-            
+
         x = x.view(-1, 3, 1)
         y = y.view(-1, 3, 1)
         z = z.view(-1, 3, 1)
-        
-        matrix = torch.cat((x, y, z), 2) # (batch, 3)
+
+        matrix = torch.cat((x, y, z), 2)  # (batch, 3)
         return matrix
 
     @staticmethod
@@ -105,19 +105,19 @@ class RotationMatrixTransform():
         if isinstance(mats, torch.Tensor):
             quats = torch.from_numpy(quats).to(mats.device)
         return quats
-    
+
     @staticmethod
     def quaternion_to_ortho6d(quats):
         return RotationMatrixTransform.get_ortho6d_from_rotation_matrix(
             RotationMatrixTransform.quaternion_to_matrix(quats)
         )
-    
+
     @staticmethod
     def ortho6d_to_quaternion(ortho6d):
         return RotationMatrixTransform.matrix_to_quaternion(
             RotationMatrixTransform.compute_rotation_matrix_from_ortho6d(ortho6d)
         )
-    
+
     @staticmethod
     def quaternion_to_euler(quats):
         '''
@@ -131,7 +131,7 @@ class RotationMatrixTransform():
         if isinstance(quats, torch.Tensor):
             eulers = torch.from_numpy(eulers).to(quats.device)
         return eulers
-    
+
     @staticmethod
     def euler_to_quaternion(eulers):
         '''
@@ -144,7 +144,7 @@ class RotationMatrixTransform():
         quats = np.stack(quats, 0)
         quats = torch.from_numpy(quats).to(eulers.device)
         return quats
-    
+
 
 ################# functions from RVT-2 #################
 
@@ -169,6 +169,7 @@ def sensitive_gimble_fix(euler):
 
     return euler
 
+
 def quaternion_to_discrete_euler(quaternion, resolution, gimble_fix=True):
     """
     :param gimble_fix: the euler values for x and y can be very sensitive
@@ -188,6 +189,7 @@ def quaternion_to_discrete_euler(quaternion, resolution, gimble_fix=True):
     disc = np.around((euler / resolution)).astype(int)
     disc[disc == int(360 / resolution)] = 0
     return disc
+
 
 def discrete_euler_to_quaternion(discrete_euler, resolution):
     euler = (discrete_euler * resolution) - 180

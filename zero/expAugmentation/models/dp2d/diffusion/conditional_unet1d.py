@@ -171,7 +171,11 @@ class ConditionalUnet1D(nn.Module):
         sample = einops.rearrange(sample, 'b h t -> b t h')
 
         # 0. timestep
-        timestep_feature = self.diffusion_step_encoder(timesteps).squeeze()
+        timestep_feature = self.diffusion_step_encoder(timesteps)
+        if len(timestep_feature.shape) == 3:
+            timestep_feature = timestep_feature.squeeze()
+        if len(timestep_feature.shape) == 1:
+            timestep_feature = timestep_feature.unsqueeze(1)
 
         if global_cond is not None:
             global_feature = torch.cat([

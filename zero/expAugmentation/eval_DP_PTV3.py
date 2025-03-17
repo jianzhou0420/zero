@@ -1,8 +1,10 @@
+from zero.expAugmentation.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expAugmentation.trainer_DP import TrainerDP
 import re
-from .config.default import build_args
+from zero.expAugmentation.config.default import build_args
 import yaml
 from typing import Tuple, Dict, List
-
+import einops
 import os
 import json
 import jsonlines
@@ -16,25 +18,22 @@ import torch
 import numpy as np
 from scipy.special import softmax
 from pyrep.errors import IKError, ConfigurationPathError
-import open3d as o3d
-from sklearn.neighbors import LocalOutlierFactor
-from scipy.spatial.transform import Rotation as R
-from .models.lotus.model_expbase import SimplePolicyPTV3CA
+
+import pickle
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
-from .config.default import get_config
-from .config.constants import get_robot_workspace, get_rlbench_labels
-from ..z_utils.robot_box import RobotBox
+from zero.expAugmentation.config.default import get_config
+from zero.expAugmentation.config.constants import get_robot_workspace, get_rlbench_labels
 import random
 from zero.env.rlbench_lotus.recorder import (
     TaskRecorder, StaticCameraMotion, CircleCameraMotion, AttachedCameraMotion
 )
-
 from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
-from .trainer_expbase import TrainerLotus
 
-# region: utils
+from zero.z_utils.theta_position import denormalize_theta_positions
+# ----------------------------------------------
+# region utils
 
 
 def task_file_to_task_class(task_file):
@@ -83,6 +82,9 @@ def natural_sort_key(s):
 
 # endregion
 
+# ----------------------------------------------
+# region Actioner
+
 
 class Actioner(object):
     def __init__(self, args) -> None:
@@ -97,219 +99,38 @@ class Actioner(object):
         with open(args.model_config_path, "r") as f:
             config = yaml.load(f, Loader=yaml.UnsafeLoader)
         self.config = config['config']
-        self.config.defrost()
 
-        if args.checkpoint is not None:
-            self.config.checkpoint = args.checkpoint
-        # config.pl_flag=False
-        if self.config.pl_flag:
-            model = TrainerLotus.load_from_checkpoint(checkpoint_path=self.config.checkpoint, config=self.config)
-            self.model = model.model
-        else:
-            self.model = SimplePolicyPTV3CA(self.config.MODEL)
-            if self.config.checkpoint:
-                checkpoint = torch.load(
-                    self.config.checkpoint, map_location=lambda storage, loc: storage
-                )
-                self.model.load_state_dict(checkpoint, strict=True)
-
+        model = TrainerDP.load_from_checkpoint(checkpoint_path=args.checkpoint, config=self.config)
+        self.model = model.policy
         self.model.to(self.device)
         self.model.eval()
 
-        self.config.freeze()
-
-        data_cfg = self.config.TRAIN_DATASET
-        self.data_cfg = data_cfg
-        self.instr_embeds = np.load(data_cfg.instr_embed_file, allow_pickle=True).item()
-        if data_cfg.instr_embed_type == 'last':
-            self.instr_embeds = {instr: embeds[-1:] for instr, embeds in self.instr_embeds.items()}
-        self.taskvar_instrs = json.load(open(data_cfg.taskvar_instr_file))
-
-        self.TABLE_HEIGHT = self.WORKSPACE['TABLE_HEIGHT']
-
-    def _get_mask_with_label_ids(self, sem, label_ids):
-        mask = sem == label_ids[0]
-        for label_id in label_ids[1:]:
-            mask = mask | (sem == label_id)
-        return mask
-
-    def _get_mask_with_robot_box(self, xyz, arm_links_info, rm_robot_type):
-        if rm_robot_type == 'box_keep_gripper':
-            keep_gripper = True
-        else:
-            keep_gripper = False
-        robot_box = RobotBox(
-            arm_links_info, keep_gripper=keep_gripper,
-            env_name='real' if self.args.real_robot else 'rlbench'
-        )
-        _, robot_point_ids = robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)
-        robot_point_ids = np.array(list(robot_point_ids))
-        mask = np.ones((xyz.shape[0], ), dtype=bool)
-        if len(robot_point_ids) > 0:
-            mask[robot_point_ids] = False
-        return mask
-
-    def process_point_clouds(
-        self, xyz, rgb, gt_sem=None, ee_pose=None, arm_links_info=None, taskvar=None
-    ):
-        # 1. In worksapce
-        xyz = xyz.reshape(-1, 3)
-        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
-                  (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
-                  (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
-        # 2. remove table points
-        if self.data_cfg.rm_table:
-            in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
-        xyz = xyz[in_mask]
-        rgb = rgb.reshape(-1, 3)[in_mask]
-        if gt_sem is not None:
-            gt_sem = gt_sem.reshape(-1)[in_mask]
-
-        # 3. voxelization
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd, _, trace = pcd.voxel_down_sample_and_trace(
-            self.config.MODEL.action_config.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
-        )
-        xyz = np.asarray(pcd.points)
-        trace = np.array([v[0] for v in trace])
-        rgb = rgb[trace]
-        if gt_sem is not None:
-            gt_sem = gt_sem[trace]
-
-        if self.args.real_robot:
-            for _ in range(1):
-                pcd = o3d.geometry.PointCloud()
-                pcd.points = o3d.utility.Vector3dVector(xyz)
-                pcd.colors = o3d.utility.Vector3dVector(rgb)
-                pcd, outlier_masks = pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=0.2)
-                xyz = xyz[outlier_masks]
-                rgb = rgb[outlier_masks]
-                if gt_sem is not None:
-                    gt_sem = gt_sem[outlier_masks]
-
-        # remove non-object points
-        if not self.args.real_robot:
-            rm_label_ids = get_rlbench_labels(
-                taskvar.split('+')[0], table=self.data_cfg.rm_table, robot=(self.data_cfg.rm_robot == 'gt'), wall=False, floor=False
-            )
-            if len(rm_label_ids) > 0:
-                rm_mask = self._get_mask_with_label_ids(gt_sem, rm_label_ids)
-                xyz = xyz[~rm_mask]
-                rgb = rgb[~rm_mask]
-
-        if self.data_cfg.rm_robot.startswith('box'):
-            mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.data_cfg.rm_robot)
-            xyz = xyz[mask]
-            rgb = rgb[mask]
-
-        if self.data_cfg.rm_pc_outliers:
-            xyz, rgb = self._rm_pc_outliers(xyz, rgb)
-
-        # sampling points
-        if len(xyz) > self.data_cfg.num_points:
-            if self.data_cfg.sample_points_by_distance:
-                dists = np.sqrt(np.sum((xyz - ee_pose[:3])**2, 1))
-                probs = 1 / np.maximum(dists, 0.1)
-                probs = np.maximum(softmax(probs), 1e-30)
-                probs = probs / sum(probs)
-                # probs = 1 / dists
-                # probs = probs / np.sum(probs)
-                point_idxs = np.random.choice(len(xyz), self.data_cfg.num_points, replace=False, p=probs)
-            else:
-                point_idxs = np.random.choice(len(xyz), self.data_cfg.num_points, replace=False)
-        else:
-            if self.data_cfg.same_npoints_per_example:
-                point_idxs = np.random.choice(xyz.shape[0], self.data_cfg.num_points, replace=True)
-            else:
-                point_idxs = np.arange(xyz.shape[0])
-            # 5. downsample point cloud
-        # if len(xyz) > self.data_cfg.num_points:
-        #     point_idxs = np.random.choice(len(xyz), self.data_cfg.num_points, replace=False)
-        #     xyz = xyz[point_idxs]
-        #     rgb = rgb[point_idxs]
-
-        # max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
-        # point_idxs = np.random.permutation(len(xyz))[:max_npoints]
-
-        xyz = xyz[point_idxs]
-        rgb = rgb[point_idxs]
-        height = xyz[:, -1] - self.TABLE_HEIGHT
-
-        # normalize
-        if self.data_cfg.xyz_shift == 'none':
-            centroid = np.zeros((3, ))
-        elif self.data_cfg.xyz_shift == 'center':
-            centroid = np.mean(xyz, 0)
-        elif self.data_cfg.xyz_shift == 'gripper':
-            centroid = copy.deepcopy(ee_pose[:3])
-        if self.data_cfg.xyz_norm:
-            radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
-        else:
-            radius = 1
-
-        xyz = (xyz - centroid) / radius
-        height = height / radius
-        ee_pose[:3] = (ee_pose[:3] - centroid) / radius
-
-        rgb = (rgb / 255.) * 2 - 1
-        pc_ft = np.concatenate([xyz, rgb], 1)
-        if self.data_cfg.get('use_height', False):
-            pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
-
-        return pc_ft, centroid, radius, ee_pose
+        self.obs_processor = ObsProcessorPtv3(self.config, train_flag=False)
+        self.collect_fn = self.obs_processor.get_collect_function()
 
     def preprocess_obs(self, taskvar, step_id, obs):
-        rgb = np.stack(obs['rgb'], 0)  # (N, H, W, C)
-        xyz = np.stack(obs['pc'], 0)  # (N, H, W, C)
-        if 'gt_mask' in obs:
-            gt_sem = np.stack(obs['gt_mask'], 0)  # (N, H, W)
-        else:
-            gt_sem = None
-
-        # select one instruction
-        instr = self.taskvar_instrs[taskvar][0]
-        instr_embed = self.instr_embeds[instr]
-
-        pc_ft, pc_centroid, pc_radius, ee_pose = self.process_point_clouds(
-            xyz, rgb, gt_sem=gt_sem, ee_pose=copy.deepcopy(obs['gripper']),
-            arm_links_info=obs['arm_links_info'], taskvar=taskvar
-        )
-
-        batch = {
-            'pc_fts': torch.from_numpy(pc_ft).float(),
-            'pc_centroids': pc_centroid,
-            'pc_radius': pc_radius,
-            'ee_poses': torch.from_numpy(ee_pose).float().unsqueeze(0),
-            'step_ids': torch.LongTensor([step_id]),
-            'txt_embeds': torch.from_numpy(instr_embed).float(),
-            'txt_lens': [instr_embed.shape[0]],
-            'npoints_in_batch': [pc_ft.shape[0]],
-            'offset': torch.LongTensor([pc_ft.shape[0]]),
-        }
-        if self.config.MODEL.model_class == 'SimplePolicyPCT':
-            batch['pc_fts'] = batch['pc_fts'].unsqueeze(0)
-            batch['txt_masks'] = torch.from_numpy(
-                gen_seq_masks(batch['txt_lens'])
-            ).bool()
-            batch['txt_embeds'] = batch['txt_embeds'].unsqueeze(0)
-
-        # for k, v in batch.items():
-        #     if k not in ['pc_centroids', 'pc_radius', 'npoints_in_batch']:
-        #         print(k, v.size())
+        # with open('/data/zero/1_Data/C_Dataset_Example/example_obs.pkl', 'wb') as f:
+        #     pickle.dump(obs, f)
+        # raise NotImplementedError
+        obs_raw = self.obs_processor.obs_2_obs_raw(obs)
+        obs_static = self.obs_processor.static_process(obs_raw)
+        obs_dynamic = self.obs_processor.dynamic_process(obs_static, taskvar)
+        batch = self.collect_fn(obs_dynamic)
+        for item in batch:
+            if isinstance(batch[item], torch.Tensor):
+                batch[item] = batch[item].to(self.device)
         return batch
 
     def predict(
         self, task_str=None, variation=None, step_id=None, obs_state_dict=None,
         episode_id=None, instructions=None,
     ):
+
         # print(obs_state_dict)
         taskvar = f'{task_str}+{variation}'
         batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
-
         with torch.no_grad():
-            actions, for_visual = self.model(batch)  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
-            actions = actions.data.cpu()
+            actions = self.model.inference_one_sample(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
             # actions analysis
             if type(actions) == list:
                 actions = torch.stack(actions, 0)
@@ -322,62 +143,11 @@ class Actioner(object):
             assert len(actions.shape) == 2
             assert actions.shape[1] == 8
 
-        # visual
-
-        pc_fts = batch['pc_fts']
-        xyz = pc_fts[:, :3].cpu().numpy()
-        rgb = (pc_fts[:, 3:6].cpu().numpy() + 1) / 2
-        point_idx = for_visual[0]
-        bin_idx = for_visual[1]
-        shift = np.arange(-75, 75) * 0.001
-        bin_pos1 = xyz[point_idx[0]] + np.array([shift[bin_idx[0]], 0, 0])
-        bin_pos2 = xyz[point_idx[1]] + np.array([0, shift[bin_idx[1]], 0])
-        bin_pos3 = xyz[point_idx[2]] + np.array([0, 0, shift[bin_idx[2]]])
-
-        target = np.array([
-            xyz[point_idx[0]][0] + shift[bin_idx[0]],
-            xyz[point_idx[1]][1] + shift[bin_idx[1]],
-            xyz[point_idx[2]][2] + shift[bin_idx[2]]
-        ]
-        ).reshape(1, 3)
-        color_target = np.array([0, 0, 0]).reshape(1, 3)
-        origin1 = xyz[point_idx[0]]
-        origin2 = xyz[point_idx[1]]
-        origin3 = xyz[point_idx[2]]
-
-        # draw line between points with numpy
-        line1 = np.linspace(origin1, bin_pos1, num=100)
-        line2 = np.linspace(origin2, bin_pos2, num=100)
-        line3 = np.linspace(origin3, bin_pos3, num=100)
-
-        color_1 = np.repeat(np.array([1, 0, 0])[None, :], 100, axis=0)
-        color_2 = np.repeat(np.array([0, 1, 0])[None, :], 100, axis=0)
-        color_3 = np.repeat(np.array([0, 0, 1])[None, :], 100, axis=0)
-
-        xyz = np.concatenate([xyz, line1, line2, line3, target], 0)
-        rgb = np.concatenate([rgb, color_1, color_2, color_3, color_target], 0)
-
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd.colors = o3d.utility.Vector3dVector(rgb)
-        o3d.visualization.draw_geometries([pcd])
-
-        print('actions', actions)
-
-        ##########################
-
         # sigmoid
+        actions = einops.rearrange(actions, 'a h -> h a')  # theta_positions, horizon --> horizon, theta_positions
         new_actions = []
         for i, action in enumerate(actions):
-            action[-1] = torch.sigmoid(action[-1]) > 0.5
-
-            # action = action.data.cpu().numpy()
-            action = action.numpy()
-            action[:3] = action[:3] * batch['pc_radius'] + batch['pc_centroids']
-
-            # TODO: ensure the action height is above the table
-            action[2] = max(action[2], self.TABLE_HEIGHT + 0.005)
-
+            action = denormalize_theta_positions(action)
             new_actions.append(action)
         actions = np.stack(new_actions, 0)
 
@@ -394,8 +164,13 @@ class Actioner(object):
                     'action': action
                 }
             )
-
         return out
+
+# endregion
+# ----------------------------------------------
+# region MultiProcess
+
+# region consumer
 
 
 def consumer_fn(args, batch_queue, result_queues):
@@ -414,6 +189,8 @@ def consumer_fn(args, batch_queue, result_queues):
         k_prod, batch = data
         out = actioner.predict(**batch)
         result_queues[k_prod].put(out)
+# endregion
+# region producer
 
 
 def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_queue, producer_queue):
@@ -437,6 +214,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
         headless=args.headless,
         image_size=args.image_size,
         cam_rand_factor=0,
+        action_mode='theta_position',
     )
 
     env.env.launch()
@@ -519,7 +297,7 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
                 'task_str': task_str,
                 'variation': variation,
                 'step_id': step_id,
-                'obs_state_dict': obs_state_dict,
+                'obs_state_dict': obs,
                 'episode_id': demo_id,
                 'instructions': instructions,
             }
@@ -535,8 +313,6 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
             for action in actions:
                 try:
                     obs, reward, terminate, _ = move(action, verbose=False)
-                    obs_state_dict = env.get_observation(obs)  # type: ignore
-
                     if reward == 1:
                         success_rate += 1 / num_demos
                         break
@@ -571,6 +347,8 @@ def producer_fn(proc_id, k_res, args, taskvar, pred_file, batch_queue, result_qu
     env.env.shutdown()
     print(colored(f'Taskvar: {taskvar} SR: {success_rate:.2f}', 'black', 'on_yellow'))
     producer_queue.put((proc_id, k_res))
+# endregion
+# region main
 
 
 def main():
@@ -581,7 +359,7 @@ def main():
 
     '''
     mp.set_start_method('spawn')
-    eval_config = build_args()
+    eval_config = build_args('/media/jian/ssd4t/zero/zero/expAugmentation/config/eval.yaml')
     eval_config.defrost()
 
     exp_dir = eval_config.exp_dir
@@ -667,6 +445,8 @@ def main():
 
     batch_queue.put(None)
     consumer.join()
+    # endregion
+# endregion
 
 
 if __name__ == '__main__':

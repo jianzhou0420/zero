@@ -1,6 +1,6 @@
 
 
-exp_dir: null
+exp_dir: /media/jian/ssd4t/zero/2_Train/DP/a_firsttry/version_0
 version: null
 epoch: null
 device: 'cuda'  # cpu, cuda
@@ -37,4 +37,4 @@ name: null
 checkpoint: null
 tasks_to_use: null
 
-headless: True
+headless: False

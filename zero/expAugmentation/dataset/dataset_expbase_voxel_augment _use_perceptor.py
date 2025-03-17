@@ -1,14 +1,26 @@
-import einops
 import pickle
 import re
-from ..models.lotus.utils.robot_box import RobotBox
-from ..models.lotus.utils.rotation_transform import (
+# from ..models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+# from ..models.lotus.utils.robot_box import RobotBox
+# from ..models.lotus.utils.rotation_transform import (
+#     RotationMatrixTransform, quaternion_to_discrete_euler
+# )
+# from ..config.constants import (
+#     get_rlbench_labels, get_robot_workspace
+# )
+
+from zero.expBaseV5.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.expBaseV5.models.lotus.utils.robot_box import RobotBox
+from zero.expBaseV5.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
-from ..config.constants import (
+from zero.expBaseV5.config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
+
+
 from scipy.spatial.transform import Rotation as R
+from sklearn.neighbors import LocalOutlierFactor
 from torch.utils.data import Dataset
 import torch
 import os
@@ -16,6 +28,10 @@ import numpy as np
 import json
 import copy
 import random
+from scipy.special import softmax
+from zero.expAugmentation.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+
+# region utils
 
 
 def random_rotate_z(pc, angle=None):
@@ -66,6 +82,10 @@ def gen_seq_masks(seq_lens, max_len=None):
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
+# endregion
+
+# region dataset
+
 
 class LotusDatasetAugmentation(Dataset):
     def __init__(
@@ -74,13 +94,15 @@ class LotusDatasetAugmentation(Dataset):
         rot_type='quat', instr_embed_type='last',
         rm_robot='none', augment_pc=False,
         euler_resolution=5,
+        pos_type='cont', pos_bins=50, pos_bin_size=0.01,
+        pos_heatmap_type='plain', pos_heatmap_no_robot=False,
         aug_max_rot=45, real_robot=False, tasks_to_use=None, config=None, data_dir=None,
         **kwargs
     ):
         # 0. Parameters
         assert instr_embed_type in ['last', 'all']
         assert xyz_shift in ['none', 'center', 'gripper']
-
+        assert pos_type in ['cont', 'disc']
         assert rot_type in ['quat', 'rot6d', 'euler', 'euler_delta', 'euler_disc']
         assert rm_robot in ['none', 'gt', 'box', 'box_keep_gripper']
 
@@ -95,9 +117,16 @@ class LotusDatasetAugmentation(Dataset):
         self.use_height = use_height
 
         # augment & action head
+        self.rot_type = rot_type
         self.augment_pc = augment_pc
         self.aug_max_rot = np.deg2rad(aug_max_rot)
         self.euler_resolution = euler_resolution
+
+        self.pos_type = pos_type
+        self.pos_bins = pos_bins
+        self.pos_bin_size = pos_bin_size
+        self.pos_heatmap_type = pos_heatmap_type
+        self.pos_heatmap_no_robot = pos_heatmap_no_robot
 
         # 0.1. Load some pheripheral information
         self.TABLE_HEIGHT = get_robot_workspace(real_robot=real_robot)['TABLE_HEIGHT']
@@ -110,16 +139,10 @@ class LotusDatasetAugmentation(Dataset):
         if instr_embed_type == 'last':
             self.instr_embeds = {instr: embeds[-1:] for instr, embeds in self.instr_embeds.items()}
 
-        self.variations_to_use = self.config.TRAIN_DATASET.variations_to_use
-
         tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
         if tasks_to_use is not None:
             tasks_all = [task for task in tasks_all if task in tasks_to_use]
-        if len(tasks_all) == 1:
-            can_use_variation_flag = True
-        else:
-            can_use_variation_flag = False
-        print(f"tasks_all: {tasks_all}")
+            print(f"tasks_all: {tasks_all}")
 
         # 1. episodes-wise list
         self.g_episode_to_taskvar = []  # Which taskvar is each episode
@@ -130,11 +153,6 @@ class LotusDatasetAugmentation(Dataset):
             task_folder_path = os.path.join(data_dir, task_name)
             variation_list = sorted(os.listdir(task_folder_path), key=natural_sort_key)
             for variation_folder in variation_list:
-
-                if can_use_variation_flag == True and self.variations_to_use is not None:
-                    if int(variation_folder.split('variation')[-1]) not in self.variations_to_use:
-                        print(f"Skip {variation_folder}")
-                        continue
                 l_episode = 0
                 variation_folder_path = os.path.join(task_folder_path, variation_folder, 'episodes')
                 episodes_list = sorted(os.listdir(variation_folder_path), key=natural_sort_key)
@@ -170,14 +188,21 @@ class LotusDatasetAugmentation(Dataset):
         for i in range(len(self.g_episode_to_path)):
             self.check_cache(i)
 
+        # perceptor
+        self.ptv3_perceptor = ObsProcessorPtv3(config)
+
     def check_cache(self, g_episode):
+
         if self.cache.get(g_episode) is None:
+
             episode_path = self.g_episode_to_path[g_episode]
             with open(os.path.join(episode_path, 'data.pkl'), 'rb') as f:
                 data = pickle.load(f)
+
             if len(self.cache) >= self.max_cache_length:
                 first_key = next(iter(self.cache))
                 self.cache.pop(first_key)
+
             self.cache[g_episode] = data
             return data
         else:
@@ -209,27 +234,32 @@ class LotusDatasetAugmentation(Dataset):
         # rotate around z-axis
         angle = np.random.uniform(-1, 1) * aug_max_rot
         xyz = random_rotate_z(xyz, angle=angle)
-
         action_current[:3] = random_rotate_z(action_current[:3], angle=angle)
         action_current[3:-1] = self._rotate_gripper(action_current[3:-1], angle)
 
-        new_action_next = []
-        for i, action in enumerate(action_next):
-            action[:3] = random_rotate_z(action[:3], angle=angle)
-            action[3:-1] = self._rotate_gripper(action[3:-1], angle)
-            new_action_next.append(action)
-        action_next = np.stack(new_action_next, 0)
+        action_next[:3] = random_rotate_z(action_next[:3], angle=angle)
+        action_next[3:-1] = self._rotate_gripper(action_next[3:-1], angle)
 
-        gt_rot = []
-        for action in action_next:
-            gt_rot.append(quaternion_to_discrete_euler(action[3:-1], self.euler_resolution))
-        gt_rot = np.stack(gt_rot, 0)
+        if self.rot_type == 'quat':
+            gt_rot = action_next[3:-1]
+        elif self.rot_type == 'euler':
+            gt_rot = self.rotation_transform.quaternion_to_euler(
+                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy() / 180.
+        elif self.rot_type == 'euler_disc':
+            gt_rot = quaternion_to_discrete_euler(action_next[3:-1], self.euler_resolution)
+        elif self.rot_type == 'rot6d':
+            gt_rot = self.rotation_transform.quaternion_to_ortho6d(
+                torch.from_numpy(action_next[3:-1][None, :]))[0].numpy()
 
         # add small noises (+-2mm)
         # pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
         # xyz = pc_noises + xyz
 
         return xyz, action_current, action_next, gt_rot
+
+    def __exit__(self):
+        for lmdb_env in self.lmdb_envs.values():
+            lmdb_env.close()
 
     def __len__(self):
 
@@ -239,15 +269,11 @@ class LotusDatasetAugmentation(Dataset):
         # 0. get single frame
         return self.get_entire_episode(g_episode)
 
-    def _find_gt_actions(self, actions_path, theta_actions_path, sub_keyframe_dection_mode='avg'):
-        if sub_keyframe_dection_mode == 'avg':
-
-            indices = np.linspace(0, len(actions_path) - 1, self.config.horizon + 1).astype(int)[1:]  # 我为什么这里减1了？ 哦index从0开始
-            gt_actions = [actions_path[i] for i in indices]
-            gt_theta_actions = [theta_actions_path[i] for i in indices]
-            return gt_actions, gt_theta_actions
-        elif sub_keyframe_dection_mode == 'xyzpeak':
-            NotImplementedError("XYZPEAK")
+    def new_dataset(self, g_episode):
+        taskvar = self.g_episode_to_taskvar[g_episode]
+        data = self.check_cache(g_episode)
+        outs = self.ptv3_perceptor.dynamic_process(data, taskvar)
+        return outs
 
     def get_entire_episode(self, g_episode):
         '''
@@ -262,8 +288,7 @@ class LotusDatasetAugmentation(Dataset):
             'ee_poses': [],
             'txt_embeds': [],
             'gt_actions': [],
-            'disc_pos_probs': [],
-            'theta_positions': []
+            'disc_pos_probs': []
         }
 
         # 0.1 identify the frame info and output info
@@ -271,29 +296,17 @@ class LotusDatasetAugmentation(Dataset):
         # print(f"taskvar: {taskvar}")
         # 0.2 get data of specific frame
         data = self.check_cache(g_episode)
+
         num_frames = len(data['data_ids'])
 
         # 1.get specific frame data
         for t in range(num_frames):
-            sub_keyframe_dection_mode = 'avg'
-            assert sub_keyframe_dection_mode in ['avg', 'xyzpeak']
-
-            # end of path processs
             data_ids = data['data_ids'][t]
             xyz = copy.deepcopy(data['xyz'][t])
             rgb = copy.deepcopy(data['rgb'][t])
             ee_pose = copy.deepcopy(data['action_current'][t])
-            action_next = copy.deepcopy(data['action_next'][t])
-            action_path = copy.deepcopy(data['actions_path'][t])
-            theta_actions_path = copy.deepcopy(data['theta_actions_path'][t])
-            gt_actions, gt_theta_actions = self._find_gt_actions(action_path, theta_actions_path, sub_keyframe_dection_mode)
-            # assert (gt_actions[0] == ee_pose).all()
-            assert (gt_actions[-1] == action_next).all()
-            assert len(gt_actions) == self.config.horizon
-
-            # append open to theta_actions
-            for i in range(len(gt_theta_actions)):
-                gt_theta_actions[i] = np.append(gt_theta_actions[i], gt_actions[i][-1])
+            gt_action = copy.deepcopy(data['action_next'][t])
+            arm_links_info = copy.deepcopy(data['arm_links_info'][t])
 
             xyz, rgb = data['xyz'][t], data['rgb'][t]
 
@@ -302,37 +315,33 @@ class LotusDatasetAugmentation(Dataset):
             instr_embed = copy.deepcopy(self.instr_embeds[instr])
 
             # 5. downsample point cloud
-            # sampling points
-
-            if len(xyz) > self.num_points:  # 如果不要它，直接num_points=10000000
-                tmp_flag = True  # TODO： remove tmp_flag
+            if len(xyz) > self.num_points:
                 point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
-            else:
-                tmp_flag = False
-                max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
-                point_idxs = np.random.permutation(len(xyz))[:max_npoints]
-
+                xyz = xyz[point_idxs]
+                rgb = rgb[point_idxs]
+            max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
+            point_idxs = np.random.permutation(len(xyz))[:max_npoints]
             xyz = xyz[point_idxs]
             rgb = rgb[point_idxs]
-
             height = xyz[:, -1] - self.TABLE_HEIGHT
             # print(f"After downsample xyz: {xyz.shape}")
 
-            # 6. point cloud augmentation
-            if self.config.unit_test is False:
-                if self.augment_pc:
-                    xyz, ee_pose, gt_actions, gt_rot = self._augment_pc(
-                        xyz, ee_pose, gt_actions, self.aug_max_rot
-                    )
-                if tmp_flag:
-                    pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
-                    xyz = pc_noises + xyz
+            if self.pos_heatmap_no_robot:
+                robot_box = RobotBox(
+                    arm_links_info=arm_links_info,
+                    env_name='rlbench', selfgen=True
+                )
+                robot_point_idxs = np.array(
+                    list(robot_box.get_pc_overlap_ratio(xyz=xyz, return_indices=True)[1])
+                )
             else:
-                gt_rot = []
-                for action in gt_actions:
-                    gt_rot.append(quaternion_to_discrete_euler(action[3:-1], self.euler_resolution))
-                gt_rot = np.stack(gt_rot, 0)
-                gt_actions = np.stack(gt_actions, 0)
+                robot_point_idxs = None
+
+            # 6. point cloud augmentation
+            if self.augment_pc:
+                xyz, ee_pose, gt_action, gt_rot = self._augment_pc(
+                    xyz, ee_pose, gt_action, self.aug_max_rot
+                )
 
             # 7. normalize point cloud
             if self.xyz_shift == 'none':
@@ -348,32 +357,39 @@ class LotusDatasetAugmentation(Dataset):
 
             xyz = (xyz - centroid) / radius
             height = height / radius
-            gt_actions[:, :3] = (gt_actions[:, :3] - centroid) / radius
+            gt_action[:3] = (gt_action[:3] - centroid) / radius
             ee_pose[:3] = (ee_pose[:3] - centroid) / radius
             outs['pc_centroids'].append(centroid)
             outs['pc_radius'].append(radius)
 
-            gt_actions = np.concatenate([gt_actions[:, :3], gt_rot, gt_actions[:, -1:]], 1)
+            gt_action = np.concatenate([gt_action[:3], gt_rot, gt_action[-1:]], 0)
 
             rgb = (rgb / 255.) * 2 - 1
             pc_ft = np.concatenate([xyz, rgb], 1)
             if self.use_height:
                 pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
 
+            if self.pos_type == 'disc':
+                # (npoints, 3, 100)
+                disc_pos_prob = get_disc_gt_pos_prob(
+                    xyz, gt_action[:3], pos_bins=self.pos_bins,
+                    pos_bin_size=self.pos_bin_size,
+                    heatmap_type=self.pos_heatmap_type,
+                    robot_point_idxs=robot_point_idxs
+                )
+                outs['disc_pos_probs'].append(torch.from_numpy(disc_pos_prob))
+
             # print(f"{taskvar}: {xyz.shape}")
             outs['data_ids'].append(data_ids)
             outs['pc_fts'].append(torch.from_numpy(pc_ft).float())
             outs['txt_embeds'].append(torch.from_numpy(instr_embed).float())
             outs['ee_poses'].append(torch.from_numpy(ee_pose).float())
-            outs['gt_actions'].append(torch.from_numpy(gt_actions).float())
+            outs['gt_actions'].append(torch.from_numpy(gt_action).float())
             outs['step_ids'].append(t)
-            test = torch.from_numpy(np.array(gt_theta_actions)).float()
-            test = einops.rearrange(test, 'h a -> a h')  # 现在channel是各个纬度的action
-            outs['theta_positions'].append(torch.from_numpy(np.array(test)).float())
-        #     print(gt_theta_actions)
-        # with open('/data/zero/1_Data/C_Dataset_Example/example.pkl', 'wb') as f:
-        #     pickle.dump(outs, f)
+            # break
         return outs
+# endregion
+# region methods
 
 
 def base_collate_fn(data):
@@ -411,7 +427,7 @@ def ptv3_collate_fn(data):
     batch['offset'] = torch.cumsum(torch.LongTensor(npoints_in_batch), dim=0)
     batch['pc_fts'] = torch.cat(batch['pc_fts'], 0)  # (#all points, 6)
 
-    for key in ['ee_poses', 'gt_actions', 'theta_positions']:
+    for key in ['ee_poses', 'gt_actions']:
         batch[key] = torch.stack(batch[key], 0)
 
     # if 'disc_pos_probs' in batch:
@@ -426,16 +442,18 @@ def ptv3_collate_fn(data):
         batch['pc_centroids'] = np.stack(batch['pc_centroids'], 0)
 
     return batch
+# endregion
 
 
 if __name__ == '__main__':
     import argparse
     import yacs.config
     from tqdm import trange
-    from ..config.default import build_args
+    from zero.expBaseV5.config.default import build_args
     config = build_args()
 
-    dataset = LotusDatasetAugmentation(config=config, is_single_frame=False, tasks_to_use=config.tasks_to_use, data_dir=config.B_Preprocess, **config.TRAIN_DATASET)
+    train_data_path = os.path.join(config.B_Preprocess, 'train')
+    dataset = LotusDatasetAugmentation(config=config, tasks_to_use=config.tasks_to_use, data_dir=train_data_path, **config.TRAIN_DATASET)
 
     # all_data = []
     # for i in trange(len(dataset)):
@@ -455,12 +473,19 @@ if __name__ == '__main__':
     #         xyz_all.append(single_xyz)
     #         single_xyz = []
 
+    # with open('/data/zero/assets/peract_tasks.json', 'r') as f:
+    #     tasks = json.load(f)
+
+    # for i in range(18):
+
+    #     single_frame = dataset[i * 100]
+
+    #     print(f"task: {single_frame['data_ids'][0].split('-')[1]:<35}", single_frame['pc_fts'][0].shape[0])
+    # dataset[i]、
     print(f"len(dataset): {len(dataset)}")
-    test = dataset[0]
-    # dataset[i]
     # break
     '''
-     python  -m zero.expAugmentation.dataset.dataset_expbase_DP \
+     python  -m zero.expAugmentation.dataset.dataset_expbase_voxel_augment \
             --exp-config /data/zero/zero/expAugmentation/config/expBase_Lotus.yaml \
             name EXP03_04_insert_close_jar_0.005\
             dataset augment\
@@ -474,6 +499,6 @@ if __name__ == '__main__':
             MODEL.action_config.pos_bin_size 0.001 \
             MODEL.action_config.voxel_size 0.005\
             TRAIN.n_workers 4\
-            B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_with_positionactions/train \
-            tasks_to_use close_jar \
+            B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter \
+            des "to see close_jar and insert at 0.005"\
     '''

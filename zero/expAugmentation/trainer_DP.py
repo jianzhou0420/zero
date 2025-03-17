@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 
 # zero package
 from zero.expAugmentation.config.default import get_config, build_args
-from zero.expAugmentation.dataset.dataset_expbase_DP import LotusDatasetAugmentation, ptv3_collate_fn
+from zero.expAugmentation.dataset.dataset_DP_use_obsprocessor import Dataset_DP_PTV3
 from zero.expAugmentation.models.dp2d.ptv3_DP1d_policy import TestPolicy
 from zero.z_utils import *
 
@@ -36,18 +36,6 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
-class WarmupCosineScheduler(torch.optim.lr_scheduler.LambdaLR):
-    def __init__(self, optimizer, warmup_steps, total_steps, min_lr=1e-5, num_cycles=0.5):
-        def lr_lambda(current_step):
-            if current_step < warmup_steps:
-                # Linear warmup
-                return current_step / warmup_steps
-            # Cosine annealing
-            progress = float(current_step - warmup_steps) / float(max(1, total_steps - warmup_steps))
-            cosine_decay = 0.5 * (1 + math.cos(math.pi * float(num_cycles) * 2.0 * progress))
-            return max(min_lr, cosine_decay)
-
-        super().__init__(optimizer, lr_lambda)
 # endregion
 # ---------------------------------------------------------------
 
@@ -55,7 +43,7 @@ class WarmupCosineScheduler(torch.optim.lr_scheduler.LambdaLR):
 # region 1. Trainer
 
 
-class TrainerLotus(pl.LightningModule):
+class TrainerDP(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.save_hyperparameters()
@@ -86,8 +74,8 @@ class MyDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         train_data_path = os.path.join(self.config.B_Preprocess, 'train')
         val_data_path = os.path.join(self.config.B_Preprocess, 'val')
-        train_dataset = LotusDatasetAugmentation(config=self.config, tasks_to_use=self.config.Train.tasks_to_use, data_dir=train_data_path, **self.config.TRAIN_DATASET)
-        val_dataset = LotusDatasetAugmentation(config=self.config, tasks_to_use=self.config.Train.tasks_to_use, data_dir=val_data_path, **self.config.TRAIN_DATASET)
+        train_dataset = Dataset_DP_PTV3(self.config, data_dir=train_data_path)
+        val_dataset = Dataset_DP_PTV3(self.config, data_dir=val_data_path)
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         print(f"Train dataset size: {len(train_dataset)}, Val dataset size: {len(val_dataset)}")
@@ -102,7 +90,7 @@ class MyDataModule(pl.LightningDataModule):
             batch_size=batch_size,
             num_workers=self.config.Train.n_workers,
             pin_memory=self.config.Train.pin_mem,
-            collate_fn=ptv3_collate_fn,
+            collate_fn=self.train_dataset.obs_processor.get_collect_function(),
             sampler=sampler,
             drop_last=False,
             prefetch_factor=2 if self.config.Train.n_workers > 0 else None,
@@ -119,7 +107,7 @@ class MyDataModule(pl.LightningDataModule):
             batch_size=batch_size,
             num_workers=self.config.Train.n_workers,
             pin_memory=self.config.Train.pin_mem,
-            collate_fn=ptv3_collate_fn,
+            collate_fn=self.val_dataset.obs_processor.get_collect_function(),
             sampler=sampler,
             drop_last=False,
             prefetch_factor=2 if self.config.Train.n_workers > 0 else None,
@@ -180,7 +168,7 @@ def train(config: yacs.config.CfgNode):
                          use_distributed_sampler=False,
                          )
     config.freeze()
-    trainer_model = TrainerLotus(config)
+    trainer_model = TrainerDP(config)
     data_module = MyDataModule(config)
     trainer.fit(trainer_model, datamodule=data_module)
     # print(profiler.key_averages().table(max_len=200))

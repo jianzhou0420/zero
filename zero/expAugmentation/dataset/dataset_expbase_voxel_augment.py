@@ -29,10 +29,7 @@ import json
 import copy
 import random
 from scipy.special import softmax
-import open3d as o3d
-
-# import open3d as o3d
-import tap
+from zero.expAugmentation.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
 
 # region utils
 
@@ -269,6 +266,16 @@ class LotusDatasetAugmentation(Dataset):
         # 0. get single frame
         return self.get_entire_episode(g_episode)
 
+    def new_dataset(self, g_episode):
+        taskvar = self.g_episode_to_taskvar[g_episode]
+        # print(f"taskvar: {taskvar}")
+        # 0.2 get data of specific frame
+        data = self.check_cache(g_episode)
+
+        num_frames = len(data['data_ids'])
+
+        outs = None
+
     def get_entire_episode(self, g_episode):
         '''
         主要就做augmentation的工作
@@ -290,6 +297,7 @@ class LotusDatasetAugmentation(Dataset):
         # print(f"taskvar: {taskvar}")
         # 0.2 get data of specific frame
         data = self.check_cache(g_episode)
+
         num_frames = len(data['data_ids'])
 
         # 1.get specific frame data
@@ -474,9 +482,9 @@ if __name__ == '__main__':
     #     single_frame = dataset[i * 100]
 
     #     print(f"task: {single_frame['data_ids'][0].split('-')[1]:<35}", single_frame['pc_fts'][0].shape[0])
-        # dataset[i]、
+    # dataset[i]、
     print(f"len(dataset): {len(dataset)}")
-        # break
+    # break
     '''
      python  -m zero.expAugmentation.dataset.dataset_expbase_voxel_augment \
             --exp-config /data/zero/zero/expAugmentation/config/expBase_Lotus.yaml \
