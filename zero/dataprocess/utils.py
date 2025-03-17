@@ -1,5 +1,8 @@
 from zero.expBaseV5.models.lotus.utils.robot_box import RobotBox
-from rlbench.demo import Demo
+try:
+    from rlbench.demo import Demo
+except:
+    pass
 from typing import List, Dict, Optional, Sequence, Tuple, TypedDict, Union, Any
 from typing import List, Tuple
 
