@@ -9,12 +9,12 @@ import re
 #     get_rlbench_labels, get_robot_workspace
 # )
 
-from zero.expBaseV5.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
-from zero.expBaseV5.models.lotus.utils.robot_box import RobotBox
-from zero.expBaseV5.models.lotus.utils.rotation_transform import (
+from zero.expAugmentation.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.expAugmentation.models.lotus.utils.robot_box import RobotBox
+from zero.expAugmentation.models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
-from zero.expBaseV5.config.constants import (
+from zero.expAugmentation.config.constants import (
     get_rlbench_labels, get_robot_workspace
 )
 
@@ -449,7 +449,7 @@ if __name__ == '__main__':
     import argparse
     import yacs.config
     from tqdm import trange
-    from zero.expBaseV5.config.default import build_args
+    from zero.expAugmentation.config.default import build_args
     config = build_args()
 
     train_data_path = os.path.join(config.B_Preprocess, 'train')

@@ -53,10 +53,12 @@ FeatureaExtractor:
     in_channels: 7
     order: ["z", "z-trans", "hilbert", "hilbert-trans"]
     stride: [2, 2, 2, 2]
-    enc_depths: [1, 1, 1, 1, 1]
-    enc_channels: [64, 64, 128, 256, 256] 
-    enc_num_head: [2, 4, 8, 16, 32]
-    enc_patch_size: [128, 128, 128, 128, 128]
+
+    # encode 
+    enc_depths: [1, 1, 1, 1]
+    enc_channels: [64,128,128,256]
+    enc_num_head: [2, 4, 8, 16]
+    enc_patch_size: [128, 128, 128, 128]
     mlp_ratio: 4
     qkv_bias: True
     qk_scale: null
@@ -90,7 +92,7 @@ ActionHead:
 
 
 Dataset:
-  voxel_size: 0.005
+  voxel_size: 0.01
   txt_ft_size: 512
   context_channels: 256
   txt_reduce: 'attn' # mean, attn

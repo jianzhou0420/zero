@@ -16,7 +16,7 @@ class BaseActionHead(nn.Module):
         super().__init__()
         pass
 
-    def train_one_step(self,):
+    def forward(self,):  # train_one_step
         loss = NotImplementedError, 'need to be implemented'
         return loss
 
@@ -40,10 +40,10 @@ class BasePolicy(nn.Module):
         self.ActionHead = BaseActionHead()
         self.FeatureExtractor = BaseFeatureExtractor()
 
-    def train_one_step(self, batch):
+    def forward(self, batch):
         example_data = batch['data']
         features = self.FeatureExtractor(example_data)
-        loss = self.ActionHead.train_one_step(features,)
+        loss = self.ActionHead.forward(features,)
         return loss
 
     def inference_one_sample(self, batch):

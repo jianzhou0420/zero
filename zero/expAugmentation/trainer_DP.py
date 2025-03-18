@@ -10,7 +10,7 @@ import pytorch_lightning as pl
 # zero package
 from zero.expAugmentation.config.default import get_config, build_args
 from zero.expAugmentation.dataset.dataset_DP_use_obsprocessor import Dataset_DP_PTV3
-from zero.expAugmentation.models.dp2d.ptv3_DP1d_policy import TestPolicy
+from zero.expAugmentation.models.dp2d.ptv3_DP1d_policy import PolicyPtv3DP1d
 from zero.z_utils import *
 
 # helper package
@@ -48,10 +48,10 @@ class TrainerDP(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.config = config
-        self.policy = TestPolicy(config)
+        self.policy = PolicyPtv3DP1d(config)
 
     def training_step(self, batch, batch_idx):
-        loss = self.policy.train_one_step(batch)
+        loss = self.policy.forward(batch)
         self.log('train_loss', loss)
         return loss
 

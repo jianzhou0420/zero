@@ -3,7 +3,7 @@ import copy
 import open3d as o3d
 import numpy as np
 import torch
-from zero.expBaseV5.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
+from zero.expAugmentation.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
 import einops
 # from rlbench.demo import Demo
 from multiprocessing import Process, Manager, Semaphore
@@ -19,7 +19,7 @@ import numpy as np
 import random
 import collections
 
-from zero.expBaseV5.models.lotus.utils.robot_box import RobotBox
+from zero.expAugmentation.models.lotus.utils.robot_box import RobotBox
 import numpy as np
 
 from zero.z_utils.theta_position import normalize_theta_positions
@@ -27,7 +27,7 @@ import json
 from scipy.spatial.transform import Rotation as R
 
 from zero.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
-from zero.expBaseV5.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.expAugmentation.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 # --------------------------------------------------------------
 # region utils
 
@@ -133,18 +133,18 @@ class ObsProcessorPtv3(ObsProcessorBase):
         }
         return obs_raw
 
-    def demo_2_obs_raw(self, input):
+    def demo_2_obs_raw(self, demo):
         """Fetch the desired state based on the provided demo.
         :param obs: incoming obs
         :return: required observation (rgb, depth, pc, gripper state)
         """
 
-        key_frames = keypoint_discovery(input)
+        key_frames = keypoint_discovery(demo)
         key_frames.insert(0, 0)
 
         state_dict_ls = collections.defaultdict(list)
         for f in key_frames:
-            state_dict = self.obs2dict(input._observations[f])
+            state_dict = self.obs2dict(demo._observations[f])
             for k, v in state_dict.items():
                 if len(v) > 0:
                     # rgb: (N: num_of_cameras, H, W, C); gripper: (7+1, )
@@ -160,7 +160,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
         gripper_pose = []
         for key_frameid in key_frames:
-            gripper_pose.append(input[key_frameid].gripper_pose)
+            gripper_pose.append(demo[key_frameid].gripper_pose)
 
         # get bbox and poses of each link
         bbox = []
@@ -168,7 +168,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
         for key_frameid in key_frames:
             single_bbox = dict()
             single_pose = dict()
-            for key, value in input[key_frameid].misc.items():
+            for key, value in demo[key_frameid].misc.items():
                 if key.split('_')[-1] == 'bbox':
                     single_bbox[key.split('_bbox')[0]] = value
                 if key.split('_')[-1] == 'pose':
@@ -180,7 +180,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
         # get positions_all
         actions = []
         positions = []
-        for obs in input._observations:
+        for obs in demo._observations:
             action = np.concatenate([obs.gripper_pose, [obs.gripper_open]]).astype(np.float32)
             position = obs.joint_positions
             actions.append(action)

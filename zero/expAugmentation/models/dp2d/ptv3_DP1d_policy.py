@@ -8,7 +8,7 @@ from zero.expAugmentation.models.dp2d.PointTransformerV3.model import (
 )
 from zero.expAugmentation.models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
 from zero.expAugmentation.config.default import build_args
-from zero.expAugmentation.models.dp2d.base_policy import BaseActionHead, BaseFeatureExtractor, BasePolicy
+from zero.expAugmentation.models.Base.BaseAll import BaseActionHead, BaseFeatureExtractor, BasePolicy
 import numpy as np
 
 # 先不要参数化
@@ -116,7 +116,7 @@ class FeatureExtractor(BaseFeatureExtractor):
 # region 2. ActionHead
 
 
-class ActionHead(BaseActionHead):
+class ActionHeadDP1d(BaseActionHead):
     def __init__(self, config):
         super().__init__()
 
@@ -164,7 +164,7 @@ class ActionHead(BaseActionHead):
         return trajectory
 
     # training
-    def train_one_step(self, actions, cond):
+    def forward(self, actions, cond):
         '''
         action: [batch, horizon, action_dim]
         cond: [batch, feat_dim]
@@ -193,18 +193,18 @@ class ActionHead(BaseActionHead):
 # region 3. Policy
 
 
-class TestPolicy(BasePolicy):
+class PolicyPtv3DP1d(BasePolicy):
     def __init__(self, config):
         super().__init__()
-        self.ActionHead = ActionHead(config)
+        self.ActionHead = ActionHeadDP1d(config)
         self.FeatureExtractor = FeatureExtractor(config)
 
         self.config = config
 
-    def train_one_step(self, batch):
+    def forward(self, batch):
         ptv3_batch = self.FeatureExtractor.prepare_ptv3_batch(batch)
         features = self.FeatureExtractor(ptv3_batch)
-        loss = self.ActionHead.train_one_step(batch['theta_positions'], features)
+        loss = self.ActionHead.forward(batch['theta_positions'], features)
         return loss
 
     def inference_one_sample(self, batch):
@@ -219,7 +219,7 @@ def test():
     import pickle
     config_path = '/data/zero/zero/expAugmentation/config/DP.yaml'
     config = build_args(config_path)
-    policy = TestPolicy(config)
+    policy = PolicyPtv3DP1d(config)
     example_data = '/data/zero/1_Data/C_Dataset_Example/example.pkl'
     with open(example_data, 'rb') as f:
         data = pickle.load(f)
@@ -236,7 +236,7 @@ def test():
                 pass
 
     print(lotus_batch.keys())
-    print(policy.train_one_step(lotus_batch))
+    print(policy.forward(lotus_batch))
 
 
 # test()
