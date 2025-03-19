@@ -6,12 +6,16 @@ import einops
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from zero.expAugmentation.models.DiffuserActor3D.components.position_encodings import SinusoidalPosEmb, RotaryPositionEncoding3D
 from zero.expAugmentation.models.DiffuserActor3D.components.layers import (
-    ParallelAttention, FFWRelativeCrossAttentionModule, FFWRelativeSelfAttentionModule, FFWRelativeSelfCrossAttentionModule)
-
+    ParallelAttention,
+    FFWRelativeCrossAttentionModule,
+    FFWRelativeSelfAttentionModule,
+    FFWRelativeSelfCrossAttentionModule)
 from zero.expAugmentation.models.Base.BaseAll import BaseActionHead
 
+from zero.expAugmentation.config.default import get_config
 
-class DiffusionHead(BaseActionHead):
+
+class ActionHead(BaseActionHead):
 
     def __init__(self,
                  embedding_dim=60,
@@ -118,22 +122,22 @@ class DiffusionHead(BaseActionHead):
                 fps_feats, fps_pos):
         """
         Arguments:
-            trajectory: (B, trajectory_length, 3+6+X)
+            trajectory: (B, H, 8)
             timestep: (B, 1)
-            context_feats: (B, N, F)
-            context: (B, N, F, 2)
-            instr_feats: (B, max_instruction_length, F)
-            adaln_gripper_feats: (B, nhist, F)
-            fps_feats: (N, B, F), N < context_feats.size(1)
-            fps_pos: (B, N, F, 2)
+            context_feats: (B, N, dim)
+            context: (B, N, dim, 2)
+            instr_feats: (B, max_instruction_length, dim)
+            adaln_gripper_feats: (B, nhist, dim)
+            fps_feats: (N, B, dim), N < context_feats.size(1)
+            fps_pos: (B, N, dim, 2)
         """
         # Trajectory features
-        traj_feats = self.traj_encoder(trajectory)  # (B, L, F)
+        horizon = trajectory.size(1)
+        traj_feats = self.traj_encoder(trajectory)  # (B, L, dim)
 
         # Trajectory features cross-attend to context features
-        traj_time_pos = self.traj_time_emb(
-            torch.arange(0, traj_feats.size(1), device=traj_feats.device)
-        )[None].repeat(len(traj_feats), 1, 1)
+        traj_time_pos = self.traj_time_emb(torch.arange(0, horizon, device=traj_feats.device))[None].repeat(len(traj_feats), 1, 1)
+
         if self.use_instruction:
             traj_feats, _ = self.traj_lang_attention[0](
                 seq1=traj_feats, seq1_key_padding_mask=None,
@@ -157,9 +161,6 @@ class DiffusionHead(BaseActionHead):
             instr_feats
         )
         return [torch.cat((pos_pred, rot_pred, openess_pred), -1)]
-
-    def forward(self):
-        pass
 
     def prediction_head(self,
                         gripper_pcd, gripper_features,
@@ -262,18 +263,11 @@ class DiffusionHead(BaseActionHead):
         position = self.position_predictor(position_features)
         return position, position_features
 
-    def predict_rot(self, features, rel_pos, time_embs, num_gripper,
-                    instr_feats):
-        rotation_features = self.rotation_self_attn(
-            query=features,
-            query_pos=rel_pos,
-            diff_ts=time_embs,
-            context=instr_feats,
-            context_pos=None
-        )[-1]
-        rotation_features = einops.rearrange(
-            rotation_features[:num_gripper], "npts b c -> b npts c"
-        )
-        rotation_features = self.rotation_proj(rotation_features)  # (B, N, C)
-        rotation = self.rotation_predictor(rotation_features)
-        return rotation
+
+def test():
+    config_path = "/media/jian/ssd4t/zero/zero/expAugmentation/config/DA3D.yaml"
+    config = get_config(config_path)
+    action_head = ActionHead(**config.DiffuserActor.ActionHead)
+
+    print(action_head)
+    pass

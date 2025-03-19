@@ -22,7 +22,7 @@ import collections
 from zero.expAugmentation.models.lotus.utils.robot_box import RobotBox
 import numpy as np
 
-from zero.z_utils.theta_position import normalize_theta_positions
+from zero.z_utils.joint_position import normalize_theta_positions
 import json
 from scipy.spatial.transform import Rotation as R
 

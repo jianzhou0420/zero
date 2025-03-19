@@ -1,0 +1,26 @@
+
+
+
+
+
+
+DiffuserActor:
+  Policy:
+    num_timesteps: 100
+  FeatureExtractor:
+    backbone: 'clip'
+    image_size: [256,256]
+    embedding_dim: 120
+    num_sampling_level: 1
+    nhistory: 3
+    num_vis_ins_attn_layers: 2
+    fps_subsampling_factor: 5
+    use_instruction: True
+
+  ActionHead:
+    embedding_dim: 120
+    use_instruction: False
+    rotation_parametrization: 'quat'
+    nhist: 3
+    lang_enhanced: False
+    

@@ -1,0 +1,15 @@
+backbone: clip
+image_size:
+  - 256
+  - 256
+embedding_dim: 120
+num_vis_ins_attn_layers: 2
+use_instruction: true
+fps_subsampling_factor: 5
+gripper_loc_bounds: "tasks/18_peract_tasks_location_bounds.json"
+rotation_parametrization: "6D"
+quaternion_format: "xyzw"
+diffusion_timesteps: 100
+nhist: 3
+relative: false
+lang_enhanced: false

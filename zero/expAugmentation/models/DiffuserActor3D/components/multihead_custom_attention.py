@@ -7,8 +7,9 @@ from torch.nn.init import xavier_normal_
 from torch.nn.parameter import Parameter
 from torch.nn import Module
 from torch.nn import functional as F
-
+from torch import Tensor
 from .position_encodings import RotaryPositionEncoding
+from typing import Optional, Tuple
 
 
 class MultiheadCustomAttention(Module):

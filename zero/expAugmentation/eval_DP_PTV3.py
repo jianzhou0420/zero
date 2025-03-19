@@ -31,7 +31,7 @@ from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
 
-from zero.z_utils.theta_position import denormalize_theta_positions
+from zero.z_utils.joint_position import denormalize_theta_positions
 # ----------------------------------------------
 # region utils
 
