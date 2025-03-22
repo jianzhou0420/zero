@@ -10,7 +10,9 @@ import time
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as transforms_f
 import einops
-from zero.z_utils.utilities_all import pad_clip_features
+from zero.z_utils.utilities_all import pad_clip_features, normalize_theta_positions
+import copy
+
 # --------------------------------------------------------------
 # region tools
 
@@ -245,6 +247,8 @@ class DatasetDA3D(Dataset):
             batch:{
                 'rgb': torch.Tensor (B, ncam,3, H, W)
                 'xyz': torch.Tensor (B, ncam,3, H, W)
+                'action_history': torch.Tensor (B, history, naction)
+                'action_future': torch.Tensor (B, horizon, naction)
                 'joint_position_future': torch.Tensor (B, horizon, njoint+open) 第一帧是current position,最后一帧是下一个keypose的position
                 'joint_position_history': torch.Tensor (B, history, njoint+open) 最后一帧是current position
                 'timestep': torch.Tensor (B,)
@@ -252,34 +256,63 @@ class DatasetDA3D(Dataset):
             }
 
         '''
+        outs = {
+            'rgb': None,
+            'pcd': None,
+            'joint_position_history': None,
+            'joint_position_future': None,
+            'instruction': None
+        }
+
         data = self.check_cache(g_episode)
-        data['rgb'] = np.stack(data['rgb'], axis=0)
-        data['pcd'] = np.stack(data['pcd'], axis=0)
-        data['action_history'] = np.stack(data['action_history'], axis=0)
-        data['action_future'] = np.stack(data['action_future'], axis=0)
 
-        data['rgb'] = torch.tensor(data['rgb'], dtype=torch.float32)
-        data['pcd'] = torch.tensor(data['pcd'], dtype=torch.float32)
-        data['action_history'] = torch.tensor(data['action_history'], dtype=torch.float32)
-        data['action_future'] = torch.tensor(data['action_future'], dtype=torch.float32)
-        # instructions= data.pop('txt_embd')
+        rgb = torch.tensor(np.stack(copy.deepcopy(data['rgb']), axis=0))
+        pcd = torch.tensor(np.stack(copy.deepcopy(data['pcd']), axis=0))
+        joint_position_history = torch.tensor(np.stack(copy.deepcopy(data['joint_position_history']), axis=0))
+        joint_position_future = torch.tensor(np.stack(copy.deepcopy(data['joint_position_future']), axis=0))
+        instruction = torch.tensor(np.stack(copy.deepcopy(data['txt_embed']), axis=0)).squeeze()
+        # augmentation
+        resized_dict = self._resize(rgbs=rgb, pcds=pcd)
+        rgb = resized_dict['rgbs']
+        pcd = resized_dict['pcds']
 
-        resized_dict = self._resize(rgbs=data['rgb'], pcds=data['pcd'])
-        data['rgb'] = resized_dict['rgbs']
-        data['pcd'] = resized_dict['pcds']
-        return data
+        rgb = einops.rearrange(rgb, 'bs ncam h w c-> bs ncam c h w')
+        pcd = einops.rearrange(pcd, 'bs ncam h w c-> bs ncam c h w')
+
+        # normalize
+        rgb = (rgb.float() / 255.0) * 2 - 1
+        joint_position_history = normalize_theta_positions(joint_position_history)
+        joint_position_future = normalize_theta_positions(joint_position_future)
+        # return
+        outs['rgb'] = rgb.float()
+        outs['pcd'] = pcd.float()
+        outs['joint_position_history'] = joint_position_history.float()
+        outs['joint_position_future'] = joint_position_future.float()
+        outs['instruction'] = instruction.float()
+        # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
+
+        return outs
 # endregion
 
 
-def collect_fn():
-    pass
+def collect_fn(batch):
+    collated = {}
+    for key in batch[0]:
+        # Concatenate the tensors from each dict in the batch along dim=0.
+        collated[key] = torch.cat([item[key] for item in batch], dim=0)
+    return collated
 
 
 if __name__ == '__main__':
     from zero.expAugmentation.config.default import get_config
+    from torch.utils.data import DataLoader, Dataset
     config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/DA3D.yaml'
     config = get_config(config_path)
     data_dir = config['TrainDataset']['data_dir']
     dataset = DatasetDA3D(config, data_dir)
-    print(len(dataset))
-    print(dataset[0].keys())
+    loader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=collect_fn)
+
+    for i, batch in enumerate(loader):
+        for key in batch.keys():
+            print(key, batch[key].shape)
+        break

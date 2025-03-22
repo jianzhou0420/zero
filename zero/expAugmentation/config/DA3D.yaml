@@ -1,4 +1,15 @@
 
+Trainer:
+  model_name: DA3D
+  lr: 0.0001
+  weight_decay: 0.0005
+  epoches: 
+  batch_size: 4
+  n_workers: 1
+  pin_mem: True
+  num_gpus: 1
+  shuffle: True
+
 TrainDataset:
   data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D
   tasks_to_use: null
@@ -9,12 +20,13 @@ DiffuserActor:
   Policy:
     num_timesteps: 100
     use_instruction: False
+
   FeatureExtractor:
     backbone: 'clip'
     image_size: [256,256]
     embedding_dim: 120
     num_sampling_level: 1
-    nhistory: 3
+    nhistory: 8
     num_vis_ins_attn_layers: 2
     fps_subsampling_factor: 5
     use_instruction: True
@@ -24,7 +36,10 @@ DiffuserActor:
     embedding_dim: 120
     use_instruction: False
     rotation_parametrization: 'quat'
-    nhist: 3
+    nhist: 8
     lang_enhanced: False
     action_dim: 8
     
+
+# Checking
+# nhist

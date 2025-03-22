@@ -45,7 +45,7 @@ class FeatureExtractor(nn.Module):
                  image_size=(256, 256),
                  embedding_dim=60,
                  num_sampling_level=3,
-                 nhistory=3,
+                 nhistory=8,
                  nfuture=8,
                  num_attn_heads=8,
                  num_vis_ins_attn_layers=2,
@@ -313,7 +313,7 @@ class FeatureExtractor(nn.Module):
         '''
 
         # normalize joint position
-        joint_position = normalize_theta_positions(action)
+        # joint_position = normalize_theta_positions(action)
 
         # extract features
         rgb_feats_pyramid, pcd_pyramid = self.encode_images(rgb, pcd)
@@ -597,6 +597,9 @@ class Policy(BasePolicy):
             prediction_type="epsilon"
         )
 
+    def inference_one_sample(self, batch):
+        return super().inference_one_sample(batch)
+
     def forward(self, batch):
         '''
         Arguments:
@@ -605,7 +608,6 @@ class Policy(BasePolicy):
                 'xyz': torch.Tensor (B, ncam,3, H, W)
                 'joint_position_future': torch.Tensor (B, horizon, njoint+open) 第一帧是current position,最后一帧是下一个keypose的position
                 'joint_position_history': torch.Tensor (B, history, njoint+open) 最后一帧是current position
-                'timestep': torch.Tensor (B,)
                 'instruction': torch.Tensor (B, max_instruction_length, dim)
 
             }
@@ -617,7 +619,7 @@ class Policy(BasePolicy):
 
         '''
         rgb = batch['rgb']
-        pcd = batch['xyz']
+        pcd = batch['pcd']
         joint_position_history = batch['joint_position_history']
         joint_position_future = batch['joint_position_future']
         instruction = batch['instruction']
@@ -636,8 +638,7 @@ class Policy(BasePolicy):
         joint_positon_loss = F.mse_loss(pred[0], joint_position_future)
         return joint_positon_loss
 
-    def inference_one_sample(self, batch):
-        return super().inference_one_sample(batch)
+
 # endregion
 
 
@@ -663,4 +664,6 @@ def test_policy():
     print(loss)
 
 
-test_policy()
+if __name__ == '__main__':
+    test_policy()
+# test_policy()

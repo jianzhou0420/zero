@@ -1,4 +1,5 @@
 
+import torch
 from pytorch_lightning.utilities.model_summary import ModelSummary
 import numpy as np
 
@@ -34,3 +35,23 @@ def pad_clip_features(features, target_length=77):
 
     # Optionally stack into one numpy array (batch_size, target_length, 512)
     return np.stack(padded_features)
+
+
+# region Joint Position
+
+JOINT_POSITION_LIMITS = [[-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973, 0],
+                         [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973, 1]]
+
+
+def normalize_theta_positions(theta_positions):
+    lower_limit = torch.tensor(JOINT_POSITION_LIMITS[0])
+    upper_limit = torch.tensor(JOINT_POSITION_LIMITS[1])
+    return (theta_positions - lower_limit) / (upper_limit - lower_limit)
+
+
+def denormalize_theta_positions(normalized_theta_positions):
+    lower_limit = JOINT_POSITION_LIMITS[0, :]
+    upper_limit = JOINT_POSITION_LIMITS[1, :]
+    return normalized_theta_positions * (upper_limit - lower_limit) + lower_limit
+
+# endregion

@@ -9,7 +9,8 @@ import pytorch_lightning as pl
 
 # zero package
 from zero.expAugmentation.config.default import get_config, build_args
-from zero.expAugmentation.dataset.dataset_DP_use_obsprocessor import Dataset_DP_PTV3 as Dataset
+from zero.expAugmentation.dataset.dataset_DA3D import DatasetDA3D as Dataset
+from zero.expAugmentation.dataset.dataset_DA3D import collect_fn
 from zero.expAugmentation.models.DiffuserActor3D.Policy import Policy
 from zero.z_utils import *
 
@@ -55,8 +56,7 @@ class TrainerDP(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        # 1. default optimizer
-        optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.config.Train.lr)
+        optimizer = torch.optim.AdamW(self.policy.parameters(), weight_decay=self.config['Trainer']['weight_decay'], lr=self.config['Trainer']['lr'])
         return optimizer
 
 
@@ -71,49 +71,29 @@ class MyDataModule(pl.LightningDataModule):
         self.config = config
 
     def setup(self, stage=None):
-        train_data_path = os.path.join(self.config.B_Preprocess, 'train')
-        val_data_path = os.path.join(self.config.B_Preprocess, 'val')
+        train_data_path = self.config['TrainDataset']['data_dir']
         train_dataset = Dataset(self.config, data_dir=train_data_path)
-        val_dataset = Dataset(self.config, data_dir=val_data_path)
         self.train_dataset = train_dataset
-        self.val_dataset = val_dataset
-        print(f"Train dataset size: {len(train_dataset)}, Val dataset size: {len(val_dataset)}")
 
     def train_dataloader(self):
-        batch_size = self.config.Train.batch_size
-        sampler = DistributedSampler(self.train_dataset, shuffle=self.config.Train.shuffle,) if self.config.Train.num_gpus > 1 else None
+        batch_size = self.config['Trainer']['batch_size']
+        sampler = DistributedSampler(self.train_dataset, shuffle=self.config['Trainer']['shuffle'],) if self.config['Trainer']['num_gpus'] > 1 else None
 
         print(f"batch_size: {batch_size}")
         loader = DataLoader(
             self.train_dataset,
             batch_size=batch_size,
-            num_workers=self.config.Train.n_workers,
-            pin_memory=self.config.Train.pin_mem,
-            collate_fn=self.train_dataset.obs_processor.get_collect_function(),
+            num_workers=self.config['Trainer']['n_workers'],
+            pin_memory=self.config['Trainer']['pin_mem'],
+            collate_fn=collect_fn,
             sampler=sampler,
             drop_last=False,
-            prefetch_factor=2 if self.config.Train.n_workers > 0 else None,
-            shuffle=self.config.Train.shuffle,
+            # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
+            shuffle=self.config['Trainer']['shuffle'],
             persistent_workers=True
         )
         return loader
 
-    def val_dataloader(self):
-        batch_size = self.config.batch_size
-        sampler = DistributedSampler(self.val_dataset, shuffle=False) if self.config.num_gpus > 1 else None
-        loader = DataLoader(
-            self.val_dataset,
-            batch_size=batch_size,
-            num_workers=self.config.Train.n_workers,
-            pin_memory=self.config.Train.pin_mem,
-            collate_fn=self.val_dataset.obs_processor.get_collect_function(),
-            sampler=sampler,
-            drop_last=False,
-            prefetch_factor=2 if self.config.Train.n_workers > 0 else None,
-            shuffle=self.config.Train.shuffle,
-            persistent_workers=True
-        )
-        return loader
 # endregion
 # ---------------------------------------------------------------
 
@@ -138,9 +118,10 @@ class EpochCallback(pl.Callback):
 
 
 def train(config: yacs.config.CfgNode):
+    model_name = config['Trainer']['model_name']
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-    ckpt_name = current_time + '_DP'
-    log_path = "/data/zero/2_Train/DP"
+    ckpt_name = current_time + model_name
+    log_path = "/data/zero/2_Train/model_name"
     log_name = ckpt_name
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
@@ -158,7 +139,7 @@ def train(config: yacs.config.CfgNode):
 
     epoch_callback = EpochCallback()
     trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
-                         max_epochs=config.Train.epochs,
+                         max_epochs=config['Trainer']['epoches'],
                          devices='auto',
                          strategy='auto',
                          logger=csvlogger1,
@@ -177,7 +158,7 @@ def train(config: yacs.config.CfgNode):
 # ---------------------------------------------------------------
 if __name__ == '__main__':
     # 0.1 args & 0.2 config
-    config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/DA3D_Original.yaml'
+    config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/DA3D.yaml'
     config = build_args(config_path)
     # 1. train
     train(config)
