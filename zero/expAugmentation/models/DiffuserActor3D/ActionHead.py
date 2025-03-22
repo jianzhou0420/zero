@@ -16,7 +16,6 @@ from zero.expAugmentation.config.default import get_config
 
 
 class ActionHead(BaseActionHead):
-
     def __init__(self,
                  embedding_dim=60,
                  num_attn_heads=8,

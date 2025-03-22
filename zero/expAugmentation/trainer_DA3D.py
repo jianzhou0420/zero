@@ -9,8 +9,8 @@ import pytorch_lightning as pl
 
 # zero package
 from zero.expAugmentation.config.default import get_config, build_args
-from zero.expAugmentation.dataset.dataset_DP_use_obsprocessor import Dataset_DP_PTV3
-from zero.expAugmentation.models.DiffuserActor3D.Policy import Policy_Original
+from zero.expAugmentation.dataset.dataset_DP_use_obsprocessor import Dataset_DP_PTV3 as Dataset
+from zero.expAugmentation.models.DiffuserActor3D.Policy import Policy
 from zero.z_utils import *
 
 # helper package
@@ -23,11 +23,10 @@ import math
 import os
 import warnings
 
-warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
 
 # ---------------------------------------------------------------
 # region 0.Some tools
-
+warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
 
 torch.set_float32_matmul_precision('medium')
 
@@ -48,7 +47,7 @@ class TrainerDP(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.config = config
-        self.policy = Policy_Original(config['Policy'])
+        self.policy = Policy(config)
 
     def training_step(self, batch, batch_idx):
         loss = self.policy.forward(batch)
@@ -74,8 +73,8 @@ class MyDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         train_data_path = os.path.join(self.config.B_Preprocess, 'train')
         val_data_path = os.path.join(self.config.B_Preprocess, 'val')
-        train_dataset = Dataset_DP_PTV3(self.config, data_dir=train_data_path)
-        val_dataset = Dataset_DP_PTV3(self.config, data_dir=val_data_path)
+        train_dataset = Dataset(self.config, data_dir=train_data_path)
+        val_dataset = Dataset(self.config, data_dir=val_data_path)
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         print(f"Train dataset size: {len(train_dataset)}, Val dataset size: {len(val_dataset)}")

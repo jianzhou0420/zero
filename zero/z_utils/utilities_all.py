@@ -1,5 +1,6 @@
 
 from pytorch_lightning.utilities.model_summary import ModelSummary
+import numpy as np
 
 
 def summary_models(model, return_flag=False):
@@ -10,36 +11,26 @@ def summary_models(model, return_flag=False):
         print(summary)
 
 
-if __name__ == "__main__":
-    ##############################
-    # region define test
-    ##############################
-    def test_summary_models():
-        import torch
-        import torch.nn as nn
-        import pytorch_lightning as pl
+def pad_clip_features(features, target_length=77):
+    """
+    Pads a list of CLIP feature arrays (each of shape (L, 512)) to a fixed target length.
 
-        class MyLightningModel(pl.LightningModule):
-            def __init__(self):
-                super(MyLightningModel, self).__init__()
-                self.conv = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
-                self.fc = nn.Linear(16 * 32 * 32, 10)
+    Args:
+        features (list of np.array): List of feature arrays with shape (L, 512), where L can vary.
+        target_length (int): The target sequence length (default is 77).
 
-            def forward(self, x):
-                x = self.conv(x)
-                x = torch.relu(x)
-                x = x.view(x.size(0), -1)
-                x = self.fc(x)
-                return x
+    Returns:
+        np.array: A numpy array of shape (batch_size, target_length, 512) where each feature array
+                  has been padded with zeros if necessary.
+    """
+    padded_features = []
+    for feat in features:
+        current_length, dim = feat.shape
+        # Create a new array of zeros with target_length rows and same feature dimension.
+        padded = np.zeros((target_length, dim), dtype=feat.dtype)
+        # Fill the first current_length rows with the feature data.
+        padded[:current_length, :] = feat
+        padded_features.append(padded)
 
-        # Instantiate the model
-        model = MyLightningModel()
-
-        # Print the model summary
-        summary = pl.utilities.model_summary.ModelSummary(model)
-        print(summary)
-
-    ##############################
-    # region Run test
-    ##############################
-    test_summary_models()
+    # Optionally stack into one numpy array (batch_size, target_length, 512)
+    return np.stack(padded_features)

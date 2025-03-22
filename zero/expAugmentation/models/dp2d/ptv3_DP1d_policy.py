@@ -1,9 +1,9 @@
 from einops import reduce
-from zero.expAugmentation.models.dp2d.diffusion.conditional_unet1d import ConditionalUnet1D
+from zero.expAugmentation.models.dp2d.components.diffusion.conditional_unet1d import ConditionalUnet1D
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 import torch
 import torch.nn as nn
-from zero.expAugmentation.models.dp2d.PointTransformerV3.model import (
+from zero.expAugmentation.models.dp2d.components.PointTransformerV3.model import (
     PointTransformerV3, offset2bincount, offset2batch
 )
 from zero.expAugmentation.models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
@@ -211,7 +211,6 @@ class PolicyPtv3DP1d(BasePolicy):
         ptv3_batch = self.FeatureExtractor.prepare_ptv3_batch(batch)
         cond = self.FeatureExtractor(ptv3_batch)
         return self.ActionHead.inference_one_sample(cond)
-
 # endregion
 
 

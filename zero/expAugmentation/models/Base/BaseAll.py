@@ -16,7 +16,7 @@ class BaseActionHead(nn.Module):
         super().__init__()
         pass
 
-    def forward(self,):  # train_one_step
+    def forward(self, action, cond):  # train_one_step
         loss = NotImplementedError, 'need to be implemented'
         return loss
 

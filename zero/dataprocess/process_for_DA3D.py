@@ -81,7 +81,7 @@ def process_single_episode(root_dir, task, variation, episode):
         assert (action_next - action_future[-1] < 0.001).all()
         assert (action_current - action_history[-1] < 0.001).all()
 
-        action_future = actions_all
+        # action_future = actions_all
 
         instr = random.choice(taskvar_instrs[taskvar])
         instr_embed = copy.deepcopy(instr_embeds[instr])
