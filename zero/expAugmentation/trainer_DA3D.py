@@ -52,7 +52,7 @@ class TrainerDP(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.policy.forward(batch)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True)
         return loss
 
     def configure_optimizers(self):

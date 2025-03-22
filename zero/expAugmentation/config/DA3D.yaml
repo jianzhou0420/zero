@@ -3,8 +3,8 @@ Trainer:
   model_name: DA3D
   lr: 0.0001
   weight_decay: 0.0005
-  epoches: 
-  batch_size: 4
+  epoches: 100
+  batch_size: 8
   n_workers: 1
   pin_mem: True
   num_gpus: 1
