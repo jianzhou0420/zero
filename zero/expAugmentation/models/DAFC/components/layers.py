@@ -278,7 +278,7 @@ class AdaLN(nn.Module):
         self.modulation = nn.Sequential(
             nn.SiLU(), nn.Linear(embedding_dim, 2 * embedding_dim, bias=True)
         )
-        nn.init.constant_(self.modulation[-1].weight, 0)  # identity at the begining
+        nn.init.constant_(self.modulation[-1].weight, 0)
         nn.init.constant_(self.modulation[-1].bias, 0)
 
     def forward(self, x, t):
@@ -351,6 +351,7 @@ class RelativeCrossAttentionLayer(nn.Module):
 
 
 class SelfAttentionLayer(nn.Module):
+
     def __init__(self, embedding_dim, num_heads, dropout=0.0, use_adaln=False):
         super().__init__()
         self.multihead_attn = MultiheadCustomAttention(
@@ -378,6 +379,7 @@ class SelfAttentionLayer(nn.Module):
 
 
 class FFWRelativeCrossAttentionModule(nn.Module):
+
     def __init__(self, embedding_dim, num_attn_heads, num_layers,
                  use_adaln=True):
         super().__init__()

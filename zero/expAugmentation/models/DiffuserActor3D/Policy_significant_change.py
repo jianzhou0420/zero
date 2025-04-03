@@ -365,8 +365,8 @@ class ActionHead(BaseActionHead):
         self.lang_enhanced = lang_enhanced
 
         # embedding
-        self.traj_time_embedding = SinusoidalPosEmb(embedding_dim)
-        self.traj_embedding = nn.Linear(action_dim, embedding_dim)
+        self.feature_action_time_embedding = SinusoidalPosEmb(embedding_dim)
+        self.feature_action_embedding = nn.Linear(action_dim, embedding_dim)
         self.time_embedding = nn.Sequential(
             SinusoidalPosEmb(embedding_dim),
             nn.Linear(embedding_dim, embedding_dim),
@@ -451,64 +451,6 @@ class ActionHead(BaseActionHead):
             nn.Linear(embedding_dim, 1)
         )
 
-    def prediction_head(self,
-                        action_pcd, action_features,
-                        pcd_pyrimid, pcd_pyrimid_feats,
-                        timesteps, curr_gripper_features,
-                        fps_pcd_feats, fps_pcd,
-                        instr_feats):
-        """
-        Compute the predicted action (position, rotation, opening).
-
-        Args:
-            gripper_pcd: A tensor of shape (B, N, 3)
-            gripper_features: A tensor of shape (N, B, F)
-            context_pcd: A tensor of shape (B, N, 3)
-            context_features: A tensor of shape (N, B, F)
-            timesteps: A tensor of shape (B,) indicating the diffusion step
-            curr_gripper_features: A tensor of shape (M, B, F)
-            sampled_context_features: A tensor of shape (K, B, F)
-            sampled_rel_context_pos: A tensor of shape (B, K, F, 2)
-            instr_feats: (B, max_instruction_length, F)
-        """
-        # Diffusion timestep
-        time_embs = self.encode_denoising_timestep(
-            timesteps, curr_gripper_features
-        )
-
-        # Positional embeddings
-        rel_gripper_pos = self.relative_pe_layer(action_pcd)
-        rel_context_pos = self.relative_pe_layer(pcd_pyrimid)
-
-        # Cross attention from gripper to full context
-        action_features = self.cross_attn(
-            query=action_features,
-            value=pcd_pyrimid_feats,
-            query_pos=rel_gripper_pos,
-            value_pos=rel_context_pos,
-            diff_ts=time_embs
-        )[-1]
-
-        # Self attention among gripper and sampled context
-        features = torch.cat([action_features, fps_pcd_feats], 0)
-        rel_pos = torch.cat([rel_gripper_pos, fps_pcd], 1)
-        features = self.self_attn(
-            query=features,
-            query_pos=rel_pos,
-            diff_ts=time_embs,
-            context=instr_feats,
-            context_pos=None
-        )[-1]
-
-        num_gripper = action_features.shape[0]
-
-        # Position head
-        position, position_features = self.predict_pos(
-            features, rel_pos, time_embs, num_gripper, instr_feats
-        )
-        openess = self.openess_predictor(position_features)
-        return position, openess
-
     def encode_denoising_timestep(self, timestep, hist_actions_features):
         """
         Compute denoising timestep features and positional embeddings.
@@ -537,7 +479,7 @@ class ActionHead(BaseActionHead):
             diff_ts=time_embs,
             context=instr_feats,
             context_pos=None
-        )[-1]
+        )[-1]  # -1 is the output of the last layer
         position_features = einops.rearrange(
             position_features[:num_gripper], "npts b c -> b npts c"
         )
@@ -545,7 +487,65 @@ class ActionHead(BaseActionHead):
         position = self.position_predictor(position_features)
         return position, position_features
 
-    def forward(self, noisy_traj, timestep, features_all):
+    def prediction_head(self,
+                        noisy_action_pcd, noisy_action_features,
+                        pcd_pyrimid, pcd_pyrimid_feats,
+                        timesteps, hist_action_features,
+                        fps_pcd_feats, fps_pcd,
+                        instr_feats):
+        """
+        Compute the predicted action (position, rotation, opening).
+
+        Args:
+            gripper_pcd: A tensor of shape (B, N, 3)
+            gripper_features: A tensor of shape (N, B, F)
+            context_pcd: A tensor of shape (B, N, 3)
+            context_features: A tensor of shape (N, B, F)
+            timesteps: A tensor of shape (B,) indicating the diffusion step
+            curr_gripper_features: A tensor of shape (M, B, F)
+            sampled_context_features: A tensor of shape (K, B, F)
+            sampled_rel_context_pos: A tensor of shape (B, K, F, 2)
+            instr_feats: (B, max_instruction_length, F)
+        """
+        # Diffusion timestep
+        time_embs = self.encode_denoising_timestep(
+            timesteps, hist_action_features
+        )
+
+        # Positional embeddings
+        rel_gripper_pos = self.relative_pe_layer(noisy_action_pcd)
+        rel_context_pos = self.relative_pe_layer(pcd_pyrimid)
+
+        # Cross attention from gripper to full context
+        noisy_action_features = self.cross_attn(
+            query=noisy_action_features,
+            value=pcd_pyrimid_feats,
+            query_pos=rel_gripper_pos,
+            value_pos=rel_context_pos,
+            diff_ts=time_embs
+        )[-1]
+
+        # Self attention among gripper and sampled context
+        features = torch.cat([noisy_action_features, fps_pcd_feats], 0)
+        rel_pos = torch.cat([rel_gripper_pos, fps_pcd], 1)
+        features = self.self_attn(
+            query=features,
+            query_pos=rel_pos,
+            diff_ts=time_embs,
+            context=instr_feats,
+            context_pos=None
+        )[-1]
+
+        num_gripper = noisy_action_features.shape[0]
+
+        # Position head
+        position, position_features = self.predict_pos(
+            features, rel_pos, time_embs, num_gripper, instr_feats
+        )
+        openess = self.openess_predictor(position_features)
+        return position, openess
+
+    def forward(self, noisy_action, timestep, features_all):
         """
         Arguments:
             trajectory: (B, H, 8)
@@ -559,11 +559,11 @@ class ActionHead(BaseActionHead):
         """
         # Trajectory features
         pcd_feats, context, instr_feats, hist_action_feats, fps_feats, fps_pos = features_all
-        horizon = noisy_traj.size(1)
-        traj_feats = self.traj_embedding(noisy_traj)  # (B, L, dim)
+        horizon = noisy_action.size(1)
+        traj_feats = self.feature_action_embedding(noisy_action)  # (B, L, dim)
 
         # Trajectory features cross-attend to context features
-        traj_time_pos = self.traj_time_emb(torch.arange(0, horizon, device=traj_feats.device))[None].repeat(len(traj_feats), 1, 1)
+        traj_time_pos = self.feature_action_time_embedding(torch.arange(0, horizon, device=traj_feats.device))[None].repeat(len(traj_feats), 1, 1)
 
         if self.use_instruction:
             traj_feats, _ = self.traj_lang_attention[0](
@@ -581,7 +581,7 @@ class ActionHead(BaseActionHead):
             hist_action_feats, 'b l c -> l b c'
         )
         pos_pred, openess_pred = self.prediction_head(
-            noisy_traj[..., :3], traj_feats,
+            noisy_action[..., :3], traj_feats,
             context[..., :3], pcd_feats,
             timestep, hist_action_feats,
             fps_feats, fps_pos,

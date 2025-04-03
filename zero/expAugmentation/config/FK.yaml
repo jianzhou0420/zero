@@ -1,0 +1,107 @@
+
+Trainer:
+  model_name: DA3D
+  lr: 0.0001
+  weight_decay: 0.0005
+  epoches: 100
+  batch_size: 8
+  n_workers: 1
+  pin_mem: True
+  num_gpus: 1
+  shuffle: True
+
+TrainDataset:
+  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D
+  tasks_to_use: null
+  cache_dataset_init_path: /media/jian/ssd4t/zero/1_Data/D_Cache_init/2025-03-22-11-15-14cache_dataset_init_path.pkl
+  image_rescales: [0.75,1.25]
+
+FK:
+  Policy:
+    num_timesteps: 100
+    use_instruction: False
+
+  FeatureExtractor:
+    ptv3:
+      in_channels: 7
+      order: ["z", "z-trans", "hilbert", "hilbert-trans"]
+      stride: [2, 2, 2]
+      # encode 
+      enc_depths: [1, 1, 1, 1]
+      enc_channels: [64,128,128,256]
+      enc_num_head: [2, 4, 8, 16]
+      enc_patch_size: [128, 128, 128, 128]
+      mlp_ratio: 4
+      qkv_bias: True
+      qk_scale: null
+      qk_norm: True
+      scaled_cosine_attn: False
+      attn_drop: 0.1
+      proj_drop: 0.1
+      drop_path: 0
+      pre_norm: True
+      shuffle_orders: True
+      enable_rpe: False
+      enable_flash: False
+      upcast_attention: False
+      upcast_softmax: False
+      cls_mode: True ####这里改了
+      pdnorm_bn: False
+      pdnorm_ln: False
+      pdnorm_decouple: False
+      pdnorm_adaptive: False
+      pdnorm_affine: True
+      pdnorm_conditions: null
+      pdnorm_only_decoder: False
+      add_coords_in_attn: 'none' # none, qk, qkv
+
+  ActionHead:
+    d_model: 256
+    d_instr: 128
+    d_ffw: 512
+    n_heads: 8
+
+
+# region tmp
+Dataset:
+  voxel_size: 0.01
+  txt_ft_size: 512
+  context_channels: 256
+  txt_reduce: 'attn' # mean, attn
+
+
+TRAIN_DATASET:
+  data_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions'
+  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
+  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/data/zero/assets/taskvars_peract.json'
+  num_points: 4096
+  xyz_shift: center # none, center, gripper
+  xyz_norm: False
+  use_height: True
+
+  rot_type: euler_disc # quat, rot6d, euler, euler_delta, euler_disc
+  pos_type: disc # disc, cont
+  instr_embed_type: 'all' # last, all
+
+  rm_robot: box_keep_gripper  # none, gt, box, box_keep_gripper
+  augment_pc: True
+  aug_max_rot: 45
+  same_npoints_per_example: False
+  pos_bins: null
+  pos_bin_size: null
+  pos_heatmap_type: 'dist' # plain, dist
+  pos_heatmap_no_robot: True
+  real_robot: False
+  euler_resolution: 1
+  rm_table: True
+  rm_pc_outliers: False
+  rm_pc_outliers_neighbors: 25
+  sample_points_by_distance: False
+  variations_to_use: null
+  tasks_to_use: "close_jar"
+
+# endregion tmp
+
+# Checking
+# nhist

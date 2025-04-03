@@ -1,3 +1,4 @@
+import re
 from zero.expAugmentation.ObsProcessor.ObsProcessorBase import ObsProcessorBase
 import copy
 import open3d as o3d
@@ -19,12 +20,14 @@ import collections
 from zero.expAugmentation.models.lotus.utils.robot_box import RobotBox
 import numpy as np
 
-from zero.z_utils.joint_position import normalize_theta_positions
+from zero.z_utils.joint_position import normaliza_JP
 import json
 from scipy.spatial.transform import Rotation as R
 
 from zero.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
 from zero.expAugmentation.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
+from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+
 # --------------------------------------------------------------
 # region utils
 
@@ -75,6 +78,7 @@ def random_rotate_z(pc, angle=None):
     R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
     return np.dot(pc, np.transpose(R))
 
+
 # endregion
 # --------------------------------------------------------------
 # region main logic
@@ -95,8 +99,10 @@ class ObsProcessorPtv3(ObsProcessorBase):
         self.WORKSPACE = get_robot_workspace(real_robot=False, use_vlm=False)
         self.dataset_init_flag = False
         self.train_flag = train_flag
+        self.franka = FrankaEmikaPanda()
 
-    # region obs_raw
+        # region obs_raw
+
     def obs_2_obs_raw(self, obs):
         key_frames = [0]
         state_dict = self.obs2dict(obs)
@@ -192,13 +198,13 @@ class ObsProcessorPtv3(ObsProcessorBase):
             'pose': pose,  # [T of dict]
             'sem': state_dict_ls['sem'],  # (T, N, H, W, 3)
             'actions_all': actions,
-            'positions_all': positions,
+            'joint_position_all': positions,
         }
         return obs_raw
         # endregion
     # region static process
 
-    def static_process(self, obs_raw):
+    def static_process_fk(self, obs_raw, taskvar):
         '''
         承接原始数据，处理成为简单的格式，给dataset处理。
         input = {
@@ -224,12 +230,10 @@ class ObsProcessorPtv3(ObsProcessorBase):
         obs_static_process = {
             'xyz': [],
             'rgb': [],
-            'action_current': [],
-            'action_next': [],
-            'data_ids': [],
-            'arm_links_info': [],
-            'actions_path': [],
-            'theta_actions_path': [],
+            'eePose_hist': [],
+            'eePose_futr': [],
+            'JP_hist': [],
+            'JP_futr': [],
         }
 
         # all_names = episode_path.split('/')
@@ -254,6 +258,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
             xyz = obs_raw['pc'][t].reshape(-1, 3)
             rgb = obs_raw['rgb'][t].reshape(-1, 3)
 
+            # 1. within workspace
             in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
                       (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
                       (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
@@ -262,79 +267,99 @@ class ObsProcessorPtv3(ObsProcessorBase):
             xyz = xyz[in_mask]
             rgb = rgb[in_mask]
 
-            # 4. remove robot
-            mask = self._get_mask_with_robot_box(xyz, arm_links_info, self.config.TRAIN_DATASET.rm_robot)
-            xyz = xyz[mask]
-            rgb = rgb[mask]
-            voxel_center_flag = False
+            JP_curr = copy.deepcopy(np.array(obs_raw['joint_position_all'][obs_raw['key_frameids'][t]], dtype=np.float64))
+            JP_curr = np.concatenate([JP_curr, [obs_raw['action'][t][-1]]], axis=0)
+            mask = self._rm_robot_by_JP(xyz, JP_curr)
 
-            if voxel_center_flag:
-                pcd = o3d.geometry.PointCloud()
-                pcd.points = o3d.utility.Vector3dVector(xyz)
-                pcd.colors = o3d.utility.Vector3dVector(rgb)
-                voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.config.Dataset.voxel_size)
+            xyz = xyz[~mask]
+            rgb = rgb[~mask]
 
-                points = []
-                colors = []
-                for voxel in voxel_grid.get_voxels():
-                    voxel_center = voxel_grid.origin + voxel.grid_index * voxel_grid.voxel_size + voxel_grid.voxel_size / 2
-                    points.append(voxel.grid_index)
-                    colors.append(voxel.color)
-                xyz = np.array(points, dtype=np.float32)
-                rgb = np.array(colors, dtype=np.float32)
-            else:
-                pcd = o3d.geometry.PointCloud()
-                pcd.points = o3d.utility.Vector3dVector(xyz)
-                pcd, _, trace = pcd.voxel_down_sample_and_trace(
-                    self.config.Dataset.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
-                )
-                xyz = np.asarray(pcd.points)
-                trace = np.array([v[0] for v in trace])
-                rgb = rgb[trace]
+            # 3. voxelize
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(xyz)
+            pcd, _, trace = pcd.voxel_down_sample_and_trace(
+                self.config.Dataset.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
+            )
+            xyz = np.asarray(pcd.points)
+            trace = np.array([v[0] for v in trace])
+            rgb = rgb[trace]
 
-                obs_static_process['xyz'].append(xyz)
-                obs_static_process['rgb'].append(rgb)
-                obs_static_process['arm_links_info'].append(arm_links_info)
+            # 4. remove outliers
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(xyz)
+            cl, ind = pcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=2.0)
+
+            xyz = xyz[ind]
+            rgb = rgb[ind]
+
+            obs_static_process['xyz'].append(xyz)
+            obs_static_process['rgb'].append(rgb)
 
         # only for train
         if not self.train_flag:  # flow control
             return obs_static_process
 
-        ee_pose_all = obs_raw['actions_all']
-        theta_actions_all = obs_raw['positions_all']
-        for t in range(num_keyframes):  # gt_actions
+        action_all = obs_raw['actions_all']
+        JP_all = obs_raw['joint_position_all']
+        for t in range(num_keyframes):
+            keyframe_id = copy.deepcopy(np.array(obs_raw['key_frameids'][t], dtype=np.int16))
+            rgb = obs_raw['rgb'][t]
+            pcd = obs_raw['pc'][t]
 
-            # actions_all process
-            action_current = copy.deepcopy(obs_raw['action'][t])
-            action_next = copy.deepcopy(obs_raw['action'][t + 1])
+            eePose_curr = copy.deepcopy(np.array(obs_raw['action'][t], dtype=np.float64))
+            eePose_next = copy.deepcopy(np.array(obs_raw['action'][t + 1], dtype=np.float64))
+            eePose_path = copy.deepcopy(np.array(action_all[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
-            action_current_frame_id = copy.deepcopy(obs_raw['key_frameids'][t])
-            action_next_frame_id = copy.deepcopy(obs_raw['key_frameids'][t + 1])
+            open_all = np.array([a[7] for a in action_all])
+            JP_all_copy = copy.deepcopy(JP_all)
+            JP_all_copy = np.concatenate([JP_all_copy, open_all[:, None]], axis=1)
 
-            action_path = copy.deepcopy(ee_pose_all[action_current_frame_id:action_next_frame_id + 1])  # 需要包头包尾
-            theta_actions_path = copy.deepcopy(theta_actions_all[action_current_frame_id:action_next_frame_id + 1])  # 需要包头包尾
-            assert (action_path[0] == action_current).all(), f'{action_path[0]} != {action_current}'
-            assert (action_path[-1] == action_next).all(), f'{action_path[-1]} != {action_next}'
-            obs_static_process['actions_path'].append(action_path)
-            obs_static_process['theta_actions_path'].append(theta_actions_path)
+            JP_curr = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]], dtype=np.float64))
+            JP_next = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t + 1]], dtype=np.float64))
+            JP_path = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))
 
-            del action_current, action_next, action_current_frame_id, action_next_frame_id
+            # action_history
+            if keyframe_id - 8 <= 1:
+                eePose_hist = [action_all[j] for j in range(keyframe_id)]
+                eePose_hist += [eePose_curr] * (8 - keyframe_id)
 
-            action_current = copy.deepcopy(obs_raw['action'][t])
-            action_next = copy.deepcopy(obs_raw['action'][t + 1])
+                JP_hist = [JP_all_copy[j] for j in range(keyframe_id)]
+                JP_hist += [JP_curr] * (8 - keyframe_id)
+            else:
+                eePose_hist = [action_all[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
+                JP_hist = [JP_all_copy[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
+            # action_future
+            eePose_futr, JP_futr = self.find_middle_actions(eePose_path, JP_path, sub_keyframe_dection_mode='avg')
 
-            action_current = np.array(action_current, dtype=np.float32)
-            action_next = np.array(action_next, dtype=np.float32)
+            # concatenate
+            eePose_hist = np.stack(eePose_hist, axis=0)
+            eePose_futr = np.stack(eePose_futr, axis=0)
 
-            obs_static_process['action_current'].append(action_current)
-            obs_static_process['action_next'].append(action_next)
-            obs_static_process['arm_links_info'].append(arm_links_info)
+            JP_hist = np.stack(JP_hist, axis=0)
+            JP_futr = np.stack(JP_futr, axis=0)
+            # check & save
+            assert np.allclose(eePose_curr, eePose_hist[-1])
+            assert np.allclose(eePose_next, eePose_futr[-1])
+            assert np.allclose(eePose_curr, eePose_hist[-1])
+
+            assert np.allclose(JP_curr, JP_all_copy[keyframe_id])
+            assert np.allclose(JP_next, JP_futr[-1])
+            assert np.allclose(JP_curr, JP_hist[-1])
+
+            obs_static_process['eePose_hist'].append(eePose_hist)
+            obs_static_process['eePose_futr'].append(eePose_futr)
+
+            obs_static_process['JP_hist'].append(JP_hist)
+            obs_static_process['JP_futr'].append(JP_futr)
 
         return obs_static_process
+
+    def static_process_FK(self, obs_raw):
+        pass
     # endregion
     # region dynamic process
 
-    def dynamic_process(self, obs_static, taskvar):
+    def dynamic_process(self, obs_static, taskvar):  # TODO: refine
         '''
         obs_static_process = {
             'xyz': [],
@@ -373,7 +398,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
             assert sub_keyframe_dection_mode in ['avg', 'xyzpeak']
 
             # end of path processs
-            # data_ids = data['data_ids'][t]
+            # data_ids = obs_raw['data_ids'][t]
             xyz = copy.deepcopy(obs_static['xyz'][t])
             rgb = copy.deepcopy(obs_static['rgb'][t])
 
@@ -482,7 +507,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
             # theta_actions
             test = torch.from_numpy(np.array(gt_theta_position)).float()
-            test = normalize_theta_positions(test)
+            test = normaliza_JP(test)
             test = einops.rearrange(test, 'h a -> a h')  # 现在channel是各个纬度的action
 
             obs_dynamic_out['ee_poses'].append(torch.from_numpy(ee_pose_current).float())
@@ -501,7 +526,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
             if type(data) == dict:
                 data = [data]
 
-            for key in data[0].keys():
+            for key in obs_raw[0].keys():
                 batch[key] = sum([x[key] for x in data], [])
 
             npoints_in_batch = [x.size(0) for x in batch['pc_fts']]
@@ -558,6 +583,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
             keep_gripper = True
         else:
             keep_gripper = False
+
         robot_box = RobotBox(
             arm_links_info, keep_gripper=keep_gripper,
             env_name='rlbench', selfgen=True
@@ -626,6 +652,10 @@ class ObsProcessorPtv3(ObsProcessorBase):
                     gripper_imgs[i, 0, v, u] = 1
             state_dict["gripper_imgs"] = gripper_imgs
 
+        state_dict['rgb'] = np.stack(state_dict['rgb'], 0)
+        state_dict['depth'] = np.stack(state_dict['depth'], 0)
+        state_dict['pc'] = np.stack(state_dict['pc'], 0)
+
         return state_dict
 
     def _dataset_init(self):
@@ -659,6 +689,58 @@ class ObsProcessorPtv3(ObsProcessorBase):
         self.rotation_transform = RotationMatrixTransform()
         self.dataset_init_flag = True
 
+    def _rm_robot_by_JP(self, xyz, JP):
+        def get_robot_pcd_idx(xyz, obbox):
+            points = o3d.utility.Vector3dVector(xyz)
+            robot_point_idx = set()
+            for box in obbox:
+                tmp = box.get_point_indices_within_bounding_box(points)
+                robot_point_idx = robot_point_idx.union(set(tmp))
+            robot_point_idx = np.array(list(robot_point_idx))
+            mask = np.zeros(len(xyz), dtype=bool)
+            mask[robot_point_idx] = True
+            return mask
+
+        theta = JP - self.franka.JP_offset
+        bbox_link, bbox_other = self.franka.theta2obbox(theta)
+        bbox_all = bbox_link + bbox_other[:2]
+        pcd_idx = get_robot_pcd_idx(xyz, bbox_all)
+        return pcd_idx
+
+    def find_middle_actions(self, actions_path, theta_actions_path, sub_keyframe_dection_mode='avg', horizon=8):
+
+        indices = np.linspace(0, len(actions_path) - 1, horizon + 1).astype(int)[1:]  # 我为什么这里减1了？ 哦index从0开始
+        gt_actions = [actions_path[i] for i in indices]
+        gt_theta_actions = [theta_actions_path[i] for i in indices]
+        return gt_actions, gt_theta_actions
+
+    # region modulization
+
+    def within_workspace(self, xyz, rgb):
+        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
+                  (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
+                  (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+        xyz = xyz[in_mask]
+        rgb = rgb[in_mask]
+        return xyz, rgb
+
+    def remove_table(self, xyz, rgb):
+        in_mask = xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT']
+        xyz = xyz[in_mask]
+        rgb = rgb[in_mask]
+        return xyz, rgb
+
+    def voxelize(self, xyz, rgb):
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(xyz)
+        pcd, _, trace = pcd.voxel_down_sample_and_trace(
+            self.config.Dataset.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
+        )
+        xyz = np.asarray(pcd.points)
+        trace = np.array([v[0] for v in trace])
+        rgb = rgb[trace]
+        return xyz, rgb
+    # endregion
 
 # endregion
 # --------------------------------------------------------------
@@ -695,7 +777,7 @@ def test_preprocess(record_example=False):
 
     config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_Lotus.yaml')
     test = ObsProcessorPtv3(config)
-    out = test.static_process(raw_data, '/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_episode')
+    out = test.static_process_fk(raw_data, '/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_episode')
     print(out.keys())
 
     pcd = o3d.geometry.PointCloud()
@@ -725,7 +807,6 @@ def test_dynamic_process(record_example=False):
     o3d.visualization.draw_geometries([pcd])
     print(out['theta_positions'])
     print(out.keys())
-# endregion
 
 
 def test_inference():
@@ -738,10 +819,49 @@ def test_inference():
     collect_fn = obs_processor.get_collect_function()
 
     obs_raw = obs_processor.obs_2_obs_raw(obs)
-    obs_static = obs_processor.static_process(obs_raw)
+    obs_static = obs_processor.static_process_fk(obs_raw)
     obs_dynamic = obs_processor.dynamic_process(obs_static, 'close_jar_peract+0')
     batch = collect_fn([obs_dynamic])
     print(batch.keys())
+
+
+# endregion
+
+
+def natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+
+
+def check_and_make(dir):
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+
+def static_process():
+    from zero.expAugmentation.config.default import get_config
+    data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/20demo_put_groceries/train/500765'
+    save_root = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/20demo_put_groceries/train/'
+    config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml')
+    check_and_make(os.path.join(save_root))
+
+    tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
+    obs_processor = ObsProcessorPtv3(config=config)
+    obs_processor._dataset_init()
+    for i, task in enumerate(tasks_all):
+        variations = sorted(os.listdir(os.path.join(data_dir, task)), key=natural_sort_key)
+        for j, variation in enumerate(variations):
+            episodes = sorted(os.listdir(os.path.join(data_dir, task, variation, 'episodes')), key=natural_sort_key)
+            for k, episode in tqdm(enumerate(episodes)):
+                taskvar = f'{task}+{variation.split("variation")[-1]}'
+                with open(os.path.join(data_dir, task, variation, 'episodes', episode, 'data.pkl'), 'rb') as f:
+                    data = pickle.load(f)
+                out = obs_processor.static_process_fk(data, taskvar)
+                save_path = os.path.join(save_root, task, variation, episode)
+                check_and_make(save_path)
+                with open(os.path.join(save_path, 'data.pkl'), 'wb') as f:
+                    pickle.dump(out, f)
+
+    pass
 
 
 if __name__ == '__main__':
@@ -749,4 +869,5 @@ if __name__ == '__main__':
     # test_preprocess(record_example=True)
     # test_dataset_process(record_example=True)
     # test_inference()
-    test_dynamic_process()
+    # test_dynamic_process()
+    static_process()

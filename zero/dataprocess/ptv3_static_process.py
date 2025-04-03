@@ -14,7 +14,7 @@ def obs_raw_to_static_process():
     config_path = "/media/jian/ssd4t/zero/zero/expAugmentation/config/DP.yaml"
     config = get_config(config_path)
     obs_processor = ObsProcessorPtv3(config, train_flag=True)
-    obs_raw_path = "/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_put_groceries/train/904744"
+    obs_raw_path = "/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_closejar/train"
     tasks_list = sorted(os.listdir(obs_raw_path), key=natural_sort_key)
 
     for i, task in enumerate(tasks_list):
@@ -25,6 +25,7 @@ def obs_raw_to_static_process():
             episodes_list = sorted(os.listdir(this_variation_path), key=natural_sort_key)
             for k, episode in enumerate(episodes_list):
                 this_episode_path = os.path.join(this_variation_path, episode)
+                print(this_episode_path)
 
 
 obs_raw_to_static_process()

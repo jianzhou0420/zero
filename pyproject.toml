@@ -22,5 +22,8 @@ authors = [
 include=["zero","zero.*"]
 exclude=["1_Data","1_Data.*",
          "2_Train","2_Train.*",
-         "3_Eval","3_Eval.*"]
+         "3_Eval","3_Eval.*",
+         "4_Paper","4_Paper.*",
+         "5_templates","5_templates.*",
+         "6_ThirdParty","6_ThirdParty.*",]
          

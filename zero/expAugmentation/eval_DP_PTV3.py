@@ -31,7 +31,7 @@ from rlbench.backend.exceptions import InvalidActionError
 import torch.multiprocessing as mp
 from termcolor import colored
 
-from zero.z_utils.joint_position import denormalize_theta_positions
+from zero.z_utils.joint_position import denormalize_JP
 # ----------------------------------------------
 # region utils
 
@@ -113,7 +113,7 @@ class Actioner(object):
         #     pickle.dump(obs, f)
         # raise NotImplementedError
         obs_raw = self.obs_processor.obs_2_obs_raw(obs)
-        obs_static = self.obs_processor.static_process(obs_raw)
+        obs_static = self.obs_processor.static_process_fk(obs_raw)
         obs_dynamic = self.obs_processor.dynamic_process(obs_static, taskvar)
         batch = self.collect_fn(obs_dynamic)
         for item in batch:
@@ -147,7 +147,7 @@ class Actioner(object):
         actions = einops.rearrange(actions, 'a h -> h a')  # theta_positions, horizon --> horizon, theta_positions
         new_actions = []
         for i, action in enumerate(actions):
-            action = denormalize_theta_positions(action)
+            action = denormalize_JP(action)
             new_actions.append(action)
         actions = np.stack(new_actions, 0)
 

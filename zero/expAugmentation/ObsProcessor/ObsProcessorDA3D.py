@@ -226,7 +226,7 @@ class ObsProcessorDA3D(ObsProcessorBase):
         gt_theta_actions = [theta_actions_path[i] for i in indices]
         return gt_actions, gt_theta_actions
 
-    def static_process(self, root_dir, task, variation, episode):
+    def static_process_fk(self, root_dir, task, variation, episode):
         out = {
             'rgb': [],
             'pcd': [],
@@ -325,7 +325,7 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
-data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_closejar/train'
+data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_put_groceries/train/904744'
 tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
 obs_processor = ObsProcessorDA3D(config=None)
 
@@ -334,4 +334,4 @@ for i, task in enumerate(tasks_all):
     for j, variation in enumerate(variations):
         episodes = sorted(os.listdir(os.path.join(data_dir, task, variation, 'episodes')), key=natural_sort_key)
         for k, episode in tqdm(enumerate(episodes)):
-            obs_processor.static_process(data_dir, task, variation, episode)
+            obs_processor.static_process_fk(data_dir, task, variation, episode)
