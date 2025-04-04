@@ -55,12 +55,32 @@ class SinusoidalPosEmb(nn.Module):
         device = x.device
         half_dim = self.dim // 2
         emb = math.log(10000) / (half_dim - 1)
+        # test
+        test1 = torch.arange(half_dim, device=device)
+        test2 = test1 * -emb
+        test3 = torch.exp(test2)
+
+        # / test
         emb = torch.exp(torch.arange(half_dim, device=device) * -emb)
         emb = x[:, None] * emb[None, :]
         emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
         return emb
+
 # ---------------------------------------------------------------
 # region 0. Some tools
+
+
+def pad_pcd_features(pcd_features, max_len):
+    # pad the point cloud features to max_len
+    batch_size = len(pcd_features)
+    padded_pcd_features = torch.zeros(batch_size, max_len, pcd_features[0].size(1), device=pcd_features[0].device)
+    mask = torch.ones([batch_size, max_len], dtype=torch.bool, device=pcd_features[0].device)
+    for i in range(batch_size):
+        cur_len = pcd_features[i].size(0)
+        padded_pcd_features[i, :cur_len] = pcd_features[i]
+        mask[i, :cur_len] = False
+
+    return padded_pcd_features, mask
 
 
 def offset2chunk(offset):
@@ -154,7 +174,18 @@ class FeatureExtractorPTv3CA(BaseFeatureExtractor):
 class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
     def __init__(self, config):
         super().__init__()
+        self.config = config
+
+        n_heads = config['FK']['ActionHead']['n_heads']
+        d_ffw = config['FK']['ActionHead']['d_ffw']
+        d_features = config['FK']['FeatureExtractor']['ptv3']['enc_channels'][-1]
+        n_features = config['FK']['ActionHead']['n_features']
+
         self.ptv3_model = PointTransformerV3(**config['FK']['FeatureExtractor']['ptv3'])
+        self.cross_attn = CrossAttnFFW(d_features, n_heads, d_ffw, 0.1)
+
+        self.n_features = n_features
+        self.d_features = d_features
 
     def forward(self, ptv3_batch):
         '''
@@ -164,27 +195,22 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
         '''
         point = self.ptv3_model(ptv3_batch)
 
-        splited_feature = torch.split(point['feat'], offset2chunk(point['offset']), dim=0)  # alarm
+        pcd_feat = torch.split(point['feat'], offset2chunk(point['offset']), dim=0)  # alarm
 
-        return splited_feature
+        pcd_empty = torch.ones((len(pcd_feat), self.n_features, self.d_features), device=pcd_feat[0].device) * 0.5
+        pcd_padded, mask = pad_pcd_features(pcd_feat, self.n_features)
+        pcd_feat = self.cross_attn(pcd_empty, pcd_padded, mask=mask)
+        return pcd_feat
 
     def prepare_ptv3_batch(self, batch):
+
         outs = {
             'coord': batch['pc_fts'][:, :3],
-            'grid_size': self.config.Dataset.voxel_size,
+            'grid_size': self.config['Dataset']['voxel_size'],
             'offset': batch['offset'],
             'batch': offset2batch(batch['offset']),
             'feat': batch['pc_fts'],
         }
-        device = batch['pc_fts'].device
-
-        # encode context for each point cloud
-        txt_embeds = self.txt_fc(batch['txt_embeds'])
-        ctx_embeds = torch.split(txt_embeds, batch['txt_lens'])
-        ctx_lens = torch.LongTensor(batch['txt_lens'])
-
-        outs['context'] = torch.cat(ctx_embeds, 0)
-        outs['context_offset'] = torch.cumsum(ctx_lens, dim=0).to(device)
 
         return outs
 
@@ -194,27 +220,25 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
 
 
 class ActionHead(BaseActionHead):
-
     def __init__(self, config):
         super().__init__()
-
+        self.config = config
         d_model = config['FK']['ActionHead']['d_model']
         d_instr = config['FK']['ActionHead']['d_instr']
         d_ffw = config['FK']['ActionHead']['d_ffw']
         n_heads = config['FK']['ActionHead']['n_heads']
+        d_pcd_features = config['FK']['FeatureExtractor']['ptv3']['enc_channels'][-1]
 
         # ActionEmbedding
-        self.embed_actionHis = nn.Embedding(8, d_model)
-        self.embed_instr = nn.Embedding(d_instr, d_model)
+        self.embed_actionHis = nn.Linear(8, d_model, bias=False)  # TODO:可能可以离散化，用类似普朗克常量的东西
+        self.embed_instr = nn.Linear(d_instr, d_model, bias=False)
         self.embed_t = nn.Embedding(1, d_model)
-
+        self.embed_features = nn.Linear(d_pcd_features, d_model, bias=False)  # TODO:可能可以离散化，用类似普朗克常量的东西
         # 先不对ptv3的feature进行处理
 
         # position embedding
 
         self.PE = SinusoidalPosEmb(d_model)
-
-        self.embed_actionFut = nn.Embedding(8, d_model)  # noisy action future
 
         # prediction layer
         self.SelfAttnList = nn.ModuleList([
@@ -232,25 +256,29 @@ class ActionHead(BaseActionHead):
         ])
 
         # prediction layer
-        self.actionFut_decoder = nn.Sequential(
+        self.JP_futr_decoder = nn.Sequential(
             nn.Linear(d_model, d_model),
             nn.ReLU(),
             nn.Linear(d_model, 8)
         )
 
-    def forward(self, pcd_feat, action_history, instr, t, noisy_action_future):
+    def forward(self, pcd_feat, JP_hist, instr, t, JP_futr_noisy):
 
         # for encoder
-        embeded_pcd = pcd_feat
-        embeded_actionHis = self.embed_actionHis(action_history)
+        embeded_pcd = self.embed_features(pcd_feat)
+        embeded_actionHis = self.embed_actionHis(JP_hist)
         embeded_instr = self.embed_instr(instr)
-        embeded_t = self.embed_t(t)
+        embeded_t = self.embed_t(t).unsqueeze(1)
 
+        # embeded_pcd_empty = torch.ones((len(pcd_feat), n_features, pcd_feat.size(1)), device=pcd_feat.device) * 0.5
+        # pcd_feat=
+        # embeded_pcd = self.embed_features(embeded_pcd_empty, pcd_feat)
         # for decoder
-        embeded_actionFuture = self.embed_actionHis(noisy_action_future)
+        embeded_actionFuture = self.embed_actionHis(JP_futr_noisy)
 
-        feature_all = self.PE(torch.cat([embeded_pcd, embeded_actionHis, embeded_instr, embeded_t], dim=1))
-
+        feature_all = torch.cat([embeded_pcd, embeded_actionHis, embeded_instr, embeded_t], dim=1)
+        pe = self.PE(torch.arange(feature_all.size(1), device=feature_all.device))
+        feature_all = feature_all + pe
         y = feature_all
         for module in self.SelfAttnList:
             y = module(y)
@@ -259,7 +287,7 @@ class ActionHead(BaseActionHead):
         for module in self.CrossAttnList:
             x = module(x, y)
 
-        pred = self.actionFut_decoder(x)
+        pred = self.JP_futr_decoder(x)
         return pred
 
 
@@ -277,20 +305,35 @@ class Policy(BasePolicy):
         self.franka = FrankaEmikaPanda()
         self.action_theta_offset = [0, 0, 0, math.radians(-4), 0, 0, 0]
 
+        self.ddpm_scheduler = DDPMScheduler(
+            num_train_timesteps=config['FK']['Policy']['num_timesteps'],
+            beta_schedule="scaled_linear",
+            prediction_type="epsilon",
+        )
+
     def forward(self, batch):
+
+        # get data
+        JP_futr = batch['JP_futr']  # [batch, horizon, action_dim]
+        JP_hist = batch['JP_hist']  # [batch, horizon, action_dim]
+        instr = batch['instr']
+        # feature extraction
         ptv3_batch = self.FeatureExtractor.prepare_ptv3_batch(batch)
         features = self.FeatureExtractor(ptv3_batch)
+
+        # DDPM scheduler
+        noise = torch.randn(JP_futr.size(), device=JP_futr.device)
+        t = torch.randint(0, self.ddpm_scheduler.num_train_timesteps, (JP_futr.size(0),), device=JP_futr.device).long()
+        JP_futr_noisy = self.ddpm_scheduler.add_noise(JP_futr, noise, timesteps=t)
+        # DDOM predict
+        JP_t_1 = self.ActionHead(features, JP_hist, instr, t, JP_futr_noisy)
+
         xyz = batch['pc_fts'][:, :3]
-
-        actionFut = batch['action_future']  # [batch, horizon, action_dim]
-
-        action_t_1 = self.ActionHead(features, batch['action_history'], batch['instr'], )
-
-        collision_loss = self.collision_loss(xyz, action_t_1)
-        diffusion_loss = self.diffusion_loss(xyz, action_t_1)
+        collision_loss = self.collision_loss(xyz, JP_t_1)
+        diffusion_loss = self.diffusion_loss(xyz, JP_t_1)
 
         loss = collision_loss + diffusion_loss
-        return action_t_1
+        return JP_t_1
 
     def collision_loss(self, xyz, n_xyz, action):
         '''
@@ -383,4 +426,4 @@ def test():
     policy.collision_loss(xyz,)
 
 
-test()
+# test()

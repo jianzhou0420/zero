@@ -11,10 +11,42 @@ import torchvision.transforms as transforms
 import torchvision.transforms.functional as transforms_f
 import einops
 from zero.z_utils.utilities_all import pad_clip_features, normalize_theta_positions
-import copy
+from copy import deepcopy as copy
+import json
+import random
 
 # --------------------------------------------------------------
 # region tools
+
+
+def tensorfp32(x):
+    x = torch.tensor(x, dtype=torch.float32)
+    return x
+
+
+def pad_clip_features(features, target_length=77):
+    """
+    Pads a list of CLIP feature arrays (each of shape (L, 512)) to a fixed target length.
+
+    Args:
+        features (list of np.array): List of feature arrays with shape (L, 512), where L can vary.
+        target_length (int): The target sequence length (default is 77).
+
+    Returns:
+        np.array: A numpy array of shape (batch_size, target_length, 512) where each feature array
+                  has been padded with zeros if necessary.
+    """
+    padded_features = []
+    for feat in features:
+        current_length, dim = feat.shape
+        # Create a new array of zeros with target_length rows and same feature dimension.
+        padded = np.zeros((target_length, dim), dtype=feat.dtype)
+        # Fill the first current_length rows with the feature data.
+        padded[:current_length, :] = feat
+        padded_features.append(padded)
+
+    # Optionally stack into one numpy array (batch_size, target_length, 512)
+    return np.stack(padded_features)
 
 
 def random_rotate_z(pc, angle=None):
@@ -174,7 +206,7 @@ class DatasetFK(Dataset):
                 variation_list = sorted(os.listdir(task_folder_path), key=natural_sort_key)
                 for variation_folder in variation_list:
                     l_episode = 0
-                    variation_folder_path = os.path.join(task_folder_path, variation_folder, 'episodes')
+                    variation_folder_path = os.path.join(task_folder_path, variation_folder)
                     episodes_list = sorted(os.listdir(variation_folder_path), key=natural_sort_key)
                     for episode_folder in episodes_list:
                         episode_folder_path = os.path.join(variation_folder_path, episode_folder)
@@ -214,14 +246,13 @@ class DatasetFK(Dataset):
             with open(save_path, 'wb') as f:
                 pickle.dump(cache_init, f)
             print('cache_dataset_init_path.pkl has been saved')
+
         # 3.container
         self.cache = dict()
         self.max_cache_length = 300
         print(f"max_cache_length: {self.max_cache_length}")
-        # for i in range(len(self.g_episode_to_path)):
-        #     if len(self.cache) >= self.max_cache_length:
-        #         break
-        #     self.check_cache(i)
+        self.taskvar_instrs = json.load(open(config['TRAIN_DATASET']['taskvar_instr_file']))
+        self.instr_embeds = np.load(config['TRAIN_DATASET']['instr_embed_file'], allow_pickle=True).item()
 
         # 4, other
         self._resize = Resize(config['TrainDataset']['image_rescales'])
@@ -242,6 +273,7 @@ class DatasetFK(Dataset):
     def __len__(self):
         return len(self.frames)
 
+    # region __getitem__
     def __getitem__(self, g_episode):
         '''
             batch:{
@@ -257,66 +289,85 @@ class DatasetFK(Dataset):
 
         '''
         outs = {
-            'rgb': None,
-            'pcd': None,
-            'joint_position_history': None,
-            'joint_position_future': None,
-            'instruction': None
+            'pc_fts': [],
+            'JP_hist': [],
+            'JP_futr': [],
+            'instr': []
         }
 
+        # 全是list的形式最好，方便后面处理
+        # TODO: dynamic process
         data = self.check_cache(g_episode)
+        n_frames = len(data['rgb'])
+        taskvar = self.g_episode_to_taskvar[g_episode]
 
-        rgb = torch.tensor(np.stack(copy.deepcopy(data['rgb']), axis=0))
-        pcd = torch.tensor(np.stack(copy.deepcopy(data['pcd']), axis=0))
-        joint_position_history = torch.tensor(np.stack(copy.deepcopy(data['joint_position_history']), axis=0))
-        joint_position_future = torch.tensor(np.stack(copy.deepcopy(data['joint_position_future']), axis=0))
-        instruction = torch.tensor(np.stack(copy.deepcopy(data['txt_embed']), axis=0)).squeeze()
-        # augmentation
-        resized_dict = self._resize(rgbs=rgb, pcds=pcd)
-        rgb = resized_dict['rgbs']
-        pcd = resized_dict['pcds']
+        for i in range(n_frames):
+            xyz = tensorfp32(copy(data['xyz'][i]))
+            rgb = tensorfp32(copy(data['rgb'][i]))
+            JP_hist = tensorfp32(copy(data['JP_hist'][i]))
+            JP_futr = tensorfp32(copy(data['JP_futr'][i]))
+            choice = random.choice(self.taskvar_instrs[taskvar])
+            instr = tensorfp32(pad_clip_features([self.instr_embeds[choice]]).squeeze(0))
+            height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
+            pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
 
-        rgb = einops.rearrange(rgb, 'bs ncam h w c-> bs ncam c h w')
-        pcd = einops.rearrange(pcd, 'bs ncam h w c-> bs ncam c h w')
+            outs['pc_fts'].append(pc_fts)
+            outs['JP_hist'].append(JP_hist)
+            outs['JP_futr'].append(JP_futr)
+            outs['instr'].append(instr)
 
-        # normalize
-        rgb = (rgb.float() / 255.0) * 2 - 1
-        joint_position_history = normalize_theta_positions(joint_position_history)
-        joint_position_future = normalize_theta_positions(joint_position_future)
-        # return
-        outs['rgb'] = rgb.float()
-        outs['pcd'] = pcd.float()
-        outs['joint_position_history'] = joint_position_history.float()
-        outs['joint_position_future'] = joint_position_future.float()
-        outs['instruction'] = instruction.float()
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
 
         return outs
-
-
-class DatasetFK_original(Dataset):
     # endregion
-    pass
 
 
-def collect_fn(batch):
-    collated = {}
-    for key in batch[0]:
-        # Concatenate the tensors from each dict in the batch along dim=0.
-        collated[key] = torch.cat([item[key] for item in batch], dim=0)
-    return collated
+def ptv3_collate_fn(data):
+    batch = {}
+    for key in data[0].keys():
+        batch[key] = sum([x[key] for x in data], [])
+
+    npoints_in_batch = [x.size(0) for x in batch['pc_fts']]
+    batch['npoints_in_batch'] = npoints_in_batch
+    batch['offset'] = torch.cumsum(torch.LongTensor(npoints_in_batch), dim=0)
+    batch['pc_fts'] = torch.cat(batch['pc_fts'], 0)  # (#all points, 6)
+
+    for key in ['ee_poses', 'gt_actions']:
+        batch[key] = torch.stack(batch[key], 0)
+
+    # if 'disc_pos_probs' in batch:
+    #     batch['disc_pos_probs'] = batch['disc_pos_probs'] # [(3, #all pointspos_bins*2)]
+
+    batch['step_ids'] = torch.LongTensor(batch['step_ids'])
+
+    batch['txt_lens'] = [x.size(0) for x in batch['txt_embeds']]
+    batch['txt_embeds'] = torch.cat(batch['txt_embeds'], 0)
+
+    if len(batch['pc_centroids']) > 0:
+        batch['pc_centroids'] = np.stack(batch['pc_centroids'], 0)
+
+    return batch
+
+
+def collect_fn(data):
+    batch = {}
+    for key in data[0].keys():
+        batch[key] = sum([x[key] for x in data], [])
+    npoints_in_batch = [x.size(0) for x in batch['pc_fts']]
+    batch['npoints_in_batch'] = npoints_in_batch
+    batch['offset'] = torch.cumsum(torch.LongTensor(npoints_in_batch), dim=0)
+    batch['pc_fts'] = torch.cat(batch['pc_fts'], 0)  # (#all points, 6)
+
+    for key in ['JP_hist', 'JP_futr', 'instr']:
+        batch[key] = torch.stack(batch[key], 0)
+    return batch
 
 
 if __name__ == '__main__':
     from zero.expAugmentation.config.default import get_config
     from torch.utils.data import DataLoader, Dataset
-    config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/DA3D.yaml'
+    config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml'
     config = get_config(config_path)
     data_dir = config['TrainDataset']['data_dir']
-    dataset = DatasetDA3D(config, data_dir)
+    dataset = DatasetFK(config, data_dir)
     loader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=collect_fn)
-
-    for i, batch in enumerate(loader):
-        for key in batch.keys():
-            print(key, batch[key].shape)
-        break

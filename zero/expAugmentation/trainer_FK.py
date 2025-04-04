@@ -9,9 +9,9 @@ import pytorch_lightning as pl
 
 # zero package
 from zero.expAugmentation.config.default import get_config, build_args
-from zero.expAugmentation.dataset.dataset_DA3D import DatasetDA3D as Dataset
-from zero.expAugmentation.dataset.dataset_DA3D import collect_fn
-from zero.expAugmentation.models.DiffuserActor3D.Policy import Policy
+from zero.expAugmentation.dataset.dataset_FK import DatasetFK as Dataset
+from zero.expAugmentation.dataset.dataset_FK import collect_fn
+from zero.expAugmentation.models.FK.Policy import Policy
 from zero.z_utils import *
 
 # helper package

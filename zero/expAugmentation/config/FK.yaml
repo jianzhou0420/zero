@@ -11,12 +11,13 @@ Trainer:
   shuffle: True
 
 TrainDataset:
-  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D
+  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train
   tasks_to_use: null
-  cache_dataset_init_path: /media/jian/ssd4t/zero/1_Data/D_Cache_init/2025-03-22-11-15-14cache_dataset_init_path.pkl
+  cache_dataset_init_path: /media/jian/ssd4t/zero/1_Data/D_Cache_init/2025-04-03-17-05-05cache_dataset_init_path.pkl
   image_rescales: [0.75,1.25]
 
 FK:
+
   Policy:
     num_timesteps: 100
     use_instruction: False
@@ -56,10 +57,11 @@ FK:
       add_coords_in_attn: 'none' # none, qk, qkv
 
   ActionHead:
-    d_model: 256
-    d_instr: 128
+    d_model: 512
+    d_instr: 512
     d_ffw: 512
     n_heads: 8
+    n_features: 256
 
 
 # region tmp
@@ -68,10 +70,10 @@ Dataset:
   txt_ft_size: 512
   context_channels: 256
   txt_reduce: 'attn' # mean, attn
-
+  max_seq_len: 20
 
 TRAIN_DATASET:
-  data_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions'
+  data_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train'
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
