@@ -474,12 +474,12 @@ def test():
         mask[robot_point_idx] = True
         return mask
 
-    config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml')
+    config = get_config('/data/zero/zero/expAugmentation/config/FK.yaml')
     obs_processor = ObsProcessorPtv3(config)
     policy = Policy(config)
     B = 1
     H = 8
-    episode_path = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D/close_jar/variation0/episodes/episode0/data.pkl'
+    episode_path = '/data/zero/1_Data/B_Preprocess/DA3D/close_jar/variation0/episodes/episode0/data.pkl'
 
     with open(episode_path, 'rb') as f:
         episode = pickle.load(f)

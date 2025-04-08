@@ -162,7 +162,7 @@ class DataGenerator:
                         demo, = task_env.get_demos(
                             amount=1,
                             live_demos=True)
-                        # with open('/media/jian/ssd4t/zero/5_templates/demo.pkl', 'wb') as f:
+                        # with open('/data/zero/5_templates/demo.pkl', 'wb') as f:
                         #     pickle.dump(demo, f)
                         self.demo2data(demo, episode_path)
                         pbar.update(1)
@@ -231,9 +231,9 @@ class DataGenerator:
 
 test = DataGenerator(None)
 test.generate_data_single_process()
-# with open('/media/jian/ssd4t/zero/5_templates/demo.pkl', 'rb') as f:
+# with open('/data/zero/5_templates/demo.pkl', 'rb') as f:
 #     demo = pickle.load(f)
-# test.demo2data(demo, '/media/jian/ssd4t/zero/5_templates/')
+# test.demo2data(demo, '/data/zero/5_templates/')
 
 # region 坟场
 # def generate_data_multiprocess(self,):

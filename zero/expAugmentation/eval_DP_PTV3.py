@@ -359,7 +359,7 @@ def main():
 
     '''
     mp.set_start_method('spawn')
-    eval_config = build_args('/media/jian/ssd4t/zero/zero/expAugmentation/config/eval.yaml')
+    eval_config = build_args('/data/zero/zero/expAugmentation/config/eval.yaml')
     eval_config.defrost()
 
     exp_dir = eval_config.exp_dir

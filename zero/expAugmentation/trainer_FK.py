@@ -163,7 +163,7 @@ def train(config: yacs.config.CfgNode):
 if __name__ == '__main__':
     # 0.1 args & 0.2 config
     pl.seed_everything(42)
-    config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml'
+    config_path = '/data/zero/zero/expAugmentation/config/FK.yaml'
     config = build_args(config_path)
     # 1. train
     train(config)

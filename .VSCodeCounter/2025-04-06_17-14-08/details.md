@@ -2,7 +2,7 @@
 
 Date : 2025-04-06 17:14:08
 
-Directory /media/jian/ssd4t/zero
+Directory /data/zero
 
 Total : 1652 files,  278830 codes, 14667 comments, 32525 blanks, all 326022 lines
 

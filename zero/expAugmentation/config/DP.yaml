@@ -15,7 +15,7 @@ Train:
   shuffle: True
 
 TRAIN_DATASET:
-  data_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions'
+  data_dir: '/data/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions'
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'

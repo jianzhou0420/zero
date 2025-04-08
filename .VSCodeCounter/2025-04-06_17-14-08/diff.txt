@@ -1,5 +1,5 @@
 Date : 2025-04-06 17:14:08
-Directory : /media/jian/ssd4t/zero
+Directory : /data/zero
 Total : 0 files,  0 codes, 0 comments, 0 blanks, all 0 lines
 
 Languages

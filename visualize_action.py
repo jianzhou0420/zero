@@ -4,7 +4,7 @@ import pickle
 import matplotlib.pyplot as plt
 
 example_joint_postion_path = '/datacode/zero/1_Data/A_Selfgen/with_path_with_position/train/close_jar_peract/variation0/episodes/episode0/positions_all.pkl'
-example_joint_postion_path = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/with_path_with_position/train/close_jar_peract/variation0/episodes/episode0/positions_all.pkl'
+example_joint_postion_path = '/data/zero/1_Data/A_Selfgen/with_path_with_position/train/close_jar_peract/variation0/episodes/episode0/positions_all.pkl'
 
 with open(example_joint_postion_path, 'rb') as f:
     data = pickle.load(f)
@@ -59,7 +59,7 @@ plt.show()
 print(len(data))
 
 
-data_path = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/with_path_with_position/train/close_jar_peract/variation0/episodes/episode0/data.pkl'
+data_path = '/data/zero/1_Data/A_Selfgen/with_path_with_position/train/close_jar_peract/variation0/episodes/episode0/data.pkl'
 with open(data_path, 'rb') as f:
     data = pickle.load(f)
 

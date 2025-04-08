@@ -819,10 +819,10 @@ def test_collect_obs(record_example=False):
     from zero.expAugmentation.config.default import get_config
     import matplotlib.pyplot as plt
     import pickle
-    config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_Lotus.yaml')
+    config = get_config('/data/zero/zero/expAugmentation/config/expBase_Lotus.yaml')
     test = ObsProcessorPtv3(config)
 
-    with open('/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_demo.pkl', 'rb') as f:
+    with open('/data/zero/1_Data/C_Dataset_Example/example_demo.pkl', 'rb') as f:
         demo = pickle.load(f)
     out = test.demo_2_obs_raw(demo)
     print(out.keys())
@@ -832,7 +832,7 @@ def test_collect_obs(record_example=False):
     plt.imshow(rbg_numpy)
     plt.show()
     if record_example is True:
-        with open('/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_raw_data.pkl', 'wb') as f:
+        with open('/data/zero/1_Data/C_Dataset_Example/example_raw_data.pkl', 'wb') as f:
             pickle.dump(out, f)
 
 
@@ -840,12 +840,12 @@ def test_preprocess(record_example=False):
     from zero.expAugmentation.config.default import get_config
     import matplotlib.pyplot as plt
     import pickle
-    with open('/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_raw_data.pkl', 'rb') as f:
+    with open('/data/zero/1_Data/C_Dataset_Example/example_raw_data.pkl', 'rb') as f:
         raw_data = pickle.load(f)
 
-    config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_Lotus.yaml')
+    config = get_config('/data/zero/zero/expAugmentation/config/expBase_Lotus.yaml')
     test = ObsProcessorPtv3(config)
-    out = test.static_process_fk(raw_data, '/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_episode')
+    out = test.static_process_fk(raw_data, '/data/zero/1_Data/C_Dataset_Example/example_episode')
     print(out.keys())
 
     pcd = o3d.geometry.PointCloud()
@@ -854,7 +854,7 @@ def test_preprocess(record_example=False):
     o3d.visualization.draw_geometries([pcd])
 
     if record_example is True:
-        with open('/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_preprocess_data.pkl', 'wb') as f:
+        with open('/data/zero/1_Data/C_Dataset_Example/example_preprocess_data.pkl', 'wb') as f:
             pickle.dump(out, f)
 
 
@@ -862,10 +862,10 @@ def test_dynamic_process(record_example=False):
     from zero.expAugmentation.config.default import get_config
     import matplotlib.pyplot as plt
     import pickle
-    with open('/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_preprocess_data.pkl', 'rb') as f:
+    with open('/data/zero/1_Data/C_Dataset_Example/example_preprocess_data.pkl', 'rb') as f:
         preprocess_data = pickle.load(f)
 
-    config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/expBase_Lotus.yaml')
+    config = get_config('/data/zero/zero/expAugmentation/config/expBase_Lotus.yaml')
     test = ObsProcessorPtv3(config)
     out = test.dynamic_process(preprocess_data, 'close_jar_peract+0')
 
@@ -880,9 +880,9 @@ def test_dynamic_process(record_example=False):
 def test_inference():
     from zero.expAugmentation.config.default import get_config
     import pickle
-    with open('/media/jian/ssd4t/zero/1_Data/C_Dataset_Example/example_obs.pkl', 'rb') as f:
+    with open('/data/zero/1_Data/C_Dataset_Example/example_obs.pkl', 'rb') as f:
         obs = pickle.load(f)
-    config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/DP.yaml')
+    config = get_config('/data/zero/zero/expAugmentation/config/DP.yaml')
     obs_processor = ObsProcessorPtv3(config, train_flag=False)
     collect_fn = obs_processor.get_collect_function()
 
@@ -907,9 +907,9 @@ def check_and_make(dir):
 
 def static_process():
     from zero.expAugmentation.config.default import get_config
-    data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/20demo_put_groceries/train/520837'
-    save_root = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/20demo_put_groceries/train/'
-    config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml')
+    data_dir = '/data/zero/1_Data/A_Selfgen/20demo_put_groceries/train/520837'
+    save_root = '/data/zero/1_Data/B_Preprocess/20demo_put_groceries/train/'
+    config = get_config('/data/zero/zero/expAugmentation/config/FK.yaml')
     check_and_make(os.path.join(save_root))
 
     tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)

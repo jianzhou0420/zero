@@ -2,7 +2,7 @@
 
 Date : 2025-04-06 17:17:41
 
-Directory /media/jian/ssd4t/zero/zero/expAugmentation
+Directory /data/zero/zero/expAugmentation
 
 Total : 113 files,  23174 codes, 1985 comments, 3752 blanks, all 28911 lines
 

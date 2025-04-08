@@ -23,7 +23,7 @@ JOINT_POSITIONS_LIMITS = np.array([[-2.8973, 2.8973],
                                    [-2.8973, 2.8973]])
 
 # ptv3 obs processor
-config_path = "/media/jian/ssd4t/zero/zero/expAugmentation/config/DP.yaml"
+config_path = "/data/zero/zero/expAugmentation/config/DP.yaml"
 config = get_config(config_path)
 config.defrost()
 config.TRAIN_DATASET.rm_robot = False

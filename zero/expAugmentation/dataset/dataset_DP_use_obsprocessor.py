@@ -149,7 +149,7 @@ class Dataset_DP_PTV3(Dataset):
 
 if __name__ == '__main__':
     from zero.expAugmentation.config.default import get_config
-    confi_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/DP.yaml'
+    confi_path = '/data/zero/zero/expAugmentation/config/DP.yaml'
     config = get_config(confi_path)
     data_dir = os.path.join(config['TRAIN_DATASET']['data_dir'], 'train')
     dataset = Dataset_DP_PTV3(config, data_dir)

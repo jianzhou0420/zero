@@ -11,10 +11,10 @@ def natural_sort_key(s):
 
 
 def obs_raw_to_static_process():
-    config_path = "/media/jian/ssd4t/zero/zero/expAugmentation/config/DP.yaml"
+    config_path = "/data/zero/zero/expAugmentation/config/DP.yaml"
     config = get_config(config_path)
     obs_processor = ObsProcessorPtv3(config, train_flag=True)
-    obs_raw_path = "/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_closejar/train"
+    obs_raw_path = "/data/zero/1_Data/A_Selfgen/2000demo_closejar/train"
     tasks_list = sorted(os.listdir(obs_raw_path), key=natural_sort_key)
 
     for i, task in enumerate(tasks_list):

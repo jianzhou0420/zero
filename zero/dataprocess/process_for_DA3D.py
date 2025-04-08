@@ -7,9 +7,9 @@ import os
 import pickle
 import re
 import numpy as np
-demo2000_path = "/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_closejar"
+demo2000_path = "/data/zero/1_Data/A_Selfgen/2000demo_closejar"
 
-vardes_path = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_closejar/train/close_jar/variation0/variation_descriptions.pkl'
+vardes_path = '/data/zero/1_Data/A_Selfgen/2000demo_closejar/train/close_jar/variation0/variation_descriptions.pkl'
 
 with open(vardes_path, 'rb') as f:
     vardes = pickle.load(f)
@@ -49,7 +49,7 @@ def process_single_episode(root_dir, task, variation, episode):
         actions_all = pickle.load(f)
     with open(os.path.join(data_folder, 'positions_all.pkl'), 'rb') as f:
         positions_all = pickle.load(f)
-    save_root = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D'
+    save_root = '/data/zero/1_Data/B_Preprocess/DA3D'
     save_folder = os.path.join(save_root, task, variation, 'episodes', episode)
     num_frames = len(data['rgb']) - 1
 
@@ -97,7 +97,7 @@ def process_single_episode(root_dir, task, variation, episode):
         pickle.dump(out, f)
 
 
-data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_closejar/train'
+data_dir = '/data/zero/1_Data/A_Selfgen/2000demo_closejar/train'
 tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
 
 for i, task in enumerate(tasks_all):

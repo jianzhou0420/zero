@@ -63,7 +63,7 @@ theta_deg = [15, 0, 0, 0, 0, 0, 0]
 # theta_deg = [0, 0, 0, 0, 0, 0, 0]
 
 theta = np.radians(theta_deg)
-config_path = "/media/jian/ssd4t/zero/zero/expAugmentation/config/DP.yaml"
+config_path = "/data/zero/zero/expAugmentation/config/DP.yaml"
 config = get_config(config_path)
 config.defrost()
 config.TRAIN_DATASET.rm_robot = False

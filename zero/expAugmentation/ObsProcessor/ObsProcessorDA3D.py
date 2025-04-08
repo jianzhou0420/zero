@@ -247,7 +247,7 @@ class ObsProcessorDA3D(ObsProcessorBase):
             joint_position_all = pickle.load(f)
 
         # save path
-        save_root = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D'
+        save_root = '/data/zero/1_Data/B_Preprocess/DA3D'
         save_folder = os.path.join(save_root, task, variation, 'episodes', episode)
         num_frames = len(data['rgb']) - 1
 
@@ -325,7 +325,7 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
-data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/2000demo_put_groceries/train/904744'
+data_dir = '/data/zero/1_Data/A_Selfgen/2000demo_put_groceries/train/904744'
 tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
 obs_processor = ObsProcessorDA3D(config=None)
 

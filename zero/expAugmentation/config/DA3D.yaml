@@ -11,9 +11,9 @@ Trainer:
   shuffle: True
 
 TrainDataset:
-  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D
+  data_dir: /data/zero/1_Data/B_Preprocess/DA3D
   tasks_to_use: null
-  cache_dataset_init_path: /media/jian/ssd4t/zero/1_Data/D_Cache_init/2025-03-22-11-15-14cache_dataset_init_path.pkl
+  cache_dataset_init_path: /data/zero/1_Data/D_Cache_init/2025-03-22-11-15-14cache_dataset_init_path.pkl
   image_rescales: [0.75,1.25]
 
 DiffuserActor:

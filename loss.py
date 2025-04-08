@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # 读取 CSV 数据
-data = pd.read_csv("/media/jian/ssd4t/zero/2_Train/DP/Mar15_17-38-06_DP/version_0/metrics.csv")
+data = pd.read_csv("/data/zero/2_Train/DP/Mar15_17-38-06_DP/version_0/metrics.csv")
 
 # 假设你要用 train_loss_epoch 作为每个 epoch 的 loss，
 # 这里计算每个 epoch 的平均 train_loss_epoch（如果每个 epoch 有多条记录）

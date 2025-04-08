@@ -11,7 +11,7 @@ theta_the means theta_theoretical,
 theta_sim means theta_simulated
 
 """
-config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/DP.yaml'
+config_path = '/data/zero/zero/expAugmentation/config/DP.yaml'
 config = get_config(config_path)
 
 obs_processor = ObsProcessorPtv3(config)
@@ -32,7 +32,7 @@ def get_robot_pcd_idx(xyz, obbox):
 franka = FrankaEmikaPanda()
 
 
-episode_path = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D/close_jar/variation0/episodes/episode0/data.pkl'
+episode_path = '/data/zero/1_Data/B_Preprocess/DA3D/close_jar/variation0/episodes/episode0/data.pkl'
 
 
 with open(episode_path, 'rb') as f:

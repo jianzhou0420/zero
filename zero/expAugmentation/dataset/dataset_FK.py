@@ -242,7 +242,7 @@ class DatasetFK(Dataset):
                           self.g_frame_to_l_episode)
 
             current_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-            save_root = '/media/jian/ssd4t/zero/1_Data/D_Cache_init'
+            save_root = '/data/zero/1_Data/D_Cache_init'
             save_path = os.path.join(save_root, current_time + 'cache_dataset_init_path.pkl')
             with open(save_path, 'wb') as f:
                 pickle.dump(cache_init, f)
@@ -376,7 +376,7 @@ def collect_fn(data):
 if __name__ == '__main__':
     from zero.expAugmentation.config.default import get_config
     from torch.utils.data import DataLoader, Dataset
-    config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml'
+    config_path = '/data/zero/zero/expAugmentation/config/FK.yaml'
     config = get_config(config_path)
     data_dir = config['TrainDataset']['data_dir']
     dataset = DatasetFK(config, data_dir)

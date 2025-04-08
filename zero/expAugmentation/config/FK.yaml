@@ -11,7 +11,7 @@ Trainer:
   shuffle: True
 
 TrainDataset:
-  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train
+  data_dir: /data/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
@@ -77,7 +77,7 @@ Dataset:
   max_seq_len: 20
 
 TRAIN_DATASET:
-  data_dir: '/media/jian/ssd4t/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train'
+  data_dir: '/data/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train'
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
