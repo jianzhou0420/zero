@@ -277,7 +277,7 @@ class Policy(BasePolicy):
         JP_futr_0_pred = self.inverse_q_sample(JP_futr_t, t, noise_pred)  # [batch, horizon, action_dim]
 
         # loss
-        ddpm_loss = F.mse_loss(JP_futr_0_pred, JP_futr_0, reduction='mean')
+        ddpm_loss = F.mse_loss(noise_pred, noise, reduction='mean')
 
         collision_loss = self.collision_loss(batch['pc_fts'][:, :3], batch['npoints_in_batch'], JP_futr_0_pred, noncollision_mask)  # [batch, horizon, action_dim]
 
