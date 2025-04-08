@@ -306,11 +306,14 @@ class DatasetFK(Dataset):
             choice = random.choice(self.taskvar_instrs[taskvar])
             instr = tensorfp32(pad_clip_features([self.instr_embeds[choice]]).squeeze(0))
             height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
+
+            rgb = (rgb / 255.0) * 2 - 1
+
             pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
 
-            # normalize joint positions
-            JP_hist = normalize_theta_positions(JP_hist)
-            JP_futr = normalize_theta_positions(JP_futr)
+            # # normalize joint positions
+            # JP_hist = normalize_theta_positions(JP_hist)
+            # JP_futr = normalize_theta_positions(JP_futr)
 
             noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
             outs['pc_fts'].append(pc_fts)

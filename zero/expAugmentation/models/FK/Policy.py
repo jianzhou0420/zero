@@ -38,7 +38,7 @@ from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 # 先不要参数化
 # 先不要大改，按照DP的写法来
 from torch import Tensor
-
+import pdb
 '''
 Policy
 ActionHead, Feature Extractor
@@ -300,7 +300,7 @@ class Policy(BasePolicy):
 
     def inverse_q_sample(self, x_t, t, noise):
         '''
-        inverse diffusion process, 去噪声
+        inverse diffusion process，还原而已，不算去噪
         '''
         sqrt_alphas_bar = extract(self.sqrt_alphas_bar, t, x_t.shape)
         sqrt_one_minus_alphas_bar = extract(self.sqrt_one_minus_alphas_bar, t, x_t.shape)
@@ -316,6 +316,7 @@ class Policy(BasePolicy):
         Assume the action has shape [B, Horizon,8]
         xyz is a list of Batch, 每个里面有不同的点云.先padding它成为等长的矩阵,记录mask,最后把mask的loss去掉
         '''
+
         max_len = max(n_xyz)
         P_op, mask = pad_pcd(xyz, n_xyz, max_len)  # [B, max_len, 3]
         noncollision_mask = pad_noncollision_mask(noncollision_mask, max_len)
@@ -336,18 +337,23 @@ class Policy(BasePolicy):
         P_op_homo = P_op_homo.unsqueeze(-1).unsqueeze(1).unsqueeze(1)  # s means single # (B，1,1,max_len, 4,1)
         T_ok = T_ok.unsqueeze(-3)  # (B，H,Link,1,4,4)
         P_kp = torch.matmul(T_ok, P_op_homo).squeeze()  # (H,Link,xyz,4)
-        P_kb = torch.abs(P_kp[..., :3]) - bbox
-        invasion = self._get_invasion(P_kb, mask) / B  # TODO: need a more reasonable invasion
+        P_kb_minus_box = torch.abs(P_kp[..., :3]) - torch.abs(bbox)
+        invasion = self._get_invasion(P_kb_minus_box, mask)  # TODO: need a more reasonable invasion
 
-        collision_loss = invasion
+        collision_loss = torch.abs(invasion)
         return collision_loss
 
-    def _get_invasion(self, P_kb, mask: Tensor):
+    def _get_invasion(self, P_kb_minus_box, mask: Tensor):
+        '''
+        暂时这样，
+        理想状态下，invasion与n_negative正比，与p_kb_minus_box的数值成正比
+        '''
         mask = mask.unsqueeze(1).unsqueeze(1).unsqueeze(-1)  # for boardcasting
-        idx = P_kb < 0
+        idx = P_kb_minus_box < 0  # negative meas inside box
+        test = torch.sum(idx)
         idx = idx & mask
-        n_negative = len(idx)
-        invasion = torch.sum(P_kb[idx]) / n_negative
+        n_negative = torch.sum(idx)
+        invasion = torch.sum(P_kb_minus_box[idx]) / n_negative
         # TODO: define a more reasonable invasion
         return invasion
 

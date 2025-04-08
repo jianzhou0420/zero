@@ -124,7 +124,7 @@ def train(config: yacs.config.CfgNode):
     model_name = config['Trainer']['model_name']
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     ckpt_name = current_time + model_name
-    log_path = "/data/zero/2_Train/model_name"
+    log_path = f"/data/zero/2_Train/{model_name}"
     log_name = ckpt_name
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
