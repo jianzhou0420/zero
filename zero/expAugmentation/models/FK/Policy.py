@@ -42,59 +42,10 @@ import pdb
 '''
 Policy
 ActionHead, Feature Extractor
-
 '''
+
 # ---------------------------------------------------------------
 # region 1. Feature Extractor
-
-
-class FeatureExtractorPTv3CA(BaseFeatureExtractor):
-    def __init__(self, config):
-        super().__init__()
-        self.ptv3_model = PointTransformerV3CA(**config.FeatureaExtractor.ptv3)
-
-        self.config = config
-        self.txt_fc = nn.Linear(config.Tmp.txt_ft_size, config.Tmp.context_channels)
-        self.txt_attn_fc = nn.Linear(config.Tmp.txt_ft_size, 1)
-
-    def forward(self, ptv3_batch):
-        '''
-        ptv3_batch: dict,dont care
-
-        return [batch, feat_dim] .
-        '''
-        point = self.ptv3_model(ptv3_batch)
-
-        splited_feature = torch.split(point['feat'], offset2chunk(point['offset']), dim=0)  # alarm
-        new_feature = []
-        for i, feat in enumerate(splited_feature):
-            # max pooling along the
-            if self.config.FeatureaExtractor.pool == 'max':
-                new_feature.append(torch.max(feat, 0)[0])
-            elif self.config.FeatureaExtractor.pool == 'mean':
-                new_feature.append(torch.mean(feat, 0))
-        new_feature = torch.stack(new_feature, 0)
-        return new_feature
-
-    def prepare_ptv3_batch(self, batch):
-        outs = {
-            'coord': batch['pc_fts'][:, :3],
-            'grid_size': self.config.Dataset.voxel_size,
-            'offset': batch['offset'],
-            'batch': offset2batch(batch['offset']),
-            'feat': batch['pc_fts'],
-        }
-        device = batch['pc_fts'].device
-
-        # encode context for each point cloud
-        txt_embeds = self.txt_fc(batch['txt_embeds'])
-        ctx_embeds = torch.split(txt_embeds, batch['txt_lens'])
-        ctx_lens = torch.LongTensor(batch['txt_lens'])
-
-        outs['context'] = torch.cat(ctx_embeds, 0)
-        outs['context_offset'] = torch.cumsum(ctx_lens, dim=0).to(device)
-
-        return outs
 
 
 class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
@@ -120,10 +71,10 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
         return [batch, feat_dim] .
         '''
         point = self.ptv3_model(ptv3_batch)
-
         pcd_feat = torch.split(point['feat'], offset2chunk(point['offset']), dim=0)  # alarm
 
         pcd_empty = torch.ones((len(pcd_feat), self.n_features, self.d_features), device=pcd_feat[0].device) * 0.5
+
         pcd_padded, mask = pad_pcd_features(pcd_feat, self.n_features)
         pcd_feat = self.cross_attn(pcd_empty, pcd_padded, mask=mask)
         return pcd_feat
@@ -217,6 +168,9 @@ class ActionHead(BaseActionHead):
         pred = self.JP_futr_decoder(x)
         return pred
 
+    def inference_one_step(self,):
+
+        pass
 
 # endregion
 # ---------------------------------------------------------------
@@ -256,8 +210,10 @@ class Policy(BasePolicy):
 
         self.T = T
 
-    def forward(self, batch):
+        #
+        self.collision_loss_flag = config['FK']['Policy']['collision_loss']
 
+    def forward(self, batch):
         # get data
         JP_futr_0 = batch['JP_futr']  # [batch, horizon, action_dim]
         JP_hist = batch['JP_hist']  # [batch, horizon, action_dim]
@@ -272,18 +228,20 @@ class Policy(BasePolicy):
         noise = torch.rand_like(JP_futr_0)
         JP_futr_t = self.q_sample(JP_futr_0, t, noise)  # [batch, horizon, action_dim]
 
-        # DDOM predict
+        # DDPM predict
         noise_pred = self.ActionHead(features, JP_hist, instr, t, JP_futr_t)
         JP_futr_0_pred = self.inverse_q_sample(JP_futr_t, t, noise_pred)  # [batch, horizon, action_dim]
 
         # loss
+
         ddpm_loss = F.mse_loss(noise_pred, noise, reduction='mean')
 
-        collision_loss = self.collision_loss(batch['pc_fts'][:, :3], batch['npoints_in_batch'], JP_futr_0_pred, noncollision_mask)  # [batch, horizon, action_dim]
+        if self.collision_loss_flag:
+            collision_loss = self.collision_loss(batch['pc_fts'][:, :3], batch['npoints_in_batch'], JP_futr_0_pred, noncollision_mask)
+        else:
+            collision_loss = 0
 
-        # TODO:collision loss,diffusion loss
-
-        loss = collision_loss + ddpm_loss
+        loss = ddpm_loss + collision_loss
         return loss
     ##############################################
     # DDPM

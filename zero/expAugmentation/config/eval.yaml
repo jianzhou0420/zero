@@ -4,7 +4,7 @@ exp_dir: /data/zero/2_Train/DP/a_firsttry/version_0
 version: null
 epoch: null
 device: 'cuda'  # cpu, cuda
-image_size: [512, 512]
+image_size: [256, 256]
 max_tries:  3
 max_steps:  15
 
