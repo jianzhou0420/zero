@@ -53,10 +53,10 @@ class DataGenerator:
         obs_config = ObservationConfig()
         obs_config.set_all(True)
 
-        obs_config.overhead_camera.rgb = False
-        obs_config.overhead_camera.depth = False
-        obs_config.overhead_camera.point_cloud = False
-        obs_config.overhead_camera.mask = False
+        obs_config.overhead_camera.rgb = True
+        obs_config.overhead_camera.depth = True
+        obs_config.overhead_camera.point_cloud = True
+        obs_config.overhead_camera.mask = True
 
         obs_config.right_shoulder_camera.mask = True
         obs_config.left_shoulder_camera.mask = True
@@ -70,7 +70,7 @@ class DataGenerator:
 
         obs_config.right_shoulder_camera.image_size = img_size
         obs_config.left_shoulder_camera.image_size = img_size
-
+        obs_config.overhead_camera.image_size = img_size
         obs_config.wrist_camera.image_size = img_size
         obs_config.front_camera.image_size = img_size
 
@@ -152,7 +152,7 @@ class DataGenerator:
             for episode_id in range(tmp_list[variation_id]):
                 # print('Process', i, '// Task:', task_env.get_name(),
                 #       '// Variation:', variation_id, '// Demo:', episode_id)
-                attempts = 10
+                attempts = 1
                 while attempts > 0:
                     episode_path = os.path.join(episodes_path, EPISODE_FOLDER % episode_id)
                     if os.path.exists(episode_path):
@@ -162,8 +162,8 @@ class DataGenerator:
                         demo, = task_env.get_demos(
                             amount=1,
                             live_demos=True)
-                        with open('/media/jian/ssd4t/zero/5_templates/demo.pkl', 'wb') as f:
-                            pickle.dump(demo, f)
+                        # with open('/media/jian/ssd4t/zero/5_templates/demo.pkl', 'wb') as f:
+                        #     pickle.dump(demo, f)
                         self.demo2data(demo, episode_path)
                         pbar.update(1)
                     except Exception as e:
@@ -201,12 +201,12 @@ class DataGenerator:
         seed = random.randint(0, 1000000)
         print('Seed:', seed)
         config = dict()
-        config['save_path'] = f'/data/zero/1_Data/A_Selfgen/2000demo_put_groceries/train/{seed}'
+        config['save_path'] = f'/data/zero/1_Data/A_Selfgen/20demo_put_groceries/train/{seed}'
         config['all_task_file'] = '/data/zero/assets/peract_tasks.json'
         config['image_size'] = [256, 256]
         config['renderer'] = 'opengl'
-        config['processes'] = 1
-        config['episodes_per_task'] = 20
+        config['processes'] = 2
+        config['episodes_per_task'] = 1000
         config['variations'] = -1
         config['offset'] = 0
         config['state'] = False

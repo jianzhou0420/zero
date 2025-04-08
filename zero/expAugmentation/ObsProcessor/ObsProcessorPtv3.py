@@ -19,7 +19,7 @@ import collections
 
 from zero.expAugmentation.models.lotus.utils.robot_box import RobotBox
 import numpy as np
-
+from numpy import array as npa
 from zero.z_utils.joint_position import normaliza_JP
 import json
 from scipy.spatial.transform import Rotation as R
@@ -27,59 +27,8 @@ from scipy.spatial.transform import Rotation as R
 from zero.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
 from zero.expAugmentation.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-
-# --------------------------------------------------------------
-# region utils
-
-JOINT_POSITIONS_LIMITS = np.array([[-2.8973, 2.8973],
-                                   [-1.7628, 1.7628],
-                                   [-2.8973, 2.8973],
-                                   [-3.0718, -0.0698],
-                                   [-2.8973, 2.8973],
-                                   [-0.0175, 3.7525],
-                                   [-2.8973, 2.8973]])
-
-
-def get_robot_workspace(real_robot=False, use_vlm=False):
-    if real_robot:
-        # ur5 robotics room
-        if use_vlm:
-            TABLE_HEIGHT = 0.0  # meters
-            X_BBOX = (-0.60, 0.2)        # 0 is the robot base
-            Y_BBOX = (-0.54, 0.54)  # 0 is the robot base
-            Z_BBOX = (-0.02, 0.75)      # 0 is the table
-        else:
-            TABLE_HEIGHT = 0.01  # meters
-            X_BBOX = (-0.60, 0.2)        # 0 is the robot base
-            Y_BBOX = (-0.54, 0.54)  # 0 is the robot base
-            Z_BBOX = (0, 0.75)      # 0 is the table
-
-    else:
-        # rlbench workspace
-        TABLE_HEIGHT = 0.7505  # meters
-
-        X_BBOX = (-0.5, 1.5)    # 0 is the robot base
-        Y_BBOX = (-1, 1)        # 0 is the robot base
-        Z_BBOX = (0.2, 2)       # 0 is the floor
-
-    return {
-        'TABLE_HEIGHT': TABLE_HEIGHT,
-        'X_BBOX': X_BBOX,
-        'Y_BBOX': Y_BBOX,
-        'Z_BBOX': Z_BBOX
-    }
-
-
-def random_rotate_z(pc, angle=None):
-    # Randomly rotate around z-axis
-    if angle is None:
-        angle = np.random.uniform() * 2 * np.pi
-    cosval, sinval = np.cos(angle), np.sin(angle)
-    R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
-    return np.dot(pc, np.transpose(R))
-
-
-# endregion
+from codebase.z_utils.open3d import *
+from codebase.z_utils.idx_mask import *
 # --------------------------------------------------------------
 # region main logic
 
@@ -206,24 +155,16 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
     def static_process_fk(self, obs_raw, taskvar):
         '''
-        承接原始数据，处理成为简单的格式，给dataset处理。
-        input = {
+        obs_raw={
             'key_frameids': [],
-            'rgb': [],  # (T, N, H, W, 3)
-            'pc': [],  # (T, N, H, W, 3)
-            'action': [],  # (T, A)
-            'bbox': [],  # [T of dict]
-            'pose': []  # [T of dict]
-        }
-
-        outs = {
-            'pc_fts': [],
-            'step_ids': [],
-            'pc_centroids': [],
-            'pc_radius': [],
-            'ee_poses': [],
-            'txt_embeds': [],
-            'gt_actions': [],
+            'rgb': [],
+            'pc': [],
+            'action': [],
+            'bbox': [],
+            'pose': [],
+            'sem': [],# 空的
+            'actions_all': [],
+            'joint_position_all': [],
         }
         '''
 
@@ -234,6 +175,9 @@ class ObsProcessorPtv3(ObsProcessorBase):
             'eePose_futr': [],
             'JP_hist': [],
             'JP_futr': [],
+            'mask': [],  # mask for collision, only with true the point will be counted when calculating the collision loss
+            'arm_links_info': [],
+            'noncollision_mask': [],
         }
 
         # all_names = episode_path.split('/')
@@ -253,7 +197,8 @@ class ObsProcessorPtv3(ObsProcessorBase):
         else:
             num_keyframes = 1
 
-        for t in range(num_keyframes):  # obs itself
+        VoxelGrid_list = []
+        for t in range(num_keyframes + 1):  # voxelize first
             arm_links_info = (obs_raw['bbox'][t], obs_raw['pose'][t])
             xyz = obs_raw['pc'][t].reshape(-1, 3)
             rgb = obs_raw['rgb'][t].reshape(-1, 3)
@@ -267,33 +212,101 @@ class ObsProcessorPtv3(ObsProcessorBase):
             xyz = xyz[in_mask]
             rgb = rgb[in_mask]
 
+            # 3. voxelize
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(xyz)
+            # pcd, _, trace = pcd.voxel_down_sample_and_trace(
+            #     self.config.Dataset.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
+            # )
+            # xyz = np.asarray(pcd.points)
+            # trace = np.array([v[0] for v in trace])
+            # rgb = rgb[trace]
+
+            # 3. remove robot get gripper idx
             JP_curr = copy.deepcopy(np.array(obs_raw['joint_position_all'][obs_raw['key_frameids'][t]], dtype=np.float64))
             JP_curr = np.concatenate([JP_curr, [obs_raw['action'][t][-1]]], axis=0)
             mask = self._rm_robot_by_JP(xyz, JP_curr)
-
             xyz = xyz[~mask]
             rgb = rgb[~mask]
 
-            # 3. voxelize
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(xyz)
-            pcd, _, trace = pcd.voxel_down_sample_and_trace(
-                self.config.Dataset.voxel_size, np.min(xyz, 0), np.max(xyz, 0)
-            )
-            xyz = np.asarray(pcd.points)
-            trace = np.array([v[0] for v in trace])
-            rgb = rgb[trace]
+            # 4. FK voxelization
+            VoxelGrid = o3d.geometry.VoxelGrid()
+            VoxelGrid.voxel_size = self.config.Dataset.voxel_size
+            VoxelGrid.origin = np.array([0, 0, 0])
+            # xyz(555,3)
+            voxel_index_set = set()
+            voxel_points_dict = {}
 
-            # 4. remove outliers
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(xyz)
-            cl, ind = pcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=2.0)
+            # 算index
+            for point_idx, xyz_s in enumerate(xyz):
+                grid_index = tuple(np.floor((xyz_s - VoxelGrid.origin) / VoxelGrid.voxel_size).astype(int))
+                voxel_index_set.add(grid_index)
 
-            xyz = xyz[ind]
-            rgb = rgb[ind]
+                if grid_index not in voxel_points_dict:
+                    voxel_points_dict[grid_index] = []
+                voxel_points_dict[grid_index].append(point_idx)
+
+            # 创建voxel,这里先不考虑augmentation的问题
+            for voxel_idx in voxel_index_set:
+                voxel_xyz = xyz[voxel_points_dict[voxel_idx]]
+                voxel_rgb = rgb[voxel_points_dict[voxel_idx]]
+                voxel_s = o3d.geometry.Voxel(grid_index=voxel_idx, color=voxel_rgb[0],)
+                VoxelGrid.add_voxel(voxel_s)
+            VoxelGrid_list.append(VoxelGrid)
+
+        # test single voxelgrid
+        # voxels = VoxelGrid.get_voxels()
+        # for voxel in voxels:
+        #     print(voxel.grid_index)
+        # print('please delete this test')
+        # /test
+        for t in range(num_keyframes):
+            vg_curr = VoxelGrid_list[t]
+            vg_futr = VoxelGrid_list[t + 1]
+
+            voxels_curr = vg_curr.get_voxels()
+            voxels_futr = vg_futr.get_voxels()
+
+            voxels_curr_dict = {tuple(voxel.grid_index): i for i, voxel in enumerate(voxels_curr)}
+            voxels_futr_dict = {tuple(voxel.grid_index): i for i, voxel in enumerate(voxels_futr)}
+            in_curr_not_in_futr = set(voxels_curr_dict.keys()) - set(voxels_futr_dict.keys())  # means moved voxels
+
+            noncollision_idx = npa([voxels_curr_dict[voxel_idx]for voxel_idx in list(in_curr_not_in_futr)])  # important
+            noncollision_mask = idx2mask(noncollision_idx, len(voxels_curr))  # 1 means noncollision, 0 means collision
+
+            # voxel to pcd
+            xyz = []
+            rgb = []
+            for voxel in voxels_curr:
+                grid_index = voxel.grid_index
+                center = voxel.grid_index * VoxelGrid.voxel_size + VoxelGrid.origin + VoxelGrid.voxel_size / 2
+                xyz.append(center)
+                rgb.append(voxel.color)
+            xyz = npa(xyz)
+            rgb = npa(rgb)
+
+            # 此时noncollision_mask是this_xyz的mask
+
+            # remove outliers
+            _, mask = pcd_remove_outliers(xyz, nb_neighbors=10, std_ratio=2.0,)
+            xyz = xyz[mask]
+            rgb = rgb[mask]
+            noncollision_mask = noncollision_mask[mask]  # mask是全部point中保留的东西
+            noncollision_idx = mask2idx(noncollision_mask)  # mask是全部point中保留的东西
+
+            # remove noncollision outliers
+            xyz_noncollision = xyz[noncollision_mask]
+            _, mask = pcd_remove_outliers(xyz_noncollision, nb_neighbors=10, std_ratio=2.0,)
+            noncollision_idx = noncollision_idx[mask]  # mask 是noncollision中保留的东西
+            noncollision_mask = idx2mask(noncollision_idx, len(xyz))  # mask是全部point中保留的东西, length 没变
 
             obs_static_process['xyz'].append(xyz)
             obs_static_process['rgb'].append(rgb)
+            obs_static_process['noncollision_mask'].append(noncollision_mask)
+
+            # print(1)
+            # pcd_visualize(xyz, rgb)
+            # pcd_visualize(xyz[noncollision_mask], rgb[noncollision_mask])
 
         # only for train
         if not self.train_flag:  # flow control
@@ -302,17 +315,13 @@ class ObsProcessorPtv3(ObsProcessorBase):
         action_all = obs_raw['actions_all']
         JP_all = obs_raw['joint_position_all']
         for t in range(num_keyframes):
+            # copy
             keyframe_id = copy.deepcopy(np.array(obs_raw['key_frameids'][t], dtype=np.int16))
-            rgb = obs_raw['rgb'][t]
-            pcd = obs_raw['pc'][t]
-
             eePose_curr = copy.deepcopy(np.array(obs_raw['action'][t], dtype=np.float64))
             eePose_next = copy.deepcopy(np.array(obs_raw['action'][t + 1], dtype=np.float64))
             eePose_path = copy.deepcopy(np.array(action_all[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
-            open_all = np.array([a[7] for a in action_all])
-            JP_all_copy = copy.deepcopy(JP_all)
-            JP_all_copy = np.concatenate([JP_all_copy, open_all[:, None]], axis=1)
+            JP_all_copy = np.concatenate([copy.deepcopy(JP_all), np.array([a[7] for a in action_all])[:, None]], axis=1)
 
             JP_curr = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]], dtype=np.float64))
             JP_next = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t + 1]], dtype=np.float64))
@@ -337,6 +346,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
             JP_hist = np.stack(JP_hist, axis=0)
             JP_futr = np.stack(JP_futr, axis=0)
+
             # check & save
             assert np.allclose(eePose_curr, eePose_hist[-1])
             assert np.allclose(eePose_next, eePose_futr[-1])
@@ -353,11 +363,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
             obs_static_process['JP_futr'].append(JP_futr)
 
         return obs_static_process
-
-    def static_process_FK(self, obs_raw):
-        pass
-    # endregion
-    # region dynamic process
 
     def dynamic_process(self, obs_static, taskvar):  # TODO: refine
         '''
@@ -517,8 +522,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
         obs_dynamic_out = obs_dynamic_out
 
         return obs_dynamic_out
-    # endregion
-    # region collate_fn
 
     def get_collect_function(self):
         def ptv3_collate_fn(data):
@@ -551,7 +554,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
             return batch
         return ptv3_collate_fn
-    # endregion
+
     # private functions
 
     def _get_groundtruth_rotations(self, action,):
@@ -613,7 +616,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
     def obs2dict(self, obs):
         apply_rgb = True
         apply_pc = True
-        apply_cameras = ("left_shoulder", "right_shoulder", "wrist", "front")
+        apply_cameras = ("left_shoulder", "right_shoulder", "overhead", "front")
         apply_depth = True
         apply_sem = False
         gripper_pose = False
@@ -690,31 +693,27 @@ class ObsProcessorPtv3(ObsProcessorBase):
         self.dataset_init_flag = True
 
     def _rm_robot_by_JP(self, xyz, JP):
-        def get_robot_pcd_idx(xyz, obbox):
-            points = o3d.utility.Vector3dVector(xyz)
-            robot_point_idx = set()
-            for box in obbox:
-                tmp = box.get_point_indices_within_bounding_box(points)
-                robot_point_idx = robot_point_idx.union(set(tmp))
-            robot_point_idx = np.array(list(robot_point_idx))
-            mask = np.zeros(len(xyz), dtype=bool)
-            mask[robot_point_idx] = True
-            return mask
-
         theta = JP - self.franka.JP_offset
         bbox_link, bbox_other = self.franka.theta2obbox(theta)
         bbox_all = bbox_link + bbox_other[:2]
         pcd_idx = get_robot_pcd_idx(xyz, bbox_all)
         return pcd_idx
 
-    def find_middle_actions(self, actions_path, theta_actions_path, sub_keyframe_dection_mode='avg', horizon=8):
+    def get_uncollision_mask(self, xyz, JP):
+        theta = JP - self.franka.JP_offset
+        bbox_link, bbox_other = self.franka.theta2obbox(theta)
+        gripper_idx = get_robot_pcd_idx(xyz, *[bbox_other[2:]])
+        return gripper_idx
 
+    def find_middle_actions(self, actions_path, theta_actions_path, sub_keyframe_dection_mode='avg', horizon=8):
         indices = np.linspace(0, len(actions_path) - 1, horizon + 1).astype(int)[1:]  # 我为什么这里减1了？ 哦index从0开始
         gt_actions = [actions_path[i] for i in indices]
         gt_theta_actions = [theta_actions_path[i] for i in indices]
         return gt_actions, gt_theta_actions
 
-    # region modulization
+    ##############################
+    # modulization
+    ##############################
 
     def within_workspace(self, xyz, rgb):
         in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
@@ -740,7 +739,76 @@ class ObsProcessorPtv3(ObsProcessorBase):
         trace = np.array([v[0] for v in trace])
         rgb = rgb[trace]
         return xyz, rgb
-    # endregion
+
+
+# endregion
+
+# --------------------------------------------------------------
+# region utils
+
+
+def get_robot_pcd_idx(xyz, obbox):
+    points = o3d.utility.Vector3dVector(xyz)
+    # pcd = o3d.geometry.PointCloud()
+    # pcd.points = points
+    # o3d.visualization.draw_geometries([pcd, *obbox])
+    robot_point_idx = set()
+    for box in obbox:
+        tmp = box.get_point_indices_within_bounding_box(points)
+        robot_point_idx = robot_point_idx.union(set(tmp))
+    robot_point_idx = np.array(list(robot_point_idx))
+    mask = np.zeros(len(xyz), dtype=bool)
+    mask[robot_point_idx] = True
+    return mask
+
+
+JOINT_POSITIONS_LIMITS = np.array([[-2.8973, 2.8973],
+                                   [-1.7628, 1.7628],
+                                   [-2.8973, 2.8973],
+                                   [-3.0718, -0.0698],
+                                   [-2.8973, 2.8973],
+                                   [-0.0175, 3.7525],
+                                   [-2.8973, 2.8973]])
+
+
+def get_robot_workspace(real_robot=False, use_vlm=False):
+    if real_robot:
+        # ur5 robotics room
+        if use_vlm:
+            TABLE_HEIGHT = 0.0  # meters
+            X_BBOX = (-0.60, 0.2)        # 0 is the robot base
+            Y_BBOX = (-0.54, 0.54)  # 0 is the robot base
+            Z_BBOX = (-0.02, 0.75)      # 0 is the table
+        else:
+            TABLE_HEIGHT = 0.01  # meters
+            X_BBOX = (-0.60, 0.2)        # 0 is the robot base
+            Y_BBOX = (-0.54, 0.54)  # 0 is the robot base
+            Z_BBOX = (0, 0.75)      # 0 is the table
+
+    else:
+        # rlbench workspace
+        TABLE_HEIGHT = 0.7505  # meters
+
+        X_BBOX = (-0.5, 1.5)    # 0 is the robot base
+        Y_BBOX = (-1, 1)        # 0 is the robot base
+        Z_BBOX = (0.2, 2)       # 0 is the floor
+
+    return {
+        'TABLE_HEIGHT': TABLE_HEIGHT,
+        'X_BBOX': X_BBOX,
+        'Y_BBOX': Y_BBOX,
+        'Z_BBOX': Z_BBOX
+    }
+
+
+def random_rotate_z(pc, angle=None):
+    # Randomly rotate around z-axis
+    if angle is None:
+        angle = np.random.uniform() * 2 * np.pi
+    cosval, sinval = np.cos(angle), np.sin(angle)
+    R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
+    return np.dot(pc, np.transpose(R))
+
 
 # endregion
 # --------------------------------------------------------------
@@ -839,7 +907,7 @@ def check_and_make(dir):
 
 def static_process():
     from zero.expAugmentation.config.default import get_config
-    data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/20demo_put_groceries/train/500765'
+    data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/20demo_put_groceries/train/520837'
     save_root = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/20demo_put_groceries/train/'
     config = get_config('/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml')
     check_and_make(os.path.join(save_root))

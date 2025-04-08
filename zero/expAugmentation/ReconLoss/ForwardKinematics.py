@@ -4,6 +4,10 @@ import open3d as o3d
 
 
 class FrankaEmikaPanda():
+    '''
+    TODO: support batch process
+    '''
+
     def __init__(self):
         self.d = [0.333, 0, 0.316, 0, 0.384, 0, 0, ]
         self.a = [0, 0, 0, 0.0825, -0.0825, 0, 0.088, ]
@@ -56,6 +60,9 @@ class FrankaEmikaPanda():
             [0, 0, 0, 1]])
 
         self.JP_offset = np.array([0, 0, 0, radians(-4), 0, 0, 0, 0])  # link7 open1
+
+        self.bbox_link_half = self.bbox_link[:, 1::2]
+        print("bbox_link_half", self.bbox_link_half)
 
     def get_T_oi(self, theta):
         def dh_modified_transform(alpha, a, theta, d):
@@ -171,3 +178,10 @@ class FrankaEmikaPanda():
         T_ok, T_ok_others = self.get_T_ok(theta)
         obbox, other_bbox = self.get_obbox(T_ok, T_ok_others=T_ok_others, tolerance=0.005)
         return obbox, other_bbox
+
+    def visualize_pcd(self, xyz, rgb, theta):
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(xyz)
+        pcd.colors = o3d.utility.Vector3dVector(rgb)
+        bbox, _ = self.theta2obbox(theta)
+        o3d.visualization.draw_geometries([pcd, *bbox], window_name="bbox", width=1920, height=1080)

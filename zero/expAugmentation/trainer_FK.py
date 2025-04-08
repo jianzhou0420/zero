@@ -23,7 +23,10 @@ import yacs.config
 import math
 import os
 import warnings
+import os
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+os.environ['TORCH_USE_CUDA_DSA'] = "1"
 
 # ---------------------------------------------------------------
 # region 0.Some tools
@@ -140,8 +143,9 @@ def train(config: yacs.config.CfgNode):
     epoch_callback = EpochCallback()
     trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
                          max_epochs=config['Trainer']['epoches'],
-                         devices='auto',
-                         strategy='auto',
+                         #  devices='cpu',
+                         accelerator='cuda',
+                         #  strategy='auto',
                          logger=csvlogger1,
                          #  profiler=profiler，
                          #  profiler='simple',
@@ -158,6 +162,7 @@ def train(config: yacs.config.CfgNode):
 # ---------------------------------------------------------------
 if __name__ == '__main__':
     # 0.1 args & 0.2 config
+    pl.seed_everything(42)
     config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml'
     config = build_args(config_path)
     # 1. train

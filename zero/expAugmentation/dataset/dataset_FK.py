@@ -1,4 +1,5 @@
 
+import open3d as o3d
 import pickle
 import re
 from torch.utils.data import Dataset
@@ -14,7 +15,7 @@ from zero.z_utils.utilities_all import pad_clip_features, normalize_theta_positi
 from copy import deepcopy as copy
 import json
 import random
-
+from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 # --------------------------------------------------------------
 # region tools
 
@@ -254,8 +255,8 @@ class DatasetFK(Dataset):
         self.taskvar_instrs = json.load(open(config['TRAIN_DATASET']['taskvar_instr_file']))
         self.instr_embeds = np.load(config['TRAIN_DATASET']['instr_embed_file'], allow_pickle=True).item()
 
-        # 4, other
-        self._resize = Resize(config['TrainDataset']['image_rescales'])
+        # 4.franka
+        # self.franka = FrankaEmikaPanda()
 
     def check_cache(self, g_episode):
         if self.cache.get(g_episode) is None:
@@ -276,31 +277,27 @@ class DatasetFK(Dataset):
     # region __getitem__
     def __getitem__(self, g_episode):
         '''
-            batch:{
-                'rgb': torch.Tensor (B, ncam,3, H, W)
-                'xyz': torch.Tensor (B, ncam,3, H, W)
-                'action_history': torch.Tensor (B, history, naction)
-                'action_future': torch.Tensor (B, horizon, naction)
-                'joint_position_future': torch.Tensor (B, horizon, njoint+open) 第一帧是current position,最后一帧是下一个keypose的position
-                'joint_position_history': torch.Tensor (B, history, njoint+open) 最后一帧是current position
-                'timestep': torch.Tensor (B,)
-                'instruction': torch.Tensor (B, max_instruction_length, dim)
+            data={
+                'xyz': (N, 3),
+                'rgb': (N, 3),
+                'JP_hist': (N, 7),
+                'JP_futr': (N, 7),
             }
-
         '''
         outs = {
             'pc_fts': [],
             'JP_hist': [],
             'JP_futr': [],
-            'instr': []
+            'instr': [],
+            'pcd_mask': [],
+            'noncollision_mask': [],
         }
 
-        # 全是list的形式最好，方便后面处理
-        # TODO: dynamic process
         data = self.check_cache(g_episode)
         n_frames = len(data['rgb'])
         taskvar = self.g_episode_to_taskvar[g_episode]
 
+        # dynamic process
         for i in range(n_frames):
             xyz = tensorfp32(copy(data['xyz'][i]))
             rgb = tensorfp32(copy(data['rgb'][i]))
@@ -311,10 +308,20 @@ class DatasetFK(Dataset):
             height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
             pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
 
+            # normalize joint positions
+            JP_hist = normalize_theta_positions(JP_hist)
+            JP_futr = normalize_theta_positions(JP_futr)
+
+            noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
             outs['pc_fts'].append(pc_fts)
             outs['JP_hist'].append(JP_hist)
             outs['JP_futr'].append(JP_futr)
             outs['instr'].append(instr)
+            outs['noncollision_mask'].append(noncollision_mask)
+            # from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+            # franka = FrankaEmikaPanda()
+            # for JP in JP_futr:
+            #     franka.visualize_pcd(xyz, rgb / 255, JP)
 
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
 
@@ -370,4 +377,5 @@ if __name__ == '__main__':
     config = get_config(config_path)
     data_dir = config['TrainDataset']['data_dir']
     dataset = DatasetFK(config, data_dir)
-    loader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=collect_fn)
+    loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collect_fn)
+    data1 = next(iter(loader))

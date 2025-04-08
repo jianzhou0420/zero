@@ -1,6 +1,6 @@
 
 Trainer:
-  model_name: DA3D
+  model_name: FK
   lr: 0.0001
   weight_decay: 0.0005
   epoches: 100
@@ -13,7 +13,7 @@ Trainer:
 TrainDataset:
   data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train
   tasks_to_use: null
-  cache_dataset_init_path: /media/jian/ssd4t/zero/1_Data/D_Cache_init/2025-04-03-17-05-05cache_dataset_init_path.pkl
+  cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
 
 FK:
@@ -21,7 +21,10 @@ FK:
   Policy:
     num_timesteps: 100
     use_instruction: False
-
+    DDPM:
+      beta_1: 0.0001
+      beta_T: 0.02
+      T: 100
   FeatureExtractor:
     ptv3:
       in_channels: 7
@@ -62,6 +65,7 @@ FK:
     d_ffw: 512
     n_heads: 8
     n_features: 256
+
 
 
 # region tmp
