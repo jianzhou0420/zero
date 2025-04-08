@@ -3,9 +3,9 @@ Trainer:
   model_name: FK
   lr: 0.0001
   weight_decay: 0.0005
-  epoches: 100
+  epoches: 500
   batch_size: 8
-  n_workers: 1
+  n_workers: 4
   pin_mem: True
   num_gpus: 1
   shuffle: True
