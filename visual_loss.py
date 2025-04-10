@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # 读取 CSV 文件，假设文件名为 'loss.csv'
-df = pd.read_csv('/home/jian/Downloads/1.csv')
+df = pd.read_csv('/home/jian/Downloads/2.csv')
 
 plt.figure(figsize=(8, 6))
 plt.plot(df['epoch'], df['train_loss'], marker='o', linestyle='-')

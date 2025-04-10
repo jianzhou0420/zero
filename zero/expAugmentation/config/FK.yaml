@@ -25,7 +25,7 @@ FK:
       beta_1: 0.0001
       beta_T: 0.02
       T: 100
-    collision_loss: False
+    collision_loss: True
   FeatureExtractor:
     ptv3:
       in_channels: 7

@@ -1,43 +1,28 @@
 '''
 ForwardKinematics Policy
 '''
-from torch.nn.utils.rnn import pad_sequence
 import math
-from einops import reduce
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 import torch
 import torch.nn as nn
-from zero.expAugmentation.models.dp2d.components.PointTransformerV3.model import (
-    PointTransformerV3, offset2bincount, offset2batch
-)
-from zero.expAugmentation.models.lotus.PointTransformerV3.model_ca import PointTransformerV3CA
-from zero.expAugmentation.config.default import build_args
-from zero.expAugmentation.models.Base.BaseAll import BaseActionHead, BaseFeatureExtractor, BasePolicy
+from torch import Tensor
 import numpy as np
 import einops
-import torch
-import torch.nn as nn
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-from zero.expAugmentation.models.Base.BaseAll import BasePolicy
-from zero.z_utils.joint_position import normaliza_JP, denormalize_JP
 import torch.nn.functional as F
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import einops
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-
-from zero.expAugmentation.models.Base.BaseAll import BaseActionHead
-
-from zero.expAugmentation.config.default import get_config
-import dgl.geometry as dgl_geo
+# PointTransformer V3
+from zero.expAugmentation.models.dp2d.components.PointTransformerV3.model import PointTransformerV3, offset2bincount, offset2batch
+# Policy
+from zero.expAugmentation.models.FK.component.DA3D_layers import (
+    FFWRelativeSelfAttentionModule,
+    FFWRelativeCrossAttentionModule,
+    FFWRelativeSelfCrossAttentionModule
+)
 from codebase.z_model.attentionlayer import SelfAttnFFW, CrossAttnFFW, PositionalEncoding
 from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-# 先不要参数化
-# 先不要大改，按照DP的写法来
-from torch import Tensor
+from zero.expAugmentation.models.Base.BaseAll import BaseActionHead, BaseFeatureExtractor, BasePolicy
+# Trainer
+from zero.expAugmentation.config.default import get_config
+# Utils
+from zero.z_utils.joint_position import normaliza_JP, denormalize_JP
 import pdb
 '''
 Policy
@@ -64,13 +49,15 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
         self.n_features = n_features
         self.d_features = d_features
 
-    def forward(self, ptv3_batch):
+    def forward(self, batch):
         '''
         ptv3_batch: dict,dont care
 
         return [batch, feat_dim] .
         '''
-        point = self.ptv3_model(ptv3_batch)
+        batch = self.prepare_ptv3_batch(batch)
+
+        point = self.ptv3_model(batch)
         pcd_feat = torch.split(point['feat'], offset2chunk(point['offset']), dim=0)  # alarm
 
         pcd_empty = torch.ones((len(pcd_feat), self.n_features, self.d_features), device=pcd_feat[0].device) * 0.5
@@ -122,16 +109,16 @@ class ActionHead(BaseActionHead):
         # prediction layer
         self.SelfAttnList = nn.ModuleList([
             SelfAttnFFW(d_model, n_heads, d_ffw, 0.1),
-            SelfAttnFFW(d_model, n_heads, d_ffw, 0.1),
-            SelfAttnFFW(d_model, n_heads, d_ffw, 0.1),
-            SelfAttnFFW(d_model, n_heads, d_ffw, 0.1),
+            # SelfAttnFFW(d_model, n_heads, d_ffw, 0.1),
+            # SelfAttnFFW(d_model, n_heads, d_ffw, 0.1),
+            # SelfAttnFFW(d_model, n_heads, d_ffw, 0.1),
         ])
 
         self.CrossAttnList = nn.ModuleList([
             CrossAttnFFW(d_model, n_heads, d_ffw, 0.1),
-            CrossAttnFFW(d_model, n_heads, d_ffw, 0.1),
-            CrossAttnFFW(d_model, n_heads, d_ffw, 0.1),
-            CrossAttnFFW(d_model, n_heads, d_ffw, 0.1),
+            # CrossAttnFFW(d_model, n_heads, d_ffw, 0.1),
+            # CrossAttnFFW(d_model, n_heads, d_ffw, 0.1),
+            # CrossAttnFFW(d_model, n_heads, d_ffw, 0.1),
         ])
 
         # prediction layer
@@ -171,6 +158,22 @@ class ActionHead(BaseActionHead):
     def inference_one_step(self,):
 
         pass
+
+
+class ActionHeadDA3D(BaseActionHead):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
+        # action head
+        d_model = config['FK']['ActionHead']['d_model']
+        d_instr = config['FK']['ActionHead']['d_instr']
+        d_ffw = config['FK']['ActionHead']['d_ffw']
+        n_heads = config['FK']['ActionHead']['n_heads']
+        d_pcd_features = config['FK']['FeatureExtractor']['ptv3']['enc_channels'][-1]
+
+        self.action_encoder = nn.Linear(8, d_model)
+
 
 # endregion
 # ---------------------------------------------------------------
@@ -219,9 +222,10 @@ class Policy(BasePolicy):
         JP_hist = batch['JP_hist']  # [batch, horizon, action_dim]
         instr = batch['instr']
         noncollision_mask = batch['noncollision_mask']  # [batch, horizon, action_dim]
+
         # feature extraction
-        ptv3_batch = self.FeatureExtractor.prepare_ptv3_batch(batch)
-        features = self.FeatureExtractor(ptv3_batch)
+
+        features = self.FeatureExtractor(batch)
 
         # DDPM scheduler
         t = torch.randint(self.T, size=(JP_futr_0.shape[0], ), device=JP_futr_0.device)
