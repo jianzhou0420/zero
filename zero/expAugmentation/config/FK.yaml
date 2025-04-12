@@ -17,7 +17,6 @@ TrainDataset:
   image_rescales: [0.75,1.25]
 
 FK:
-
   Policy:
     num_timesteps: 100
     use_instruction: False
@@ -25,7 +24,7 @@ FK:
       beta_1: 0.0001
       beta_T: 0.02
       T: 100
-    collision_loss: True
+    collision_loss: False
   FeatureExtractor:
     ptv3:
       in_channels: 7
@@ -33,7 +32,7 @@ FK:
       stride: [2, 2, 2,2]
       # encode 
       enc_depths: [1, 1, 1, 1,1]
-      enc_channels: [64,128,128,256,256]
+      enc_channels: [64,128,128,256,512]
       enc_num_head: [2, 4, 8, 16,32]
       enc_patch_size: [128, 128, 128, 128,128]
       mlp_ratio: 4
@@ -65,7 +64,7 @@ FK:
     d_instr: 512
     d_ffw: 512
     n_heads: 8
-    n_features: 256
+    n_features: 96
 
 
 

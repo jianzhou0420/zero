@@ -14,11 +14,17 @@ from zero.expAugmentation.models.dp2d.components.PointTransformerV3.model import
 from zero.expAugmentation.models.FK.component.DA3D_layers import (
     FFWRelativeSelfAttentionModule,
     FFWRelativeCrossAttentionModule,
-    FFWRelativeSelfCrossAttentionModule
+    FFWRelativeSelfCrossAttentionModule,
+    ParallelAttention,
 )
+from zero.expAugmentation.models.FK.component.DA3D_position_encodings import (
+    SinusoidalPosEmb,
+    RotaryPositionEncoding3D,)
+
 from codebase.z_model.attentionlayer import SelfAttnFFW, CrossAttnFFW, PositionalEncoding
 from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 from zero.expAugmentation.models.Base.BaseAll import BaseActionHead, BaseFeatureExtractor, BasePolicy
+from codebase.z_model.positional_encoding import PositionalEncoding1D
 # Trainer
 from zero.expAugmentation.config.default import get_config
 # Utils
@@ -44,7 +50,7 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
         n_features = config['FK']['ActionHead']['n_features']
 
         self.ptv3_model = PointTransformerV3(**config['FK']['FeatureExtractor']['ptv3'])
-        self.cross_attn = CrossAttnFFW(d_features, n_heads, d_ffw, 0.1)
+        # self.cross_attn = CrossAttnFFW(d_features, n_heads, d_ffw, 0.1)
 
         self.n_features = n_features
         self.d_features = d_features
@@ -59,12 +65,9 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
 
         point = self.ptv3_model(batch)
         pcd_feat = torch.split(point['feat'], offset2chunk(point['offset']), dim=0)  # alarm
+        pcd_feat, mask = pad_pcd_features(pcd_feat, self.n_features)
 
-        pcd_empty = torch.ones((len(pcd_feat), self.n_features, self.d_features), device=pcd_feat[0].device) * 0.5
-
-        pcd_padded, mask = pad_pcd_features(pcd_feat, self.n_features)
-        pcd_feat = self.cross_attn(pcd_empty, pcd_padded, mask=mask)
-        return pcd_feat
+        return pcd_feat, mask
 
     def prepare_ptv3_batch(self, batch):
 
@@ -172,7 +175,78 @@ class ActionHeadDA3D(BaseActionHead):
         n_heads = config['FK']['ActionHead']['n_heads']
         d_pcd_features = config['FK']['FeatureExtractor']['ptv3']['enc_channels'][-1]
 
-        self.action_encoder = nn.Linear(8, d_model)
+        # encode
+        self.action_hist_encoder = nn.Sequential(
+            nn.Linear(8, d_model),
+            nn.ReLU(),
+            nn.Linear(d_model, d_model)
+        )
+
+        self.action_futr_noisy_encoder = nn.Sequential(
+            nn.Linear(8, d_model),
+            nn.ReLU(),
+            nn.Linear(d_model, d_model)
+        )
+
+        self.time_embbedding = nn.Linear(1, d_model, bias=False)
+        self.PE = PositionalEncoding1D(d_model)
+
+        self.act_hist_query_obs_features = FFWRelativeSelfCrossAttentionModule(
+            d_model, n_heads, 2, 1, use_adaln=False)
+
+        self.act_futr_query_instr = FFWRelativeCrossAttentionModule(
+            d_model, n_heads, 2, use_adaln=False)
+
+        # main cross attn
+        self.cross_attn = FFWRelativeCrossAttentionModule(
+            d_model, n_heads, 2, use_adaln=True)
+
+        self.self_attn = FFWRelativeSelfAttentionModule(
+            d_model, n_heads, 4, use_adaln=True)
+
+        # decoder
+        self.JP_futr_decoder = nn.Sequential(
+            nn.Linear(d_model, d_model),
+            nn.ReLU(),
+            nn.Linear(d_model, 8)
+        )
+
+        self.vl_cross_attn = FFWRelativeCrossAttentionModule(
+            d_model, n_heads, 2, use_adaln=False)
+
+    def forward(self,
+                JP_futr_noisy, JP_hist,
+                obs_features, obs_features_mask,
+                instr, instr_mask,  # TODO: instr mask
+                t):
+
+        # encode features
+        t = self.time_embbedding(t.unsqueeze(-1).float())
+        act_hist = self.action_hist_encoder(JP_hist)
+        act_futr_noisy = self.action_futr_noisy_encoder(JP_futr_noisy)
+
+        # act_hist_query_obs_features， adaln_gripper_feature
+
+        act_hist = self.act_hist_query_obs_features(q=act_hist + self.PE(act_hist), k=obs_features + self.PE(obs_features), key_padding_mask=obs_features_mask)[-1]
+
+        # instruction
+        act_futr_noisy = self.act_futr_query_instr(q=act_futr_noisy + self.PE(act_futr_noisy), k=instr + self.PE(instr), key_padding_mask=instr_mask)[-1]
+        act_futr_noisy = act_futr_noisy + self.PE(act_futr_noisy)
+
+        # 所谓predictionhead,对应3dda的DiffusionHead的prediction_head
+        # t = t + act_hist  # 对应3dda的DiffusionHead的endoe_denoising_timestep
+
+        act_futr_noisy = self.cross_attn(q=act_futr_noisy + self.PE(act_futr_noisy), k=obs_features + self.PE(obs_features), key_padding_mask=obs_features_mask, diff_ts=t)[-1]
+
+        features = torch.cat([act_futr_noisy, obs_features], dim=1)
+        features = features + self.PE(features)
+
+        # self attn
+        mask = torch.cat([torch.zeros(act_futr_noisy.shape[:2], device=act_futr_noisy.device), obs_features_mask], dim=1)
+        features = self.self_attn(q=features, key_padding_mask=mask)[-1][:, :8, :]
+
+        action_pred = self.JP_futr_decoder(features)
+        return action_pred
 
 
 # endregion
@@ -185,7 +259,7 @@ class Policy(BasePolicy):
         super().__init__()
 
         # Policy itself
-        self.ActionHead = ActionHead(config)
+        self.ActionHead = ActionHeadDA3D(config)
         self.FeatureExtractor = FeatureExtractorPTv3Clean(config)
         self.config = config
         self.franka = FrankaEmikaPanda()
@@ -197,24 +271,29 @@ class Policy(BasePolicy):
 
         beta_1 = config['FK']['Policy']['DDPM']['beta_1']
         beta_T = config['FK']['Policy']['DDPM']['beta_T']
-        T = config['FK']['Policy']['DDPM']['T']
+        t = config['FK']['Policy']['DDPM']['T']
 
-        self.register_buffer(
-            'betas', torch.linspace(beta_1, beta_T, T).double())
+        def rb(name, val): return self.register_buffer(name, val.to(self.precision))  # 这一步太天才了
+
+        rb('betas', torch.linspace(beta_1, beta_T, t).double())
+
         alphas = 1. - self.betas
         alphas_bar = torch.cumprod(alphas, dim=0)
+        alphas_bar_prev = F.pad(alphas_bar, [1, 0], value=1)[:t]
 
-        # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.register_buffer(
-            'sqrt_alphas_bar', torch.sqrt(alphas_bar))
+        rb('sqrt_alphas_bar', torch.sqrt(alphas_bar))
+        rb('sqrt_one_minus_alphas_bar', torch.sqrt(1. - alphas_bar))
 
-        self.register_buffer(
-            'sqrt_one_minus_alphas_bar', torch.sqrt(1. - alphas_bar))
+        # denoising coeffs
+        rb('coeff1', torch.sqrt(1. / alphas))
+        rb('coeff2', self.coeff1 * (1. - alphas) / torch.sqrt(1. - alphas_bar))
 
-        self.T = T
+        self.register_buffer('posterior_var', self.betas * (1. - alphas_bar_prev) / (1. - alphas_bar))
+        self.t_max = t
 
         #
         self.collision_loss_flag = config['FK']['Policy']['collision_loss']
+        self.horizon = config['FK']['ActionHead']['horizon']
 
     def forward(self, batch):
         # get data
@@ -225,33 +304,72 @@ class Policy(BasePolicy):
 
         # feature extraction
 
-        features = self.FeatureExtractor(batch)
+        obs_features, obs_features_mask = self.FeatureExtractor(batch)
 
         # DDPM scheduler
-        t = torch.randint(self.T, size=(JP_futr_0.shape[0], ), device=JP_futr_0.device)
+        t = torch.randint(self.t_max, size=(JP_futr_0.shape[0], ), device=JP_futr_0.device)
         noise = torch.rand_like(JP_futr_0)
-        JP_futr_t = self.q_sample(JP_futr_0, t, noise)  # [batch, horizon, action_dim]
+        JP_futr_t = self._q_sample(JP_futr_0, t, noise)  # [batch, horizon, action_dim]
 
         # DDPM predict
-        noise_pred = self.ActionHead(features, JP_hist, instr, t, JP_futr_t)
-        JP_futr_0_pred = self.inverse_q_sample(JP_futr_t, t, noise_pred)  # [batch, horizon, action_dim]
+        noise_pred = self.ActionHead(JP_futr_t, JP_hist,
+                                     obs_features, ~obs_features_mask,
+                                     instr, instr_mask=None,  # TODO: instr mask
+                                     t=t)  # [batch, horizon, action_dim]
+        JP_futr_0_pred = self._inverse_q_sample(JP_futr_t, t, noise_pred)  # [batch, horizon, action_dim]
 
         # loss
 
         ddpm_loss = F.mse_loss(noise_pred, noise, reduction='mean')
 
         if self.collision_loss_flag:
-            collision_loss = self.collision_loss(batch['pc_fts'][:, :3], batch['npoints_in_batch'], JP_futr_0_pred, noncollision_mask)
+            collision_loss = self._collision_loss(batch['pc_fts'][:, :3], batch['npoints_in_batch'], JP_futr_0_pred, noncollision_mask)
         else:
             collision_loss = 0
 
         loss = ddpm_loss + collision_loss
         return loss
-    ##############################################
-    # DDPM
-    ##############################################
 
-    def q_sample(self, x_0, t, noise):
+    @torch.no_grad()
+    def inference_one_step(self, batch):
+        '''
+        actionhead input:(
+                JP_futr_noisy, JP_hist,
+                obs_features, obs_features_mask,
+                instr, instr_mask,
+                t)
+
+        '''
+        JP_futr_noisy = None
+        JP_hist = batch['JP_hist']  # [batch, horizon, action_dim]
+        obs_features, obs_features_mask = self.FeatureExtractor(batch)
+        instr = batch['instr']
+        instr_mask = None
+        noncollision_mask = batch['noncollision_mask']  # TODO: inference 用不到，但用不到是不合理的
+
+        B = obs_features.shape[0]
+        x_t = torch.randn(B, self.horizon, 8).to(obs_features.device)  # [B, horizon, action_dim]
+
+        for time_step in reversed(range(self.t_max)):
+            t = x_t.new_ones([x_t.shape[0], ], dtype=torch.long) * time_step
+            JP_futr_noisy = x_t
+            actionhead_input = (JP_futr_noisy, JP_hist,
+                                obs_features, ~obs_features_mask,
+                                instr, instr_mask,
+                                t)
+            mean, var = self._p_mean_variance(x_t=x_t, t=t, actionhead_input=actionhead_input)
+            if time_step > 0:
+                noise = torch.randn_like(x_t)
+            else:
+                noise = 0
+            x_t = mean + torch.sqrt(var) * noise
+            assert torch.isnan(x_t).int().sum() == 0, "nan in tensor."
+        x_0 = x_t
+        return torch.clip(x_0, -1, 1)  # [B, horizon, action_dim]
+
+    # region 3.1 DDPM
+    # Forward Part of Diffusion,
+    def _q_sample(self, x_0, t, noise):
         '''
         forward diffusion process, 加噪声
         '''
@@ -260,20 +378,38 @@ class Policy(BasePolicy):
             extract(self.sqrt_one_minus_alphas_bar, t, x_0.shape) * noise)
         return x_t
 
-    def inverse_q_sample(self, x_t, t, noise):
+    def _inverse_q_sample(self, x_t, t, noise):
         '''
-        inverse diffusion process，还原而已，不算去噪
+        inverse diffusion process, it is not denoising! Just for apply pysical rules
         '''
         sqrt_alphas_bar = extract(self.sqrt_alphas_bar, t, x_t.shape)
         sqrt_one_minus_alphas_bar = extract(self.sqrt_one_minus_alphas_bar, t, x_t.shape)
         x_0 = (x_t - sqrt_one_minus_alphas_bar * noise) / sqrt_alphas_bar
         return x_0
 
-    ##############################################
-    # Collision
-    ##############################################
+    # Backward Part of Diffusion,
+    @torch.no_grad()
+    def _p_mean_variance(self, x_t, t, actionhead_input):
+        # below: only log_variance is used in the KL computations
+        var = torch.cat([self.posterior_var[1:2], self.betas[1:]])
+        var = extract(var, t, x_t.shape)
 
-    def collision_loss(self, xyz, n_xyz, JP, noncollision_mask):
+        eps = self.ActionHead(actionhead_input)
+        xt_prev_mean = self._predict_xt_prev_mean_from_eps(x_t, t, eps=eps)
+
+        return xt_prev_mean, var
+
+    @torch.no_grad()
+    def _predict_xt_prev_mean_from_eps(self, x_t, t, eps):
+        assert x_t.shape == eps.shape
+        return (
+            extract(self.coeff1, t, x_t.shape) * x_t -
+            extract(self.coeff2, t, x_t.shape) * eps
+        )
+
+    # region 3.2 Collision Loss
+
+    def _collision_loss(self, xyz, n_xyz, JP, noncollision_mask):
         '''
         Assume the action has shape [B, Horizon,8]
         xyz is a list of Batch, 每个里面有不同的点云.先padding它成为等长的矩阵,记录mask,最后把mask的loss去掉
@@ -375,7 +511,7 @@ def pad_pcd_features(pcd_features, max_len):
     for i in range(batch_size):
         cur_len = pcd_features[i].size(0)
         padded_pcd_features[i, :cur_len] = pcd_features[i]
-        mask[i, :cur_len] = False
+        mask[i, cur_len:] = False
 
     return padded_pcd_features, mask
 
@@ -418,69 +554,9 @@ def ptv3_collate_fn(data):
 
 
 def test():
-    import pickle
-    from math import radians
-    from numpy import array as npa
-    from einops import rearrange
-    from zero.expAugmentation.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
-    import open3d as o3d
-
-    def get_robot_pcd_idx(xyz, obbox):
-        points = o3d.utility.Vector3dVector(xyz)
-        robot_point_idx = set()
-        for box in obbox:
-            tmp = box.get_point_indices_within_bounding_box(points)
-            robot_point_idx = robot_point_idx.union(set(tmp))
-        robot_point_idx = np.array(list(robot_point_idx))
-        mask = np.zeros(len(xyz), dtype=bool)
-        mask[robot_point_idx] = True
-        return mask
-
-    config = get_config('/data/zero/zero/expAugmentation/config/FK.yaml')
-    obs_processor = ObsProcessorPtv3(config)
-    policy = Policy(config)
-    B = 1
-    H = 8
-    episode_path = '/data/zero/1_Data/B_Preprocess/DA3D/close_jar/variation0/episodes/episode0/data.pkl'
-
-    with open(episode_path, 'rb') as f:
-        episode = pickle.load(f)
-
-    print(episode.keys())
-    theta_offset = npa([0, 0, 0, radians(-4), 0, 0, 0])
-
-    theta_sim = episode['joint_position_history'][0][-1][:-1]  # 第一帧的关节角度
-    theta_the = theta_sim - theta_offset
-
-    rgb = episode['rgb'][0]
-    xyz = episode['pcd'][0]
-
-    xyz = rearrange(xyz, 'ncam h w c -> (ncam h w) c')
-    rgb = rearrange(rgb, 'ncam h w c -> (ncam h w) c')
-
-    xyz, rgb = obs_processor.within_workspace(xyz, rgb)
-    xyz, rgb = obs_processor.remove_table(xyz, rgb)
-    xyz, rgb = obs_processor.voxelize(xyz, rgb)
-
-    theta_the = np.hstack([theta_the, 0])
-
-    bbox_link, bbox_other = policy.franka.theta2obbox(theta_the)
-
-    bbox_all = bbox_link + bbox_other
-
-    pcd_idx = get_robot_pcd_idx(xyz, bbox_all)
-    xyz = xyz[~pcd_idx]
-    rgb = rgb[~pcd_idx]
-
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(xyz)
-    pcd.colors = o3d.utility.Vector3dVector(rgb / 255.0)
-    cl, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
-    xyz = torch.tensor(cl.points)
-
-    o3d.visualization.draw_geometries([cl])
-    n_xyz = torch.tensor([len(xyz)])
-    policy.collision_loss(xyz,)
+    config_path = '/media/jian/ssd4t/zero/zero/expAugmentation/config/FK.yaml'
+    config = get_config(config_path)
+    FeatureExtractorPTv3Clean(config)
 
 
 # test()

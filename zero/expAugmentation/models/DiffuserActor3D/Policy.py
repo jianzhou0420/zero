@@ -452,7 +452,7 @@ class ActionHead(BaseActionHead):
         )
 
     def prediction_head(self,
-                        action_pcd, action_features,
+                        action_pcd, action_noisy,
                         pcd_pyrimid, pcd_pyrimid_feats,
                         timesteps, curr_gripper_features,
                         fps_pcd_feats, fps_pcd,
@@ -481,8 +481,8 @@ class ActionHead(BaseActionHead):
         rel_context_pos = self.relative_pe_layer(pcd_pyrimid)
 
         # Cross attention from gripper to full context
-        action_features = self.cross_attn(
-            query=action_features,
+        action_noisy = self.cross_attn(
+            query=action_noisy,
             value=pcd_pyrimid_feats,
             query_pos=rel_gripper_pos,
             value_pos=rel_context_pos,
@@ -490,7 +490,7 @@ class ActionHead(BaseActionHead):
         )[-1]
 
         # Self attention among gripper and sampled context
-        features = torch.cat([action_features, fps_pcd_feats], 0)
+        features = torch.cat([action_noisy, fps_pcd_feats], 0)
         rel_pos = torch.cat([rel_gripper_pos, fps_pcd], 1)
         features = self.self_attn(
             query=features,
@@ -500,7 +500,7 @@ class ActionHead(BaseActionHead):
             context_pos=None
         )[-1]
 
-        num_gripper = action_features.shape[0]
+        num_gripper = action_noisy.shape[0]
 
         # Position head
         position, position_features = self.predict_pos(
@@ -563,7 +563,7 @@ class ActionHead(BaseActionHead):
         traj_feats = self.traj_embedding(noisy_traj)  # (B, L, dim)
 
         # Trajectory features cross-attend to context features
-        traj_time_pos = self.traj_time_emb(torch.arange(0, horizon, device=traj_feats.device))[None].repeat(len(traj_feats), 1, 1)
+        traj_time_pos = self.traj_time_embedding(torch.arange(0, horizon, device=traj_feats.device))[None].repeat(len(traj_feats), 1, 1)
 
         if self.use_instruction:
             traj_feats, _ = self.traj_lang_attention[0](
