@@ -46,7 +46,7 @@ def natural_sort_key(s):
 # region 1. Trainer
 
 
-class TrainerDP(pl.LightningModule):
+class Trainer_DP(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.save_hyperparameters()
@@ -128,7 +128,7 @@ def train(config: yacs.config.CfgNode):
     log_name = ckpt_name
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=200,
+        every_n_epochs=100,
         save_top_k=-1,
         save_last=False,
         filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
@@ -152,7 +152,7 @@ def train(config: yacs.config.CfgNode):
                          use_distributed_sampler=False,
                          )
     config.freeze()
-    trainer_model = TrainerDP(config)
+    trainer_model = Trainer_DP(config)
     data_module = MyDataModule(config)
     trainer.fit(trainer_model, datamodule=data_module)
     # print(profiler.key_averages().table(max_len=200))

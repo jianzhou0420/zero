@@ -1,3 +1,10 @@
+'''
+Variable Explanation:
+JP: Joint Position [7 Links theta, is_open]
+JPose: Jian Pose [x y z euler(x,y,z)], a little bit confusing with JP
+eePose: End Effector Pose [x y z euler(x,y,z)], a little bit confusing with JP
+'''
+
 import re
 from zero.expAugmentation.ObsProcessor.ObsProcessorBase import ObsProcessorBase
 import copy
@@ -77,15 +84,16 @@ class ObsProcessorPtv3(ObsProcessorBase):
         positions.append(position)
         obs_raw = {
             'key_frameids': key_frames,
-            'rgb': state_dict['rgb'],  # (T, N, H, W, 3)
-            'pc': state_dict['pc'],  # (T, N, H, W, 3)
-            'action': state_dict['gripper'],  # (T, A)
+            'rgb': [state_dict['rgb']],  # (T, N, H, W, 3)
+            'pc': [state_dict['pc']],  # (T, N, H, W, 3)
+            'action': [state_dict['gripper']],  # (T, A)
             'bbox': bbox,  # [T of dict]
             'pose': pose,  # [T of dict]
+            'JP_curr_no_open': positions,
         }
         return obs_raw
 
-    def demo_2_obs_raw(self, demo):
+    def demo_2_obs_raw(self, demo):  # TODO: refine I/O variables name
         """Fetch the desired state based on the provided demo.
         :param obs: incoming obs
         :return: required observation (rgb, depth, pc, gripper state)
@@ -150,10 +158,10 @@ class ObsProcessorPtv3(ObsProcessorBase):
             'joint_position_all': positions,
         }
         return obs_raw
-        # endregion
-    # region static process
 
-    def static_process_fk(self, obs_raw, taskvar):
+    # region static process FK
+
+    def static_process_fk(self, obs_raw):
         '''
         obs_raw={
             'key_frameids': [],
@@ -165,6 +173,8 @@ class ObsProcessorPtv3(ObsProcessorBase):
             'sem': [],# 空的
             'actions_all': [],
             'joint_position_all': [],
+            'JP_curr_no_open':[],
+            'JP_hist_eval':[],
         }
         '''
 
@@ -193,12 +203,15 @@ class ObsProcessorPtv3(ObsProcessorBase):
         '''
 
         if self.train_flag:
-            num_keyframes = len(obs_raw['key_frameids']) - 1
+            num_keyframes_with_end = len(obs_raw['key_frameids'])
+            num_keyframes = num_keyframes_with_end - 1
         else:
+            num_keyframes_with_end = 1
             num_keyframes = 1
 
         VoxelGrid_list = []
-        for t in range(num_keyframes + 1):  # voxelize first
+
+        for t in range(num_keyframes_with_end):  # voxelize first
             arm_links_info = (obs_raw['bbox'][t], obs_raw['pose'][t])
             xyz = obs_raw['pc'][t].reshape(-1, 3)
             rgb = obs_raw['rgb'][t].reshape(-1, 3)
@@ -223,8 +236,8 @@ class ObsProcessorPtv3(ObsProcessorBase):
             # rgb = rgb[trace]
 
             # 3. remove robot get gripper idx
-            JP_curr = copy.deepcopy(np.array(obs_raw['joint_position_all'][obs_raw['key_frameids'][t]], dtype=np.float64))
-            JP_curr = np.concatenate([JP_curr, [obs_raw['action'][t][-1]]], axis=0)
+            JP_curr = copy.deepcopy(np.array(obs_raw['JP_curr_no_open'][t], dtype=np.float64))
+            JP_curr = np.concatenate([JP_curr, np.array([obs_raw['action'][t][-1]])], axis=0)
             mask = self._rm_robot_by_JP(xyz, JP_curr)
             xyz = xyz[~mask]
             rgb = rgb[~mask]
@@ -260,107 +273,146 @@ class ObsProcessorPtv3(ObsProcessorBase):
         #     print(voxel.grid_index)
         # print('please delete this test')
         # /test
-        for t in range(num_keyframes):
-            vg_curr = VoxelGrid_list[t]
-            vg_futr = VoxelGrid_list[t + 1]
+        if self.train_flag:
+            for t in range(num_keyframes):
+                vg_curr = VoxelGrid_list[t]
+                vg_futr = VoxelGrid_list[t + 1]
 
+                voxels_curr = vg_curr.get_voxels()
+                voxels_futr = vg_futr.get_voxels()
+
+                voxels_curr_dict = {tuple(voxel.grid_index): i for i, voxel in enumerate(voxels_curr)}
+                voxels_futr_dict = {tuple(voxel.grid_index): i for i, voxel in enumerate(voxels_futr)}
+                in_curr_not_in_futr = set(voxels_curr_dict.keys()) - set(voxels_futr_dict.keys())  # means moved voxels
+
+                noncollision_idx = npa([voxels_curr_dict[voxel_idx]for voxel_idx in list(in_curr_not_in_futr)])  # important
+                noncollision_mask = idx2mask(noncollision_idx, len(voxels_curr))  # 1 means noncollision, 0 means collision
+
+                # voxel to pcd
+                xyz = []
+                rgb = []
+                for voxel in voxels_curr:
+                    grid_index = voxel.grid_index
+                    center = voxel.grid_index * vg_curr.voxel_size + vg_curr.origin + vg_curr.voxel_size / 2
+                    xyz.append(center)
+                    rgb.append(voxel.color)
+                xyz = npa(xyz)
+                rgb = npa(rgb)
+
+                # 此时noncollision_mask是this_xyz的mask
+
+                # remove outliers
+                _, mask = pcd_remove_outliers(xyz, nb_neighbors=10, std_ratio=2.0,)
+                xyz = xyz[mask]
+                rgb = rgb[mask]
+                noncollision_mask = noncollision_mask[mask]  # mask是全部point中保留的东西
+                noncollision_idx = mask2idx(noncollision_mask)  # mask是全部point中保留的东西
+
+                # remove noncollision outliers
+                xyz_noncollision = xyz[noncollision_mask]
+                _, mask = pcd_remove_outliers(xyz_noncollision, nb_neighbors=10, std_ratio=2.0,)
+                noncollision_idx = noncollision_idx[mask]  # mask 是noncollision中保留的东西
+                noncollision_mask = idx2mask(noncollision_idx, len(xyz))  # mask是全部point中保留的东西, length 没变
+
+                obs_static_process['xyz'].append(xyz)
+                obs_static_process['rgb'].append(rgb)
+                obs_static_process['noncollision_mask'].append(noncollision_mask)
+
+                # print(1)
+                # pcd_visualize(xyz, rgb)
+                # pcd_visualize(xyz[noncollision_mask], rgb[noncollision_mask])
+        else:
+            vg_curr = VoxelGrid_list[0]
             voxels_curr = vg_curr.get_voxels()
-            voxels_futr = vg_futr.get_voxels()
-
-            voxels_curr_dict = {tuple(voxel.grid_index): i for i, voxel in enumerate(voxels_curr)}
-            voxels_futr_dict = {tuple(voxel.grid_index): i for i, voxel in enumerate(voxels_futr)}
-            in_curr_not_in_futr = set(voxels_curr_dict.keys()) - set(voxels_futr_dict.keys())  # means moved voxels
-
-            noncollision_idx = npa([voxels_curr_dict[voxel_idx]for voxel_idx in list(in_curr_not_in_futr)])  # important
-            noncollision_mask = idx2mask(noncollision_idx, len(voxels_curr))  # 1 means noncollision, 0 means collision
-
-            # voxel to pcd
             xyz = []
             rgb = []
             for voxel in voxels_curr:
                 grid_index = voxel.grid_index
-                center = voxel.grid_index * VoxelGrid.voxel_size + VoxelGrid.origin + VoxelGrid.voxel_size / 2
+                center = voxel.grid_index * vg_curr.voxel_size + vg_curr.origin + vg_curr.voxel_size / 2
                 xyz.append(center)
                 rgb.append(voxel.color)
             xyz = npa(xyz)
             rgb = npa(rgb)
-
-            # 此时noncollision_mask是this_xyz的mask
-
             # remove outliers
             _, mask = pcd_remove_outliers(xyz, nb_neighbors=10, std_ratio=2.0,)
             xyz = xyz[mask]
             rgb = rgb[mask]
-            noncollision_mask = noncollision_mask[mask]  # mask是全部point中保留的东西
-            noncollision_idx = mask2idx(noncollision_mask)  # mask是全部point中保留的东西
-
-            # remove noncollision outliers
-            xyz_noncollision = xyz[noncollision_mask]
-            _, mask = pcd_remove_outliers(xyz_noncollision, nb_neighbors=10, std_ratio=2.0,)
-            noncollision_idx = noncollision_idx[mask]  # mask 是noncollision中保留的东西
-            noncollision_mask = idx2mask(noncollision_idx, len(xyz))  # mask是全部point中保留的东西, length 没变
-
             obs_static_process['xyz'].append(xyz)
             obs_static_process['rgb'].append(rgb)
-            obs_static_process['noncollision_mask'].append(noncollision_mask)
-
-            # print(1)
-            # pcd_visualize(xyz, rgb)
-            # pcd_visualize(xyz[noncollision_mask], rgb[noncollision_mask])
 
         # only for train
-        if not self.train_flag:  # flow control
-            return obs_static_process
 
-        action_all = obs_raw['actions_all']
-        JP_all = obs_raw['joint_position_all']
-        for t in range(num_keyframes):
-            # copy
-            keyframe_id = copy.deepcopy(np.array(obs_raw['key_frameids'][t], dtype=np.int16))
-            eePose_curr = copy.deepcopy(np.array(obs_raw['action'][t], dtype=np.float64))
-            eePose_next = copy.deepcopy(np.array(obs_raw['action'][t + 1], dtype=np.float64))
-            eePose_path = copy.deepcopy(np.array(action_all[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
+        if self.train_flag:
+            action_all = obs_raw['actions_all']
+            JP_all = obs_raw['joint_position_all']
+            for t in range(num_keyframes_with_end):
+                # copy
+                keyframe_id = copy.deepcopy(np.array(obs_raw['key_frameids'][t], dtype=np.int16))
+                eePose_curr = copy.deepcopy(np.array(obs_raw['action'][t], dtype=np.float64))
+                eePose_next = copy.deepcopy(np.array(obs_raw['action'][t + 1], dtype=np.float64))
+                eePose_path = copy.deepcopy(np.array(action_all[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
-            JP_all_copy = np.concatenate([copy.deepcopy(JP_all), np.array([a[7] for a in action_all])[:, None]], axis=1)
+                JP_all_copy = np.concatenate([copy.deepcopy(JP_all), np.array([a[7] for a in action_all])[:, None]], axis=1)
 
-            JP_curr = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]], dtype=np.float64))
-            JP_next = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t + 1]], dtype=np.float64))
-            JP_path = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))
+                JP_curr = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]], dtype=np.float64))
+                JP_next = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t + 1]], dtype=np.float64))
+                JP_path = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))
 
-            # action_history
-            if keyframe_id - 8 <= 1:
-                eePose_hist = [action_all[j] for j in range(keyframe_id)]
-                eePose_hist += [eePose_curr] * (8 - keyframe_id)
+                # action_history
+                if keyframe_id - 8 <= 1:
+                    eePose_hist = [action_all[j] for j in range(keyframe_id)]
+                    eePose_hist += [eePose_curr] * (8 - keyframe_id)
 
-                JP_hist = [JP_all_copy[j] for j in range(keyframe_id)]
-                JP_hist += [JP_curr] * (8 - keyframe_id)
+                    JP_hist = [JP_all_copy[j] for j in range(keyframe_id)]
+                    JP_hist += [JP_curr] * (8 - keyframe_id)
+                else:
+                    eePose_hist = [action_all[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
+                    JP_hist = [JP_all_copy[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
+                # action_future
+                eePose_futr, JP_futr = self.find_middle_actions(eePose_path, JP_path, sub_keyframe_dection_mode='avg')
+
+                # concatenate
+                eePose_hist = np.stack(eePose_hist, axis=0)
+                eePose_futr = np.stack(eePose_futr, axis=0)
+
+                JP_hist = np.stack(JP_hist, axis=0)
+                JP_futr = np.stack(JP_futr, axis=0)
+
+                # check & save
+                assert np.allclose(eePose_curr, eePose_hist[-1])
+                assert np.allclose(eePose_next, eePose_futr[-1])
+                assert np.allclose(eePose_curr, eePose_hist[-1])
+
+                assert np.allclose(JP_curr, JP_all_copy[keyframe_id])
+                assert np.allclose(JP_next, JP_futr[-1])
+                assert np.allclose(JP_curr, JP_hist[-1])
+
+                obs_static_process['eePose_hist'].append(eePose_hist)
+                obs_static_process['eePose_futr'].append(eePose_futr)
+
+                obs_static_process['JP_hist'].append(JP_hist)
+                obs_static_process['JP_futr'].append(JP_futr)
+        else:
+            JP_hist_eval = copy.deepcopy(np.array(obs_raw['JP_hist_eval'], dtype=np.float64))
+
+            length = len(JP_hist_eval)
+
+            JP_hist = []
+            if length < 8:
+                JP_hist = [JP_hist_eval[0]] * (8 - length)
+                JP_hist.extend(JP_hist_eval)
             else:
-                eePose_hist = [action_all[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
-                JP_hist = [JP_all_copy[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
-            # action_future
-            eePose_futr, JP_futr = self.find_middle_actions(eePose_path, JP_path, sub_keyframe_dection_mode='avg')
-
-            # concatenate
-            eePose_hist = np.stack(eePose_hist, axis=0)
-            eePose_futr = np.stack(eePose_futr, axis=0)
-
-            JP_hist = np.stack(JP_hist, axis=0)
-            JP_futr = np.stack(JP_futr, axis=0)
-
-            # check & save
-            assert np.allclose(eePose_curr, eePose_hist[-1])
-            assert np.allclose(eePose_next, eePose_futr[-1])
-            assert np.allclose(eePose_curr, eePose_hist[-1])
-
-            assert np.allclose(JP_curr, JP_all_copy[keyframe_id])
-            assert np.allclose(JP_next, JP_futr[-1])
+                JP_hist = JP_hist_eval[-8:]
+            assert len(JP_hist) == 8
             assert np.allclose(JP_curr, JP_hist[-1])
-
-            obs_static_process['eePose_hist'].append(eePose_hist)
-            obs_static_process['eePose_futr'].append(eePose_futr)
-
+            JP_hist = np.stack(JP_hist, axis=0)
             obs_static_process['JP_hist'].append(JP_hist)
-            obs_static_process['JP_futr'].append(JP_futr)
+
+            # to make dataflow complete
+            obs_static_process['JP_futr'].append([])
+            obs_static_process['eePose_hist'].append([])
+            obs_static_process['eePose_futr'].append([])
+            obs_static_process['noncollision_mask'].append([])
 
         return obs_static_process
 
@@ -554,6 +606,23 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
             return batch
         return ptv3_collate_fn
+
+    @staticmethod
+    def collect_fn_fk(data):
+        batch = {}
+        for key in data[0].keys():
+            batch[key] = sum([x[key] for x in data], [])
+        npoints_in_batch = [x.size(0) for x in batch['pc_fts']]
+        batch['npoints_in_batch'] = npoints_in_batch
+        batch['offset'] = torch.cumsum(torch.LongTensor(npoints_in_batch), dim=0)
+        batch['pc_fts'] = torch.cat(batch['pc_fts'], 0)  # (#all points, 6)
+
+        for key in ['JP_hist', 'JP_futr', 'instr']:
+            try:
+                batch[key] = torch.stack(batch[key], 0)
+            except:
+                pass  # when eval
+        return batch
 
     # private functions
 

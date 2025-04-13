@@ -273,7 +273,7 @@ class Policy(BasePolicy):
         beta_T = config['FK']['Policy']['DDPM']['beta_T']
         t = config['FK']['Policy']['DDPM']['T']
 
-        def rb(name, val): return self.register_buffer(name, val.to(self.precision))  # 这一步太天才了
+        def rb(name, val): return self.register_buffer(name, val)  # 这一步太天才了
 
         rb('betas', torch.linspace(beta_1, beta_T, t).double())
 
@@ -293,7 +293,10 @@ class Policy(BasePolicy):
 
         #
         self.collision_loss_flag = config['FK']['Policy']['collision_loss']
-        self.horizon = config['FK']['ActionHead']['horizon']
+        try:
+            self.horizon = config['FK']['ActionHead']['horizon']
+        except:
+            self.horizon = 8
 
     def forward(self, batch):
         # get data
@@ -331,7 +334,7 @@ class Policy(BasePolicy):
         return loss
 
     @torch.no_grad()
-    def inference_one_step(self, batch):
+    def inference_one_sample(self, batch):
         '''
         actionhead input:(
                 JP_futr_noisy, JP_hist,
@@ -345,7 +348,7 @@ class Policy(BasePolicy):
         obs_features, obs_features_mask = self.FeatureExtractor(batch)
         instr = batch['instr']
         instr_mask = None
-        noncollision_mask = batch['noncollision_mask']  # TODO: inference 用不到，但用不到是不合理的
+        noncollision_mask = batch['noncollision_mask']  # TODO: inference 用不到，但用不到是不合理的,因此，放在这里，以便后用
 
         B = obs_features.shape[0]
         x_t = torch.randn(B, self.horizon, 8).to(obs_features.device)  # [B, horizon, action_dim]
@@ -365,7 +368,7 @@ class Policy(BasePolicy):
             x_t = mean + torch.sqrt(var) * noise
             assert torch.isnan(x_t).int().sum() == 0, "nan in tensor."
         x_0 = x_t
-        return torch.clip(x_0, -1, 1)  # [B, horizon, action_dim]
+        return x_0  # [B, horizon, action_dim]
 
     # region 3.1 DDPM
     # Forward Part of Diffusion,
@@ -394,7 +397,7 @@ class Policy(BasePolicy):
         var = torch.cat([self.posterior_var[1:2], self.betas[1:]])
         var = extract(var, t, x_t.shape)
 
-        eps = self.ActionHead(actionhead_input)
+        eps = self.ActionHead(*actionhead_input)
         xt_prev_mean = self._predict_xt_prev_mean_from_eps(x_t, t, eps=eps)
 
         return xt_prev_mean, var

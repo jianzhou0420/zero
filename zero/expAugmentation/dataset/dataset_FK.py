@@ -311,9 +311,9 @@ class DatasetFK(Dataset):
 
             pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
 
-            # # normalize joint positions
-            # JP_hist = normalize_theta_positions(JP_hist)
-            # JP_futr = normalize_theta_positions(JP_futr)
+            # normalize joint positions
+            JP_hist = normalize_theta_positions(JP_hist)
+            JP_futr = normalize_theta_positions(JP_futr)
 
             noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
             outs['pc_fts'].append(pc_fts)
@@ -327,7 +327,6 @@ class DatasetFK(Dataset):
             #     franka.visualize_pcd(xyz, rgb / 255, JP)
 
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
-
         return outs
     # endregion
 

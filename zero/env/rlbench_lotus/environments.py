@@ -468,7 +468,7 @@ class RLBenchEnv(object):
             wrist_camera=kwargs.get("wrist", unused_cams),
             overhead_camera=kwargs.get("overhead", unused_cams),
             joint_forces=False,
-            joint_positions=False,
+            joint_positions=True,
             joint_velocities=True,
             task_low_dim_state=False,
             gripper_touch_forces=False,
