@@ -477,8 +477,8 @@ if __name__ == '__main__':
         # dataset[i]
         # break
     '''
-     python  -m zero.expAugmentation.dataset.dataset_expbase_voxel_augment \
-            --exp-config /data/zero/zero/expAugmentation/config/expBase_Lotus.yaml \
+     python  -m zero.expForwardKinematics.dataset.dataset_expbase_voxel_augment \
+            --exp-config /data/zero/zero/expForwardKinematics/config/expBase_Lotus.yaml \
             name EXP03_04_insert_close_jar_0.005\
             dataset augment\
             num_gpus 1 \

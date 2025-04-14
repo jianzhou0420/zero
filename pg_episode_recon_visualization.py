@@ -1,17 +1,17 @@
-from zero.expAugmentation.config.default import get_config
+from zero.expForwardKinematics.config.default import get_config
 from einops import rearrange
 from codebase.z_utils.Rotation import *
 from codebase.z_utils.rotation_import import *
 import pickle
 import open3d as o3d
-from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-from zero.expAugmentation.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
 """
 theta_the means theta_theoretical,
 theta_sim means theta_simulated
 
 """
-config_path = '/data/zero/zero/expAugmentation/config/DP.yaml'
+config_path = '/data/zero/zero/expForwardKinematics/config/DP.yaml'
 config = get_config(config_path)
 
 obs_processor = ObsProcessorPtv3(config)

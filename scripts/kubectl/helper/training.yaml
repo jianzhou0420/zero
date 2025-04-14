@@ -31,8 +31,8 @@ spec:
                 pip install -e .
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
-                python  -m zero.expAugmentation.trainer_expbase \
-                        --exp-config /data/zero/zero/expAugmentation/config/expBase_Lotus.yaml \
+                python  -m zero.expForwardKinematics.trainer_expbase \
+                        --exp-config /data/zero/zero/expForwardKinematics/config/expBase_Lotus.yaml \
                         name EXP03_04_insert_close_jar_0.005\
                         dataset augment\
                         num_gpus 4 \

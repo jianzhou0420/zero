@@ -472,7 +472,7 @@ if __name__ == '__main__':
     np.random.seed(42)
     random.seed(42)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/data/zero/zero/expAugmentation/config/expbase_test1.yaml')
+    parser.add_argument('--config', type=str, default='/data/zero/zero/expForwardKinematics/config/expbase_test1.yaml')
     parser.add_argument('--output', type=str)
 
     args = parser.parse_args()

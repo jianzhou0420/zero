@@ -6,8 +6,8 @@ tasks_to_use='insert_onto_square_peg,close_jar,put_groceries_in_cupboard,place_c
 
 
 
-python  -m zero.expAugmentation.trainer_expbase \
-        --exp-config /data/zero/zero/expAugmentation/config/expBase_Lotus.yaml \
+python  -m zero.expForwardKinematics.trainer_expbase \
+        --exp-config /data/zero/zero/expForwardKinematics/config/expBase_Lotus.yaml \
         name EXP03_04_insert_close_jar_0.005\
         dataset augment\
         num_gpus 1 \

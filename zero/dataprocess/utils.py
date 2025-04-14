@@ -1,4 +1,4 @@
-from zero.expAugmentation.models.lotus.utils.robot_box import RobotBox
+from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
 
 from rlbench.demo import Demo
 

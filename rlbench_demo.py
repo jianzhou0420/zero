@@ -6,10 +6,10 @@ from rlbench.action_modes.gripper_action_modes import Discrete
 from rlbench.environment import Environment
 from rlbench.tasks import ReachTarget
 import pyrep.objects.joint
-from zero.expAugmentation.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
-from zero.expAugmentation.config.default import get_config
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.config.default import get_config
 import open3d as o3d
-from zero.expAugmentation.models.lotus.utils.robot_box import RobotBox
+from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
 # some args
 LINK_NUM = 8
 
@@ -23,7 +23,7 @@ JOINT_POSITIONS_LIMITS = np.array([[-2.8973, 2.8973],
                                    [-2.8973, 2.8973]])
 
 # ptv3 obs processor
-config_path = "/data/zero/zero/expAugmentation/config/DP.yaml"
+config_path = "/data/zero/zero/expForwardKinematics/config/DP.yaml"
 config = get_config(config_path)
 config.defrost()
 config.TRAIN_DATASET.rm_robot = False

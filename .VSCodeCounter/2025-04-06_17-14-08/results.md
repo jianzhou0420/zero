@@ -893,67 +893,67 @@ Summary / [Details](details.md) / [Diff Summary](diff.md) / [Diff Details](diff-
 | zero/env/pusht | 6 | 758 | 64 | 152 | 974 |
 | zero/env/rlbench_lotus | 4 | 550 | 27 | 141 | 718 |
 | zero/env/robomimic | 2 | 227 | 30 | 42 | 299 |
-| zero/expAugmentation | 113 | 23,174 | 1,985 | 3,752 | 28,911 |
-| zero/expAugmentation (Files) | 9 | 1,873 | 262 | 457 | 2,592 |
-| zero/expAugmentation/ObsProcessor | 3 | 922 | 124 | 234 | 1,280 |
-| zero/expAugmentation/ReconLoss | 1 | 149 | 4 | 35 | 188 |
-| zero/expAugmentation/config | 9 | 606 | 80 | 113 | 799 |
-| zero/expAugmentation/dataset | 7 | 2,063 | 308 | 482 | 2,853 |
-| zero/expAugmentation/models | 84 | 17,561 | 1,207 | 2,431 | 21,199 |
-| zero/expAugmentation/models/Base | 1 | 41 | 0 | 13 | 54 |
-| zero/expAugmentation/models/DAFC | 6 | 1,495 | 123 | 262 | 1,880 |
-| zero/expAugmentation/models/DAFC (Files) | 1 | 484 | 88 | 101 | 673 |
-| zero/expAugmentation/models/DAFC/components | 5 | 1,011 | 35 | 161 | 1,207 |
-| zero/expAugmentation/models/DiffuserActor3D | 7 | 1,985 | 211 | 373 | 2,569 |
-| zero/expAugmentation/models/DiffuserActor3D (Files) | 2 | 974 | 176 | 214 | 1,364 |
-| zero/expAugmentation/models/DiffuserActor3D/components | 5 | 1,011 | 35 | 159 | 1,205 |
-| zero/expAugmentation/models/DiffuserActor3D_original.py | 1 | 553 | 49 | 68 | 670 |
-| zero/expAugmentation/models/FK | 4 | 463 | 50 | 150 | 663 |
-| zero/expAugmentation/models/FK (Files) | 1 | 342 | 46 | 110 | 498 |
-| zero/expAugmentation/models/FK/component | 3 | 121 | 4 | 40 | 165 |
-| zero/expAugmentation/models/clean | 22 | 2,878 | 225 | 546 | 3,649 |
-| zero/expAugmentation/models/clean (Files) | 3 | 284 | 19 | 66 | 369 |
-| zero/expAugmentation/models/clean/PointTransformerV3 | 6 | 1,685 | 123 | 257 | 2,065 |
-| zero/expAugmentation/models/clean/PointTransformerV3 (Files) | 2 | 1,345 | 74 | 146 | 1,565 |
-| zero/expAugmentation/models/clean/PointTransformerV3/serialization | 4 | 340 | 49 | 111 | 500 |
-| zero/expAugmentation/models/clean/optim | 8 | 539 | 36 | 141 | 716 |
-| zero/expAugmentation/models/clean/utils | 5 | 370 | 47 | 82 | 499 |
-| zero/expAugmentation/models/dp2d | 11 | 2,303 | 178 | 425 | 2,906 |
-| zero/expAugmentation/models/dp2d (Files) | 1 | 163 | 28 | 51 | 242 |
-| zero/expAugmentation/models/dp2d/components | 10 | 2,140 | 150 | 374 | 2,664 |
-| zero/expAugmentation/models/dp2d/components/PointTransformerV3 | 6 | 1,685 | 123 | 257 | 2,065 |
-| zero/expAugmentation/models/dp2d/components/PointTransformerV3 (Files) | 2 | 1,345 | 74 | 146 | 1,565 |
-| zero/expAugmentation/models/dp2d/components/PointTransformerV3/serialization | 4 | 340 | 49 | 111 | 500 |
-| zero/expAugmentation/models/dp2d/components/diffusion | 4 | 455 | 27 | 117 | 599 |
-| zero/expAugmentation/models/lotus | 32 | 7,843 | 371 | 594 | 8,808 |
-| zero/expAugmentation/models/lotus (Files) | 4 | 668 | 46 | 96 | 810 |
-| zero/expAugmentation/models/lotus/PointTransformerV3 | 6 | 1,685 | 123 | 257 | 2,065 |
-| zero/expAugmentation/models/lotus/PointTransformerV3 (Files) | 2 | 1,345 | 74 | 146 | 1,565 |
-| zero/expAugmentation/models/lotus/PointTransformerV3/serialization | 4 | 340 | 49 | 111 | 500 |
-| zero/expAugmentation/models/lotus/assets | 9 | 4,609 | 0 | 5 | 4,614 |
-| zero/expAugmentation/models/lotus/optim | 8 | 539 | 36 | 141 | 716 |
-| zero/expAugmentation/models/lotus/utils | 5 | 342 | 166 | 95 | 603 |
+| zero/expForwardKinematics | 113 | 23,174 | 1,985 | 3,752 | 28,911 |
+| zero/expForwardKinematics (Files) | 9 | 1,873 | 262 | 457 | 2,592 |
+| zero/expForwardKinematics/ObsProcessor | 3 | 922 | 124 | 234 | 1,280 |
+| zero/expForwardKinematics/ReconLoss | 1 | 149 | 4 | 35 | 188 |
+| zero/expForwardKinematics/config | 9 | 606 | 80 | 113 | 799 |
+| zero/expForwardKinematics/dataset | 7 | 2,063 | 308 | 482 | 2,853 |
+| zero/expForwardKinematics/models | 84 | 17,561 | 1,207 | 2,431 | 21,199 |
+| zero/expForwardKinematics/models/Base | 1 | 41 | 0 | 13 | 54 |
+| zero/expForwardKinematics/models/DAFC | 6 | 1,495 | 123 | 262 | 1,880 |
+| zero/expForwardKinematics/models/DAFC (Files) | 1 | 484 | 88 | 101 | 673 |
+| zero/expForwardKinematics/models/DAFC/components | 5 | 1,011 | 35 | 161 | 1,207 |
+| zero/expForwardKinematics/models/DiffuserActor3D | 7 | 1,985 | 211 | 373 | 2,569 |
+| zero/expForwardKinematics/models/DiffuserActor3D (Files) | 2 | 974 | 176 | 214 | 1,364 |
+| zero/expForwardKinematics/models/DiffuserActor3D/components | 5 | 1,011 | 35 | 159 | 1,205 |
+| zero/expForwardKinematics/models/DiffuserActor3D_original.py | 1 | 553 | 49 | 68 | 670 |
+| zero/expForwardKinematics/models/FK | 4 | 463 | 50 | 150 | 663 |
+| zero/expForwardKinematics/models/FK (Files) | 1 | 342 | 46 | 110 | 498 |
+| zero/expForwardKinematics/models/FK/component | 3 | 121 | 4 | 40 | 165 |
+| zero/expForwardKinematics/models/clean | 22 | 2,878 | 225 | 546 | 3,649 |
+| zero/expForwardKinematics/models/clean (Files) | 3 | 284 | 19 | 66 | 369 |
+| zero/expForwardKinematics/models/clean/PointTransformerV3 | 6 | 1,685 | 123 | 257 | 2,065 |
+| zero/expForwardKinematics/models/clean/PointTransformerV3 (Files) | 2 | 1,345 | 74 | 146 | 1,565 |
+| zero/expForwardKinematics/models/clean/PointTransformerV3/serialization | 4 | 340 | 49 | 111 | 500 |
+| zero/expForwardKinematics/models/clean/optim | 8 | 539 | 36 | 141 | 716 |
+| zero/expForwardKinematics/models/clean/utils | 5 | 370 | 47 | 82 | 499 |
+| zero/expForwardKinematics/models/dp2d | 11 | 2,303 | 178 | 425 | 2,906 |
+| zero/expForwardKinematics/models/dp2d (Files) | 1 | 163 | 28 | 51 | 242 |
+| zero/expForwardKinematics/models/dp2d/components | 10 | 2,140 | 150 | 374 | 2,664 |
+| zero/expForwardKinematics/models/dp2d/components/PointTransformerV3 | 6 | 1,685 | 123 | 257 | 2,065 |
+| zero/expForwardKinematics/models/dp2d/components/PointTransformerV3 (Files) | 2 | 1,345 | 74 | 146 | 1,565 |
+| zero/expForwardKinematics/models/dp2d/components/PointTransformerV3/serialization | 4 | 340 | 49 | 111 | 500 |
+| zero/expForwardKinematics/models/dp2d/components/diffusion | 4 | 455 | 27 | 117 | 599 |
+| zero/expForwardKinematics/models/lotus | 32 | 7,843 | 371 | 594 | 8,808 |
+| zero/expForwardKinematics/models/lotus (Files) | 4 | 668 | 46 | 96 | 810 |
+| zero/expForwardKinematics/models/lotus/PointTransformerV3 | 6 | 1,685 | 123 | 257 | 2,065 |
+| zero/expForwardKinematics/models/lotus/PointTransformerV3 (Files) | 2 | 1,345 | 74 | 146 | 1,565 |
+| zero/expForwardKinematics/models/lotus/PointTransformerV3/serialization | 4 | 340 | 49 | 111 | 500 |
+| zero/expForwardKinematics/models/lotus/assets | 9 | 4,609 | 0 | 5 | 4,614 |
+| zero/expForwardKinematics/models/lotus/optim | 8 | 539 | 36 | 141 | 716 |
+| zero/expForwardKinematics/models/lotus/utils | 5 | 342 | 166 | 95 | 603 |
 | zero/zTrash | 738 | 160,147 | 10,032 | 20,929 | 191,108 |
 | zero/zTrash (Files) | 7 | 345 | 68 | 83 | 496 |
 | zero/zTrash/common | 16 | 1,932 | 155 | 342 | 2,429 |
-| zero/zTrash/expAugmentation | 64 | 13,938 | 821 | 1,748 | 16,507 |
-| zero/zTrash/expAugmentation (Files) | 4 | 1,151 | 95 | 258 | 1,504 |
-| zero/zTrash/expAugmentation/config | 11 | 1,135 | 119 | 197 | 1,451 |
-| zero/zTrash/expAugmentation/dataset | 3 | 1,092 | 169 | 232 | 1,493 |
-| zero/zTrash/expAugmentation/models | 46 | 10,560 | 438 | 1,061 | 12,059 |
-| zero/zTrash/expAugmentation/models/diffuser_actor | 15 | 2,905 | 193 | 489 | 3,587 |
-| zero/zTrash/expAugmentation/models/diffuser_actor (Files) | 1 | 2 | 0 | 1 | 3 |
-| zero/zTrash/expAugmentation/models/diffuser_actor/keypose_optimization | 2 | 429 | 44 | 79 | 552 |
-| zero/zTrash/expAugmentation/models/diffuser_actor/trajectory_optimization | 2 | 560 | 49 | 69 | 678 |
-| zero/zTrash/expAugmentation/models/diffuser_actor/utils | 10 | 1,914 | 100 | 340 | 2,354 |
-| zero/zTrash/expAugmentation/models/lotus | 31 | 7,655 | 245 | 572 | 8,472 |
-| zero/zTrash/expAugmentation/models/lotus (Files) | 3 | 452 | 40 | 90 | 582 |
-| zero/zTrash/expAugmentation/models/lotus/PointTransformerV3 | 6 | 1,685 | 122 | 257 | 2,064 |
-| zero/zTrash/expAugmentation/models/lotus/PointTransformerV3 (Files) | 2 | 1,345 | 73 | 146 | 1,564 |
-| zero/zTrash/expAugmentation/models/lotus/PointTransformerV3/serialization | 4 | 340 | 49 | 111 | 500 |
-| zero/zTrash/expAugmentation/models/lotus/assets | 9 | 4,609 | 0 | 5 | 4,614 |
-| zero/zTrash/expAugmentation/models/lotus/optim | 8 | 539 | 36 | 141 | 716 |
-| zero/zTrash/expAugmentation/models/lotus/utils | 5 | 370 | 47 | 79 | 496 |
+| zero/zTrash/expForwardKinematics | 64 | 13,938 | 821 | 1,748 | 16,507 |
+| zero/zTrash/expForwardKinematics (Files) | 4 | 1,151 | 95 | 258 | 1,504 |
+| zero/zTrash/expForwardKinematics/config | 11 | 1,135 | 119 | 197 | 1,451 |
+| zero/zTrash/expForwardKinematics/dataset | 3 | 1,092 | 169 | 232 | 1,493 |
+| zero/zTrash/expForwardKinematics/models | 46 | 10,560 | 438 | 1,061 | 12,059 |
+| zero/zTrash/expForwardKinematics/models/diffuser_actor | 15 | 2,905 | 193 | 489 | 3,587 |
+| zero/zTrash/expForwardKinematics/models/diffuser_actor (Files) | 1 | 2 | 0 | 1 | 3 |
+| zero/zTrash/expForwardKinematics/models/diffuser_actor/keypose_optimization | 2 | 429 | 44 | 79 | 552 |
+| zero/zTrash/expForwardKinematics/models/diffuser_actor/trajectory_optimization | 2 | 560 | 49 | 69 | 678 |
+| zero/zTrash/expForwardKinematics/models/diffuser_actor/utils | 10 | 1,914 | 100 | 340 | 2,354 |
+| zero/zTrash/expForwardKinematics/models/lotus | 31 | 7,655 | 245 | 572 | 8,472 |
+| zero/zTrash/expForwardKinematics/models/lotus (Files) | 3 | 452 | 40 | 90 | 582 |
+| zero/zTrash/expForwardKinematics/models/lotus/PointTransformerV3 | 6 | 1,685 | 122 | 257 | 2,064 |
+| zero/zTrash/expForwardKinematics/models/lotus/PointTransformerV3 (Files) | 2 | 1,345 | 73 | 146 | 1,564 |
+| zero/zTrash/expForwardKinematics/models/lotus/PointTransformerV3/serialization | 4 | 340 | 49 | 111 | 500 |
+| zero/zTrash/expForwardKinematics/models/lotus/assets | 9 | 4,609 | 0 | 5 | 4,614 |
+| zero/zTrash/expForwardKinematics/models/lotus/optim | 8 | 539 | 36 | 141 | 716 |
+| zero/zTrash/expForwardKinematics/models/lotus/utils | 5 | 370 | 47 | 79 | 496 |
 | zero/zTrash/expBaseV4 | 63 | 13,713 | 798 | 1,699 | 16,210 |
 | zero/zTrash/expBaseV4 (Files) | 3 | 1,131 | 108 | 255 | 1,494 |
 | zero/zTrash/expBaseV4/config | 12 | 1,282 | 160 | 230 | 1,672 |

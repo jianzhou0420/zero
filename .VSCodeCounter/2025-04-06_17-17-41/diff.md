@@ -2,7 +2,7 @@
 
 Date : 2025-04-06 17:17:41
 
-Directory /data/zero/zero/expAugmentation
+Directory /data/zero/zero/expForwardKinematics
 
 Total : 1538 files,  -255656 codes, -12682 comments, -28773 blanks, all -297111 lines
 
@@ -895,24 +895,24 @@ Total : 1538 files,  -255656 codes, -12682 comments, -28773 blanks, all -297111 
 | ../zTrash | 738 | -160,147 | -10,032 | -20,929 | -191,108 |
 | ../zTrash (Files) | 7 | -345 | -68 | -83 | -496 |
 | ../zTrash/common | 16 | -1,932 | -155 | -342 | -2,429 |
-| ../zTrash/expAugmentation | 64 | -13,938 | -821 | -1,748 | -16,507 |
-| ../zTrash/expAugmentation (Files) | 4 | -1,151 | -95 | -258 | -1,504 |
-| ../zTrash/expAugmentation/config | 11 | -1,135 | -119 | -197 | -1,451 |
-| ../zTrash/expAugmentation/dataset | 3 | -1,092 | -169 | -232 | -1,493 |
-| ../zTrash/expAugmentation/models | 46 | -10,560 | -438 | -1,061 | -12,059 |
-| ../zTrash/expAugmentation/models/diffuser_actor | 15 | -2,905 | -193 | -489 | -3,587 |
-| ../zTrash/expAugmentation/models/diffuser_actor (Files) | 1 | -2 | 0 | -1 | -3 |
-| ../zTrash/expAugmentation/models/diffuser_actor/keypose_optimization | 2 | -429 | -44 | -79 | -552 |
-| ../zTrash/expAugmentation/models/diffuser_actor/trajectory_optimization | 2 | -560 | -49 | -69 | -678 |
-| ../zTrash/expAugmentation/models/diffuser_actor/utils | 10 | -1,914 | -100 | -340 | -2,354 |
-| ../zTrash/expAugmentation/models/lotus | 31 | -7,655 | -245 | -572 | -8,472 |
-| ../zTrash/expAugmentation/models/lotus (Files) | 3 | -452 | -40 | -90 | -582 |
-| ../zTrash/expAugmentation/models/lotus/PointTransformerV3 | 6 | -1,685 | -122 | -257 | -2,064 |
-| ../zTrash/expAugmentation/models/lotus/PointTransformerV3 (Files) | 2 | -1,345 | -73 | -146 | -1,564 |
-| ../zTrash/expAugmentation/models/lotus/PointTransformerV3/serialization | 4 | -340 | -49 | -111 | -500 |
-| ../zTrash/expAugmentation/models/lotus/assets | 9 | -4,609 | 0 | -5 | -4,614 |
-| ../zTrash/expAugmentation/models/lotus/optim | 8 | -539 | -36 | -141 | -716 |
-| ../zTrash/expAugmentation/models/lotus/utils | 5 | -370 | -47 | -79 | -496 |
+| ../zTrash/expForwardKinematics | 64 | -13,938 | -821 | -1,748 | -16,507 |
+| ../zTrash/expForwardKinematics (Files) | 4 | -1,151 | -95 | -258 | -1,504 |
+| ../zTrash/expForwardKinematics/config | 11 | -1,135 | -119 | -197 | -1,451 |
+| ../zTrash/expForwardKinematics/dataset | 3 | -1,092 | -169 | -232 | -1,493 |
+| ../zTrash/expForwardKinematics/models | 46 | -10,560 | -438 | -1,061 | -12,059 |
+| ../zTrash/expForwardKinematics/models/diffuser_actor | 15 | -2,905 | -193 | -489 | -3,587 |
+| ../zTrash/expForwardKinematics/models/diffuser_actor (Files) | 1 | -2 | 0 | -1 | -3 |
+| ../zTrash/expForwardKinematics/models/diffuser_actor/keypose_optimization | 2 | -429 | -44 | -79 | -552 |
+| ../zTrash/expForwardKinematics/models/diffuser_actor/trajectory_optimization | 2 | -560 | -49 | -69 | -678 |
+| ../zTrash/expForwardKinematics/models/diffuser_actor/utils | 10 | -1,914 | -100 | -340 | -2,354 |
+| ../zTrash/expForwardKinematics/models/lotus | 31 | -7,655 | -245 | -572 | -8,472 |
+| ../zTrash/expForwardKinematics/models/lotus (Files) | 3 | -452 | -40 | -90 | -582 |
+| ../zTrash/expForwardKinematics/models/lotus/PointTransformerV3 | 6 | -1,685 | -122 | -257 | -2,064 |
+| ../zTrash/expForwardKinematics/models/lotus/PointTransformerV3 (Files) | 2 | -1,345 | -73 | -146 | -1,564 |
+| ../zTrash/expForwardKinematics/models/lotus/PointTransformerV3/serialization | 4 | -340 | -49 | -111 | -500 |
+| ../zTrash/expForwardKinematics/models/lotus/assets | 9 | -4,609 | 0 | -5 | -4,614 |
+| ../zTrash/expForwardKinematics/models/lotus/optim | 8 | -539 | -36 | -141 | -716 |
+| ../zTrash/expForwardKinematics/models/lotus/utils | 5 | -370 | -47 | -79 | -496 |
 | ../zTrash/expBaseV4 | 63 | -13,713 | -798 | -1,699 | -16,210 |
 | ../zTrash/expBaseV4 (Files) | 3 | -1,131 | -108 | -255 | -1,494 |
 | ../zTrash/expBaseV4/config | 12 | -1,282 | -160 | -230 | -1,672 |
