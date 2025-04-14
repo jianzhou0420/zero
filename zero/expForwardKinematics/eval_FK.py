@@ -69,8 +69,8 @@ class Actioner(object):
         self.data_container = {
             'JP_hist': [],
         }
-        self.taskvar_instrs = json.load(open(self.config['TRAIN_DATASET']['taskvar_instr_file']))
-        self.instr_embeds = np.load(self.config['TRAIN_DATASET']['instr_embed_file'], allow_pickle=True).item()
+        self.taskvar_instrs = json.load(open(self.config['TrainDataset']['taskvar_instr_file']))
+        self.instr_embeds = np.load(self.config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
 
     def preprocess_obs(self, taskvar, step_id, obs: Observation):
         obs_raw = self.obs_processor.obs_2_obs_raw(obs)

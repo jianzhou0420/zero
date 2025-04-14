@@ -3,18 +3,22 @@ Trainer:
   model_name: FK
   lr: 0.0001
   weight_decay: 0.0005
-  epoches: 502
+  epoches: 850
   batch_size: 8
   n_workers: 1
   pin_mem: True
   num_gpus: 1
   shuffle: True
+  save_every_n_epochs: 50
 
 TrainDataset:
   data_dir: /data/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
+  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
+  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/data/zero/assets/taskvars_peract.json'
 
 FK:
   Policy:
@@ -25,6 +29,7 @@ FK:
       beta_T: 0.02
       T: 100
     collision_loss: False
+
   FeatureExtractor:
     ptv3:
       in_channels: 7
@@ -70,7 +75,6 @@ FK:
     n_self_attn_layers: 1
 
 
-
 # region tmp
 Dataset:
   voxel_size: 0.01
@@ -79,38 +83,4 @@ Dataset:
   txt_reduce: 'attn' # mean, attn
   max_seq_len: 20
 
-TRAIN_DATASET:
-  data_dir: '/data/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/train'
-  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
-  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/data/zero/assets/taskvars_peract.json'
-  num_points: 4096
-  xyz_shift: center # none, center, gripper
-  xyz_norm: False
-  use_height: True
 
-  rot_type: euler_disc # quat, rot6d, euler, euler_delta, euler_disc
-  pos_type: disc # disc, cont
-  instr_embed_type: 'all' # last, all
-
-  rm_robot: box_keep_gripper  # none, gt, box, box_keep_gripper
-  augment_pc: True
-  aug_max_rot: 45
-  same_npoints_per_example: False
-  pos_bins: null
-  pos_bin_size: null
-  pos_heatmap_type: 'dist' # plain, dist
-  pos_heatmap_no_robot: True
-  real_robot: False
-  euler_resolution: 1
-  rm_table: True
-  rm_pc_outliers: False
-  rm_pc_outliers_neighbors: 25
-  sample_points_by_distance: False
-  variations_to_use: null
-  # tasks_to_use: "close_jar"
-
-# endregion tmp
-
-# Checking
-# nhist

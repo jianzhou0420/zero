@@ -15,157 +15,6 @@ from copy import deepcopy as copy
 import json
 import random
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-# --------------------------------------------------------------
-# region tools
-
-
-def tensorfp32(x):
-    x = torch.tensor(x, dtype=torch.float32)
-    return x
-
-
-def pad_clip_features(features, target_length=77):
-    """
-    Pads a list of CLIP feature arrays (each of shape (L, 512)) to a fixed target length.
-
-    Args:
-        features (list of np.array): List of feature arrays with shape (L, 512), where L can vary.
-        target_length (int): The target sequence length (default is 77).
-
-    Returns:
-        np.array: A numpy array of shape (batch_size, target_length, 512) where each feature array
-                  has been padded with zeros if necessary.
-    """
-    padded_features = []
-    mask = []
-    for feat in features:
-        current_length, dim = feat.shape
-
-        padded = np.zeros((target_length, dim), dtype=feat.dtype)
-        mask_s = np.zeros((target_length,), dtype=bool)
-
-        padded[:current_length, :] = feat
-        mask_s[:current_length] = True
-
-        padded_features.append(padded)
-        mask.append(mask_s)
-
-    # Stack the padded features into a single numpy array.
-    padded_features = np.stack(padded_features, axis=0)
-    mask = np.stack(mask, axis=0, dtype=bool)
-    return padded_features, mask
-
-
-def random_rotate_z(pc, angle=None):
-    # Randomly rotate around z-axis
-    if angle is None:
-        angle = np.random.uniform() * 2 * np.pi
-    cosval, sinval = np.cos(angle), np.sin(angle)
-    R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
-    return np.dot(pc, np.transpose(R))
-
-
-def pad_tensors(tensors, lens=None, pad=0, max_len=None):
-    """B x [T, ...] torch tensors"""
-    if lens is None:
-        lens = [t.size(0) for t in tensors]
-    max_len = max(lens) if max_len is None else max_len
-    bs = len(tensors)
-    hid = list(tensors[0].size()[1:])
-    size = [bs, max_len] + hid
-
-    dtype = tensors[0].dtype
-    output = torch.zeros(*size, dtype=dtype)
-    if pad:
-        output.data.fill_(pad)
-    for i, (t, l) in enumerate(zip(tensors, lens)):
-        output.data[i, :l, ...] = t.data
-    return output
-
-
-def gen_seq_masks(seq_lens, max_len=None):
-    """
-    Args:
-        seq_lens: list or nparray int, shape=(N, )
-    Returns:
-        masks: nparray, shape=(N, L), padded=0
-    """
-    seq_lens = np.array(seq_lens)
-    if max_len is None:
-        max_len = max(seq_lens)
-    if max_len == 0:
-        return np.zeros((len(seq_lens), 0), dtype=bool)
-    batch_size = len(seq_lens)
-    masks = np.arange(max_len).reshape(-1, max_len).repeat(batch_size, 0)
-    masks = masks < seq_lens.reshape(-1, 1)
-    return masks
-
-
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
-
-
-class Resize:
-    """Resize and pad/crop the image and aligned point cloud."""
-
-    def __init__(self, scales):
-        self.scales = scales
-
-    def __call__(self, **kwargs):
-        """Accept tensors as T, N, C, H, W."""
-        keys = list(kwargs.keys())
-
-        if len(keys) == 0:
-            raise RuntimeError("No args")
-
-        # Sample resize scale from continuous range
-        sc = np.random.uniform(*self.scales)
-
-        t, n, c, raw_h, raw_w = kwargs[keys[0]].shape
-        kwargs = {n: arg.flatten(0, 1) for n, arg in kwargs.items()}
-        resized_size = [int(raw_h * sc), int(raw_w * sc)]
-
-        # Resize
-        kwargs = {
-            n: transforms_f.resize(
-                arg,
-                resized_size,
-                transforms.InterpolationMode.NEAREST
-            )
-            for n, arg in kwargs.items()
-        }
-
-        # If resized image is smaller than original, pad it with a reflection
-        if raw_h > resized_size[0] or raw_w > resized_size[1]:
-            right_pad, bottom_pad = max(raw_w - resized_size[1], 0), max(
-                raw_h - resized_size[0], 0
-            )
-            kwargs = {
-                n: transforms_f.pad(
-                    arg,
-                    padding=[0, 0, right_pad, bottom_pad],
-                    padding_mode="reflect",
-                )
-                for n, arg in kwargs.items()
-            }
-
-        # If resized image is larger than original, crop it
-        i, j, h, w = transforms.RandomCrop.get_params(
-            kwargs[keys[0]], output_size=(raw_h, raw_w)
-        )
-        kwargs = {
-            n: transforms_f.crop(arg, i, j, h, w) for n, arg in kwargs.items()
-        }
-
-        kwargs = {
-            n: einops.rearrange(arg, "(t n) c h w -> t n c h w", t=t)
-            for n, arg in kwargs.items()
-        }
-
-        return kwargs
-
-
-# endregion
 
 # --------------------------------------------------------------
 # region Dataset
@@ -258,11 +107,14 @@ class DatasetFK(Dataset):
         self.cache = dict()
         self.max_cache_length = 300
         print(f"max_cache_length: {self.max_cache_length}")
-        self.taskvar_instrs = json.load(open(config['TRAIN_DATASET']['taskvar_instr_file']))
-        self.instr_embeds = np.load(config['TRAIN_DATASET']['instr_embed_file'], allow_pickle=True).item()
+        self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
+        self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
 
         # 4.franka
         # self.franka = FrankaEmikaPanda()
+        # 5. obs_processor
+        self.obs_processor = ObsProcessorPtv3(config, train_flag=True)
+        self.obs_processor._dataset_init_FK()
 
     def check_cache(self, g_episode):
         if self.cache.get(g_episode) is None:
@@ -280,7 +132,6 @@ class DatasetFK(Dataset):
     def __len__(self):
         return len(self.frames)
 
-    # region __getitem__
     def __getitem__(self, g_episode):
         '''
             data={
@@ -300,44 +151,7 @@ class DatasetFK(Dataset):
         }
 
         data = self.check_cache(g_episode)
-        n_frames = len(data['rgb'])
-        taskvar = self.g_episode_to_taskvar[g_episode]
-
-        # dynamic process
-        for i in range(n_frames):
-            xyz = tensorfp32(copy(data['xyz'][i]))
-            rgb = tensorfp32(copy(data['rgb'][i]))
-            JP_hist = tensorfp32(copy(data['JP_hist'][i]))
-            JP_futr = tensorfp32(copy(data['JP_futr'][i]))
-
-            choice = random.choice(self.taskvar_instrs[taskvar])
-            instr, instr_mask = pad_clip_features([self.instr_embeds[choice]])
-            instr = tensorfp32(instr).squeeze(0)
-            instr_mask = torch.tensor(instr_mask, dtype=torch.bool).squeeze(0)
-            height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
-
-            rgb = (rgb / 255.0) * 2 - 1
-
-            pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
-
-            # normalize joint positions
-            JP_hist = normalize_theta_positions(JP_hist)
-            JP_futr = normalize_theta_positions(JP_futr)
-
-            noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
-            outs['pc_fts'].append(pc_fts)
-            outs['JP_hist'].append(JP_hist)
-            outs['JP_futr'].append(JP_futr)
-            outs['instr'].append(instr)
-            outs['instr_mask'].append(instr_mask)
-            outs['noncollision_mask'].append(noncollision_mask)
-
-            # from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-            # franka = FrankaEmikaPanda()
-            # for JP in JP_futr:
-            #     franka.visualize_pcd(xyz, rgb / 255, JP)
-
-        # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
+        outs = self.obs_processor.dynamic_process_fk(data, taskvar=self.g_episode_to_taskvar[g_episode])
         return outs
     # endregion
 
@@ -382,6 +196,97 @@ def collect_fn(data):
         batch[key] = torch.stack(batch[key], 0)
 
     return batch
+# --------------------------------------------------------------
+# region utils
+
+
+def tensorfp32(x):
+    x = torch.tensor(x, dtype=torch.float32)
+    return x
+
+
+def pad_clip_features(features, target_length=77):
+    """
+    Pads a list of CLIP feature arrays (each of shape (L, 512)) to a fixed target length.
+
+    Args:
+        features (list of np.array): List of feature arrays with shape (L, 512), where L can vary.
+        target_length (int): The target sequence length (default is 77).
+
+    Returns:
+        np.array: A numpy array of shape (batch_size, target_length, 512) where each feature array
+                  has been padded with zeros if necessary.
+    """
+    padded_features = []
+    mask = []
+    for feat in features:
+        current_length, dim = feat.shape
+
+        padded = np.zeros((target_length, dim), dtype=feat.dtype)
+        mask_s = np.zeros((target_length,), dtype=bool)
+
+        padded[:current_length, :] = feat
+        mask_s[:current_length] = True
+
+        padded_features.append(padded)
+        mask.append(mask_s)
+
+    # Stack the padded features into a single numpy array.
+    padded_features = np.stack(padded_features, axis=0)
+    mask = np.stack(mask, axis=0, dtype=bool)
+    return padded_features, mask
+
+
+def random_rotate_z(pc, angle=None):
+    # Randomly rotate around z-axis
+    if angle is None:
+        angle = np.random.uniform() * 2 * np.pi
+    cosval, sinval = np.cos(angle), np.sin(angle)
+    R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
+    return np.dot(pc, np.transpose(R))
+
+
+def pad_tensors(tensors, lens=None, pad=0, max_len=None):
+    """B x [T, ...] torch tensors"""
+    if lens is None:
+        lens = [t.size(0) for t in tensors]
+    max_len = max(lens) if max_len is None else max_len
+    bs = len(tensors)
+    hid = list(tensors[0].size()[1:])
+    size = [bs, max_len] + hid
+
+    dtype = tensors[0].dtype
+    output = torch.zeros(*size, dtype=dtype)
+    if pad:
+        output.data.fill_(pad)
+    for i, (t, l) in enumerate(zip(tensors, lens)):
+        output.data[i, :l, ...] = t.data
+    return output
+
+
+def gen_seq_masks(seq_lens, max_len=None):
+    """
+    Args:
+        seq_lens: list or nparray int, shape=(N, )
+    Returns:
+        masks: nparray, shape=(N, L), padded=0
+    """
+    seq_lens = np.array(seq_lens)
+    if max_len is None:
+        max_len = max(seq_lens)
+    if max_len == 0:
+        return np.zeros((len(seq_lens), 0), dtype=bool)
+    batch_size = len(seq_lens)
+    masks = np.arange(max_len).reshape(-1, max_len).repeat(batch_size, 0)
+    masks = masks < seq_lens.reshape(-1, 1)
+    return masks
+
+
+def natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+
+
+# endregion
 
 
 if __name__ == '__main__':

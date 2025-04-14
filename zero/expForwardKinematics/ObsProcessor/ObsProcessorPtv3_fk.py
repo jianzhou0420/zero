@@ -7,7 +7,7 @@ eePose: End Effector Pose [x y z euler(x,y,z)], a little bit confusing with JP
 
 import re
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorBase
-import copy
+from copy import deepcopy as copy
 import open3d as o3d
 import numpy as np
 import torch
@@ -19,7 +19,7 @@ import os
 import pickle
 import json
 from PIL import Image
-
+from zero.z_utils.utilities_all import normalize_theta_positions
 import numpy as np
 import random
 import collections
@@ -54,8 +54,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
         self.dataset_init_flag = False
         self.train_flag = train_flag
         self.franka = FrankaEmikaPanda()
-
-        # region obs_raw
 
     def obs_2_obs_raw(self, obs):
         key_frames = [0]
@@ -157,8 +155,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
         }
         return obs_raw
 
-    # region static process FK
-
     def static_process_fk(self, obs_raw):
         '''
         obs_raw={
@@ -234,7 +230,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
             # rgb = rgb[trace]
 
             # 3. remove robot get gripper idx
-            JP_curr = copy.deepcopy(np.array(obs_raw['JP_curr_no_open'][t], dtype=np.float64))
+            JP_curr = copy(np.array(obs_raw['JP_curr_no_open'][t], dtype=np.float64))
             JP_curr = np.concatenate([JP_curr, np.array([obs_raw['action'][t][-1]])], axis=0)
             mask = self._rm_robot_by_JP(xyz, JP_curr)
             xyz = xyz[~mask]
@@ -345,16 +341,16 @@ class ObsProcessorPtv3(ObsProcessorBase):
             JP_all = obs_raw['joint_position_all']
             for t in range(num_keyframes_with_end):
                 # copy
-                keyframe_id = copy.deepcopy(np.array(obs_raw['key_frameids'][t], dtype=np.int16))
-                eePose_curr = copy.deepcopy(np.array(obs_raw['action'][t], dtype=np.float64))
-                eePose_next = copy.deepcopy(np.array(obs_raw['action'][t + 1], dtype=np.float64))
-                eePose_path = copy.deepcopy(np.array(action_all[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
+                keyframe_id = copy(np.array(obs_raw['key_frameids'][t], dtype=np.int16))
+                eePose_curr = copy(np.array(obs_raw['action'][t], dtype=np.float64))
+                eePose_next = copy(np.array(obs_raw['action'][t + 1], dtype=np.float64))
+                eePose_path = copy(np.array(action_all[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
-                JP_all_copy = np.concatenate([copy.deepcopy(JP_all), np.array([a[7] for a in action_all])[:, None]], axis=1)
+                JP_all_copy = np.concatenate([copy(JP_all), np.array([a[7] for a in action_all])[:, None]], axis=1)
 
-                JP_curr = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]], dtype=np.float64))
-                JP_next = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t + 1]], dtype=np.float64))
-                JP_path = copy.deepcopy(np.array(JP_all_copy[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))
+                JP_curr = copy(np.array(JP_all_copy[obs_raw['key_frameids'][t]], dtype=np.float64))
+                JP_next = copy(np.array(JP_all_copy[obs_raw['key_frameids'][t + 1]], dtype=np.float64))
+                JP_path = copy(np.array(JP_all_copy[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))
 
                 # action_history
                 if keyframe_id - 8 <= 1:
@@ -391,7 +387,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
                 obs_static_process['JP_hist'].append(JP_hist)
                 obs_static_process['JP_futr'].append(JP_futr)
         else:
-            JP_hist_eval = copy.deepcopy(np.array(obs_raw['JP_hist_eval'], dtype=np.float64))
+            JP_hist_eval = copy(np.array(obs_raw['JP_hist_eval'], dtype=np.float64))
 
             length = len(JP_hist_eval)
 
@@ -413,6 +409,53 @@ class ObsProcessorPtv3(ObsProcessorBase):
             obs_static_process['noncollision_mask'].append([])
 
         return obs_static_process
+
+    def dynamic_process_fk(self, data, taskvar):
+        outs = {
+            'pc_fts': [],
+            'JP_hist': [],
+            'JP_futr': [],
+            'instr': [],
+            'instr_mask': [],
+            'noncollision_mask': [],
+        }
+        n_frames = len(data['rgb'])
+
+        # dynamic process
+        for i in range(n_frames):
+            xyz = tensorfp32(copy(data['xyz'][i]))
+            rgb = tensorfp32(copy(data['rgb'][i]))
+            JP_hist = tensorfp32(copy(data['JP_hist'][i]))
+            JP_futr = tensorfp32(copy(data['JP_futr'][i]))
+
+            choice = random.choice(self.taskvar_instrs[taskvar])
+            instr, instr_mask = pad_clip_features([self.instr_embeds[choice]])
+            instr = tensorfp32(instr).squeeze(0)
+            instr_mask = torch.tensor(instr_mask, dtype=torch.bool).squeeze(0)
+            height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
+
+            rgb = (rgb / 255.0) * 2 - 1
+
+            pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
+
+            # normalize joint positions
+            JP_hist = normalize_theta_positions(JP_hist)
+            JP_futr = normalize_theta_positions(JP_futr)
+
+            noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
+            outs['pc_fts'].append(pc_fts)
+            outs['JP_hist'].append(JP_hist)
+            outs['JP_futr'].append(JP_futr)
+            outs['instr'].append(instr)
+            outs['instr_mask'].append(instr_mask)
+            outs['noncollision_mask'].append(noncollision_mask)
+        return outs
+        # from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+        # franka = FrankaEmikaPanda()
+        # for JP in JP_futr:
+        #     franka.visualize_pcd(xyz, rgb / 255, JP)
+
+        # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
 
     def dynamic_process(self, obs_static, taskvar):  # TODO: refine
         '''
@@ -454,14 +497,14 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
             # end of path processs
             # data_ids = obs_raw['data_ids'][t]
-            xyz = copy.deepcopy(obs_static['xyz'][t])
-            rgb = copy.deepcopy(obs_static['rgb'][t])
+            xyz = copy(obs_static['xyz'][t])
+            rgb = copy(obs_static['rgb'][t])
 
             xyz, rgb = obs_static['xyz'][t], obs_static['rgb'][t]
 
             # randomly select one instruction
             instr = random.choice(self.taskvar_instrs[taskvar])
-            instr_embed = copy.deepcopy(self.instr_embeds[instr])
+            instr_embed = copy(self.instr_embeds[instr])
 
             # 5. downsample point cloud
             # sampling points
@@ -497,7 +540,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
             elif self.xyz_shift == 'center':
                 centroid = np.mean(xyz, 0)
             elif self.xyz_shift == 'gripper':
-                centroid = copy.deepcopy(ee_pose_current[:3])
+                centroid = copy(ee_pose_current[:3])
             if self.xyz_norm:
                 radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
             else:
@@ -523,11 +566,11 @@ class ObsProcessorPtv3(ObsProcessorBase):
             return obs_dynamic_out
 
         for t in range(num_frames):
-            ee_pose_current = copy.deepcopy(obs_static['action_current'][t])
-            ee_pose_next = copy.deepcopy(obs_static['action_next'][t])
+            ee_pose_current = copy(obs_static['action_current'][t])
+            ee_pose_next = copy(obs_static['action_next'][t])
 
-            action_path = copy.deepcopy(obs_static['actions_path'][t])
-            theta_actions_path = copy.deepcopy(obs_static['theta_actions_path'][t])
+            action_path = copy(obs_static['actions_path'][t])
+            theta_actions_path = copy(obs_static['theta_actions_path'][t])
 
             gt_ee_poses, gt_theta_position = self._find_gt_actions(action_path, theta_actions_path, sub_keyframe_dection_mode)
             # assert (gt_actions[0] == ee_pose).all()
@@ -759,6 +802,11 @@ class ObsProcessorPtv3(ObsProcessorBase):
         self.rotation_transform = RotationMatrixTransform()
         self.dataset_init_flag = True
 
+    def _dataset_init_FK(self):
+        config = self.config
+        self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
+        self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
+
     def _rm_robot_by_JP(self, xyz, JP):
         theta = JP - self.franka.JP_offset
         bbox_link, bbox_other = self.franka.theta2obbox(theta)
@@ -938,6 +986,11 @@ def keypoint_discovery(demo):
 
     return episode_keypoints
 
+
+def tensorfp32(x):
+    x = torch.tensor(x, dtype=torch.float32)
+    return x
+
 # endregion
 # --------------------------------------------------------------
 # region test
@@ -1022,6 +1075,38 @@ def test_inference():
 
 
 # endregion
+
+
+def pad_clip_features(features, target_length=77):
+    """
+    Pads a list of CLIP feature arrays (each of shape (L, 512)) to a fixed target length.
+
+    Args:
+        features (list of np.array): List of feature arrays with shape (L, 512), where L can vary.
+        target_length (int): The target sequence length (default is 77).
+
+    Returns:
+        np.array: A numpy array of shape (batch_size, target_length, 512) where each feature array
+                  has been padded with zeros if necessary.
+    """
+    padded_features = []
+    mask = []
+    for feat in features:
+        current_length, dim = feat.shape
+
+        padded = np.zeros((target_length, dim), dtype=feat.dtype)
+        mask_s = np.zeros((target_length,), dtype=bool)
+
+        padded[:current_length, :] = feat
+        mask_s[:current_length] = True
+
+        padded_features.append(padded)
+        mask.append(mask_s)
+
+    # Stack the padded features into a single numpy array.
+    padded_features = np.stack(padded_features, axis=0)
+    mask = np.stack(mask, axis=0, dtype=bool)
+    return padded_features, mask
 
 
 def natural_sort_key(s):

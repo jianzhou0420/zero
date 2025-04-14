@@ -128,7 +128,7 @@ def train(config: yacs.config.CfgNode):
     log_name = ckpt_name
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=100,
+        every_n_epochs=config['Trainer']['save_every_n_epochs'],
         save_top_k=-1,
         save_last=False,
         filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename

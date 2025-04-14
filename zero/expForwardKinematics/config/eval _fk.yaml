@@ -1,6 +1,6 @@
 
 
-exp_dir: /media/jian/ssd4t/zero/2_Train/FK/Apr11_15-35-10FK/version_0
+exp_dir: /media/jian/ssd4t/zero/2_Train/FK/z_Apr14_19-26-15FK/version_0
 epoch: null
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]
@@ -21,7 +21,6 @@ video_dir: null
 not_include_robot_cameras: False
 video_rotate_cam:  False
 video_resolution:  480
-
 real_robot: False
 
 ############################
