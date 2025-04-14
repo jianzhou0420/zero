@@ -62,15 +62,12 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
         return [batch, feat_dim] .
         '''
         batch = self.prepare_ptv3_batch(batch)
-
         point = self.ptv3_model(batch)
         pcd_feat = torch.split(point['feat'], offset2chunk(point['offset']), dim=0)  # alarm
         pcd_feat, mask = pad_pcd_features(pcd_feat, self.n_features)
-
         return pcd_feat, mask
 
     def prepare_ptv3_batch(self, batch):
-
         outs = {
             'coord': batch['pc_fts'][:, :3],
             'grid_size': self.config['Dataset']['voxel_size'],
@@ -78,7 +75,6 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
             'batch': offset2batch(batch['offset']),
             'feat': batch['pc_fts'],
         }
-
         return outs
 
 # endregion
@@ -86,7 +82,7 @@ class FeatureExtractorPTv3Clean(BaseFeatureExtractor):
 # region 2. ActionHead
 
 
-class ActionHead(BaseActionHead):
+class ActionHeadToy(BaseActionHead):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -132,7 +128,6 @@ class ActionHead(BaseActionHead):
         )
 
     def forward(self, pcd_feat, JP_hist, instr, t, JP_futr_noisy):
-
         t = t.clone()
         t = t.to(torch.float32)
         # for encoder
@@ -157,10 +152,6 @@ class ActionHead(BaseActionHead):
 
         pred = self.JP_futr_decoder(x)
         return pred
-
-    def inference_one_step(self,):
-
-        pass
 
 
 class ActionHeadDA3D(BaseActionHead):
@@ -249,6 +240,84 @@ class ActionHeadDA3D(BaseActionHead):
         return action_pred
 
 
+class ActionHeadFKV1(BaseActionHead):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
+        # action head
+        d_model = config['FK']['ActionHead']['d_model']
+        d_instr = config['FK']['ActionHead']['d_instr']
+        d_ffw = config['FK']['ActionHead']['d_ffw']
+        n_heads = config['FK']['ActionHead']['n_heads']
+        d_pcd_features = config['FK']['FeatureExtractor']['ptv3']['enc_channels'][-1]
+
+        # encode
+        self.action_hist_encoder = nn.Sequential(
+            nn.Linear(8, d_model),
+            nn.ReLU(),
+            nn.Linear(d_model, d_model)
+        )
+
+        self.action_futr_noisy_encoder = nn.Sequential(
+            nn.Linear(8, d_model),
+            nn.ReLU(),
+            nn.Linear(d_model, d_model)
+        )
+
+        self.time_embbedding = nn.Linear(1, d_model, bias=False)
+        self.PE = PositionalEncoding1D(d_model)
+
+        # main cross attn
+        self.cross_attn = FFWRelativeCrossAttentionModule(
+            d_model, n_heads, 6, use_adaln=True)
+
+        self.self_attn = FFWRelativeSelfAttentionModule(
+            d_model, n_heads, 6, use_adaln=True)
+
+        # decoder
+        self.JP_futr_decoder = nn.Sequential(
+            nn.Linear(d_model, d_model),
+            nn.ReLU(),
+            nn.Linear(d_model, 8)
+        )
+
+        self.vl_cross_attn = FFWRelativeCrossAttentionModule(
+            d_model, n_heads, 2, use_adaln=False)
+
+    def forward(self,
+                JP_futr_noisy, JP_hist,
+                obs_features, obs_features_mask,
+                instr, instr_mask,  # TODO: instr mask
+                t):
+
+        # 0.1 encode features
+        t = self.time_embbedding(t.unsqueeze(-1).float())
+        JP_hist = self.action_hist_encoder(JP_hist)
+        JP_futr_noisy = self.action_futr_noisy_encoder(JP_futr_noisy)
+
+        # 0.2 add positional encoding
+
+        # 1. act_hist with obs_features
+        # 2. cross attn on
+        JP_hist_mask = torch.ones(JP_hist.shape[:2], device=JP_hist.device, dtype=torch.bool)
+
+        features_obs_instr = torch.cat([obs_features, instr, JP_hist], dim=1)
+        features_mask = torch.cat([obs_features_mask, instr_mask, JP_hist_mask], dim=1)
+
+        JP_futr_noisy = JP_futr_noisy + self.PE(JP_futr_noisy)
+        features_obs_instr = features_obs_instr + self.PE(features_obs_instr)
+        JP_futr_noisy = self.cross_attn(q=JP_futr_noisy, k=features_obs_instr, key_padding_mask=~features_mask, diff_ts=t)[-1]
+
+        # 3. act_futr_noisy with obs_features
+        features = torch.cat([JP_futr_noisy, obs_features], dim=1)  # no need pe, 前面已经加过了
+        inv_mask = torch.cat([torch.zeros(JP_futr_noisy.shape[:2], device=JP_futr_noisy.device), ~obs_features_mask], dim=1)
+        features = self.self_attn(q=features, diff_ts=t, key_padding_mask=inv_mask)[-1][:, :8, :]
+
+        action_pred = self.JP_futr_decoder(features)
+        return action_pred
+
+
 # endregion
 # ---------------------------------------------------------------
 # region 3. Policy
@@ -259,7 +328,7 @@ class Policy(BasePolicy):
         super().__init__()
 
         # Policy itself
-        self.ActionHead = ActionHeadDA3D(config)
+        self.ActionHead = ActionHeadFKV1(config)
         self.FeatureExtractor = FeatureExtractorPTv3Clean(config)
         self.config = config
         self.franka = FrankaEmikaPanda()
@@ -303,6 +372,7 @@ class Policy(BasePolicy):
         JP_futr_0 = batch['JP_futr']  # [batch, horizon, action_dim]
         JP_hist = batch['JP_hist']  # [batch, horizon, action_dim]
         instr = batch['instr']
+        instr_mask = batch['instr_mask']
         noncollision_mask = batch['noncollision_mask']  # [batch, horizon, action_dim]
 
         # feature extraction
@@ -316,8 +386,8 @@ class Policy(BasePolicy):
 
         # DDPM predict
         noise_pred = self.ActionHead(JP_futr_t, JP_hist,
-                                     obs_features, ~obs_features_mask,
-                                     instr, instr_mask=None,  # TODO: instr mask
+                                     obs_features, obs_features_mask,
+                                     instr, instr_mask,  # TODO: instr mask
                                      t=t)  # [batch, horizon, action_dim]
         JP_futr_0_pred = self._inverse_q_sample(JP_futr_t, t, noise_pred)  # [batch, horizon, action_dim]
 

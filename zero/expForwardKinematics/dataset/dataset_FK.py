@@ -37,16 +37,23 @@ def pad_clip_features(features, target_length=77):
                   has been padded with zeros if necessary.
     """
     padded_features = []
+    mask = []
     for feat in features:
         current_length, dim = feat.shape
-        # Create a new array of zeros with target_length rows and same feature dimension.
-        padded = np.zeros((target_length, dim), dtype=feat.dtype)
-        # Fill the first current_length rows with the feature data.
-        padded[:current_length, :] = feat
-        padded_features.append(padded)
 
-    # Optionally stack into one numpy array (batch_size, target_length, 512)
-    return np.stack(padded_features)
+        padded = np.zeros((target_length, dim), dtype=feat.dtype)
+        mask_s = np.zeros((target_length,), dtype=bool)
+
+        padded[:current_length, :] = feat
+        mask_s[:current_length] = True
+
+        padded_features.append(padded)
+        mask.append(mask_s)
+
+    # Stack the padded features into a single numpy array.
+    padded_features = np.stack(padded_features, axis=0)
+    mask = np.stack(mask, axis=0, dtype=bool)
+    return padded_features, mask
 
 
 def random_rotate_z(pc, angle=None):
@@ -288,7 +295,7 @@ class DatasetFK(Dataset):
             'JP_hist': [],
             'JP_futr': [],
             'instr': [],
-            'pcd_mask': [],
+            'instr_mask': [],
             'noncollision_mask': [],
         }
 
@@ -302,8 +309,11 @@ class DatasetFK(Dataset):
             rgb = tensorfp32(copy(data['rgb'][i]))
             JP_hist = tensorfp32(copy(data['JP_hist'][i]))
             JP_futr = tensorfp32(copy(data['JP_futr'][i]))
+
             choice = random.choice(self.taskvar_instrs[taskvar])
-            instr = tensorfp32(pad_clip_features([self.instr_embeds[choice]]).squeeze(0))
+            instr, instr_mask = pad_clip_features([self.instr_embeds[choice]])
+            instr = tensorfp32(instr).squeeze(0)
+            instr_mask = torch.tensor(instr_mask, dtype=torch.bool).squeeze(0)
             height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
 
             rgb = (rgb / 255.0) * 2 - 1
@@ -319,7 +329,9 @@ class DatasetFK(Dataset):
             outs['JP_hist'].append(JP_hist)
             outs['JP_futr'].append(JP_futr)
             outs['instr'].append(instr)
+            outs['instr_mask'].append(instr_mask)
             outs['noncollision_mask'].append(noncollision_mask)
+
             # from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
             # franka = FrankaEmikaPanda()
             # for JP in JP_futr:
@@ -366,8 +378,9 @@ def collect_fn(data):
     batch['offset'] = torch.cumsum(torch.LongTensor(npoints_in_batch), dim=0)
     batch['pc_fts'] = torch.cat(batch['pc_fts'], 0)  # (#all points, 6)
 
-    for key in ['JP_hist', 'JP_futr', 'instr']:
+    for key in ['JP_hist', 'JP_futr', 'instr', 'instr_mask']:
         batch[key] = torch.stack(batch[key], 0)
+
     return batch
 
 

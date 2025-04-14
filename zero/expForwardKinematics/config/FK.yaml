@@ -5,7 +5,7 @@ Trainer:
   weight_decay: 0.0005
   epoches: 502
   batch_size: 8
-  n_workers: 4
+  n_workers: 1
   pin_mem: True
   num_gpus: 1
   shuffle: True
