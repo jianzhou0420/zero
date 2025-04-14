@@ -29,7 +29,7 @@ import json
 import copy
 import random
 from scipy.special import softmax
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
 
 # region utils
 

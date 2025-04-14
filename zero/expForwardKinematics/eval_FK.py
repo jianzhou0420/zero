@@ -28,7 +28,7 @@ from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 from zero.env.rlbench_lotus.recorder import TaskRecorder, StaticCameraMotion, CircleCameraMotion, AttachedCameraMotion
 
 # policy & pytorch-lightning
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
 from zero.expForwardKinematics.trainer_FK import Trainer_DP
 from zero.expForwardKinematics.config.default import build_args
 from zero.z_utils.joint_position import denormalize_JP

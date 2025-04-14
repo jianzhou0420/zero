@@ -26,7 +26,7 @@ from rlbench.backend.const import *
 import numpy as np
 import random
 import collections
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
 
 import numpy as np
 

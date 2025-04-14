@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 import torch
 import os
 import numpy as np
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
 import time
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as transforms_f

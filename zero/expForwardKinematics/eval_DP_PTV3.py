@@ -1,4 +1,4 @@
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
 from zero.expForwardKinematics.trainer_DP import TrainerDP
 import re
 from zero.expForwardKinematics.config.default import build_args

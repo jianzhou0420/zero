@@ -5,7 +5,7 @@ from codebase.z_utils.rotation_import import *
 import pickle
 import open3d as o3d
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
 """
 theta_the means theta_theoretical,
 theta_sim means theta_simulated

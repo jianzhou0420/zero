@@ -1,6 +1,6 @@
 
 
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
 from zero.expForwardKinematics.config.default import get_config
 import re
 import os

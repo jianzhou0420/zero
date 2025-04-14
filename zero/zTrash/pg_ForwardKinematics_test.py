@@ -10,7 +10,7 @@ from rlbench.action_modes.gripper_action_modes import Discrete
 from rlbench.environment import Environment
 from rlbench.tasks import ReachTarget
 import pyrep.objects.joint
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3 import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
 from zero.expForwardKinematics.config.default import get_config
 import open3d as o3d
 from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
@@ -184,7 +184,7 @@ def simulator():
             Link_Pose = np.array(Link_Pose)
 
             script(Joint_Position, Joint_Pose, Link_Pose, arm_links_info, obs_processor, obs_raw)
-            break
+            breakObsProcessorPtv3
 
 # region EXP
 
