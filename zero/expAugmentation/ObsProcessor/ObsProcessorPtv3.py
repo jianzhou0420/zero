@@ -31,8 +31,6 @@ from zero.z_utils.joint_position import normaliza_JP
 import json
 from scipy.spatial.transform import Rotation as R
 
-from zero.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
-from zero.expAugmentation.models.lotus.utils.action_position_utils import get_disc_gt_pos_prob
 from zero.expAugmentation.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 from codebase.z_utils.open3d import *
 from codebase.z_utils.idx_mask import *
@@ -878,6 +876,67 @@ def random_rotate_z(pc, angle=None):
     R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
     return np.dot(pc, np.transpose(R))
 
+
+def convert_gripper_pose_world_to_image(obs, camera: str):
+    '''Convert the gripper pose from world coordinate system to image coordinate system.
+    image[v, u] is the gripper location.
+    '''
+    extrinsics_44 = obs.misc[f"{camera}_camera_extrinsics"].astype(np.float32)
+    extrinsics_44 = np.linalg.inv(extrinsics_44)
+
+    intrinsics_33 = obs.misc[f"{camera}_camera_intrinsics"].astype(np.float32)
+    intrinsics_34 = np.concatenate([intrinsics_33, np.zeros((3, 1), dtype=np.float32)], 1)
+
+    gripper_pos_31 = obs.gripper_pose[:3].astype(np.float32)[:, None]
+    gripper_pos_41 = np.concatenate([gripper_pos_31, np.ones((1, 1), dtype=np.float32)], 0)
+
+    points_cam_41 = extrinsics_44 @ gripper_pos_41
+
+    proj_31 = intrinsics_34 @ points_cam_41
+    proj_3 = proj_31[:, 0]
+
+    u = int((proj_3[0] / proj_3[2]).round())
+    v = int((proj_3[1] / proj_3[2]).round())
+
+    return u, v
+
+
+def _is_stopped(demo, i, obs, stopped_buffer):
+    next_is_not_final = (i < (len(demo) - 2))
+    gripper_state_no_change = i < (len(demo) - 2) and (
+        obs.gripper_open == demo[i + 1].gripper_open
+        and obs.gripper_open == demo[max(0, i - 1)].gripper_open
+        and demo[max(0, i - 2)].gripper_open == demo[max(0, i - 1)].gripper_open
+    )
+    small_delta = np.allclose(obs.joint_velocities, 0, atol=0.1)
+    stopped = (
+        stopped_buffer <= 0
+        and small_delta
+        and next_is_not_final
+        and gripper_state_no_change
+    )
+    return stopped
+
+
+def keypoint_discovery(demo):
+    episode_keypoints = []
+    prev_gripper_open = demo[0].gripper_open
+    stopped_buffer = 0
+    for i, obs in enumerate(demo):
+        stopped = _is_stopped(demo, i, obs, stopped_buffer)
+        stopped_buffer = 4 if stopped else stopped_buffer - 1
+        # If change in gripper, or end of episode.
+        last = i == (len(demo) - 1)
+        if i != 0 and (obs.gripper_open != prev_gripper_open or last or stopped):
+            episode_keypoints.append(i)
+        prev_gripper_open = obs.gripper_open
+    if (
+        len(episode_keypoints) > 1
+        and (episode_keypoints[-1] - 1) == episode_keypoints[-2]
+    ):
+        episode_keypoints.pop(-2)
+
+    return episode_keypoints
 
 # endregion
 # --------------------------------------------------------------

@@ -31,7 +31,15 @@ zero/v1/env/gym-aloha/
 1_Data/*
 2_Train/*
 3_Eval/*
+4_Paper/*
+5_templates/*
+6_ThirdParty/*
+
 
 !1_Data/.gitkeep
 !2_Train/.gitkeep
 !3_Eval/.gitkeep
+!4_Paper/.gitkeep
+!5_templates/.gitkeep
+!6_ThirdParty/.gitkeep
+

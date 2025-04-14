@@ -107,7 +107,7 @@ TRAIN_DATASET:
   rm_pc_outliers_neighbors: 25
   sample_points_by_distance: False
   variations_to_use: null
-  tasks_to_use: "close_jar"
+  # tasks_to_use: "close_jar"
 
 # endregion tmp
 

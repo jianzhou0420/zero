@@ -143,9 +143,8 @@ def train(config: yacs.config.CfgNode):
     epoch_callback = EpochCallback()
     trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
                          max_epochs=config['Trainer']['epoches'],
-                         #  devices='cpu',
-                         accelerator='cuda',
-                         #  strategy='auto',
+                         devices='auto',
+                         strategy='auto',
                          logger=csvlogger1,
                          #  profiler=profiler，
                          #  profiler='simple',
