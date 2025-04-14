@@ -251,7 +251,8 @@ class ActionHeadFKV1(BaseActionHead):
         d_ffw = config['FK']['ActionHead']['d_ffw']
         n_heads = config['FK']['ActionHead']['n_heads']
         d_pcd_features = config['FK']['FeatureExtractor']['ptv3']['enc_channels'][-1]
-
+        n_cross_attn_layers = config['FK']['ActionHead']['n_cross_attn_layers']
+        n_self_attn_layers = config['FK']['ActionHead']['n_self_attn_layers']
         # encode
         self.action_hist_encoder = nn.Sequential(
             nn.Linear(8, d_model),
@@ -270,10 +271,10 @@ class ActionHeadFKV1(BaseActionHead):
 
         # main cross attn
         self.cross_attn = FFWRelativeCrossAttentionModule(
-            d_model, n_heads, 6, use_adaln=True)
+            d_model, n_heads, n_cross_attn_layers, use_adaln=True)
 
         self.self_attn = FFWRelativeSelfAttentionModule(
-            d_model, n_heads, 6, use_adaln=True)
+            d_model, n_heads, n_self_attn_layers, use_adaln=True)
 
         # decoder
         self.JP_futr_decoder = nn.Sequential(
