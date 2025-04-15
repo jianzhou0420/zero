@@ -63,7 +63,7 @@ def normalize_theta_positions(theta_positions):
     # print('theta_position', theta_positions[0, :])
     test1 = theta_positions - lower_limit
     test2 = upper_limit - lower_limit
-    test3 = test1 / test2
+    test3 = (test1 / test2) * 2 - 1
     # print(test3.shape)
     # print('afterprocess', test3[0, :])
     return test3
@@ -72,6 +72,8 @@ def normalize_theta_positions(theta_positions):
 def denormalize_theta_positions(normalized_theta_positions):
     lower_limit = JOINT_POSITION_LIMITS[0, :]
     upper_limit = JOINT_POSITION_LIMITS[1, :]
-    return normalized_theta_positions * (upper_limit - lower_limit) + lower_limit
+
+    test = (normalized_theta_positions + 1) / 2 * (upper_limit - lower_limit) + lower_limit
+    return test
 
 # endregion
