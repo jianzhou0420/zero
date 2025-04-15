@@ -10,7 +10,7 @@ import time
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as transforms_f
 import einops
-from zero.z_utils.utilities_all import pad_clip_features, normalize_theta_positions
+
 from copy import deepcopy as copy
 import json
 import random

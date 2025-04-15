@@ -4,25 +4,24 @@ Trainer:
   lr: 0.00001
   weight_decay: 0.0005
   epoches: 502
+  save_every_n_epochs: 50
+  num_gpus: 1
 
   train:
     batch_size: 8
     n_workers: 8
     pin_mem: True
-    num_gpus: 1
     shuffle: True
-    save_every_n_epochs: 50
 
   val:
     batch_size: 4
     n_workers: 8
     pin_mem: True
-    num_gpus: 1
     shuffle: False
 
 
 TrainDataset:
-  data_dir: /data/zero/1_Data/B_Preprocess/FK/20demo_put_groceries/
+  data_dir: /data/zero/1_Data/B_Preprocess/FK/1000_train_eval/
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
@@ -81,8 +80,8 @@ FK:
     n_heads: 8
     n_features: 96
     horizon: 8
-    n_cross_attn_layers: 1
-    n_self_attn_layers: 1
+    n_cross_attn_layers: 4
+    n_self_attn_layers: 4
 
 
 # region tmp

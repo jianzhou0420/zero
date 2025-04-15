@@ -139,13 +139,6 @@ class Actioner(object):
             assert len(actions.shape) == 2
             assert actions.shape[1] == 8
 
-        # sigmoid
-        # actions = einops.rearrange(actions, 'a h -> h a')  # theta_positions, horizon --> horizon, theta_positions
-        # new_actions = []
-        # for i, action in enumerate(actions):
-        #     action = denormalize_JP(action)
-        #     new_actions.append(action)
-        # actions = np.stack(new_actions, 0)
         actions = denormalize_theta_positions(actions)
         new_actions = [npa(actions[i]) for i in range(actions.shape[0])]
 

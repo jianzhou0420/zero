@@ -5,35 +5,30 @@ JPose: Jian Pose [x y z euler(x,y,z)], a little bit confusing with JP
 eePose: End Effector Pose [x y z euler(x,y,z)], a little bit confusing with JP
 '''
 
+
 import re
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorBase
-from copy import deepcopy as copy
 import open3d as o3d
 import numpy as np
 import torch
-from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
+from copy import deepcopy as copy
 import einops
-# from rlbench.demo import Demo
 from tqdm import tqdm
 import os
 import pickle
 import json
-from PIL import Image
-from zero.z_utils.utilities_all import normalize_theta_positions
-import numpy as np
-import random
 import collections
-from zero.z_utils.utilities_all import pad_clip_features
-from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
-import numpy as np
 from numpy import array as npa
+import random
+#
+from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
 from zero.z_utils.joint_position import normaliza_JP
-import json
-from scipy.spatial.transform import Rotation as R
-
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorBase
+from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 from codebase.z_utils.open3d import *
 from codebase.z_utils.idx_mask import *
+from zero.z_utils.utilities_all import normalize_theta_positions
+from zero.z_utils.utilities_all import pad_clip_features
 # --------------------------------------------------------------
 # region main logic
 
@@ -419,8 +414,8 @@ class ObsProcessorPtv3(ObsProcessorBase):
             'instr_mask': [],
             'noncollision_mask': [],
         }
-        n_frames = len(data['rgb'])
 
+        n_frames = len(data['rgb'])
         # dynamic process
         for i in range(n_frames):
             xyz = tensorfp32(copy(data['xyz'][i]))
@@ -434,7 +429,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
             height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
 
             rgb = (rgb / 255.0) * 2 - 1
-
             pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
 
             # normalize joint positions
@@ -876,15 +870,6 @@ def get_robot_pcd_idx(xyz, obbox):
     mask = np.zeros(len(xyz), dtype=bool)
     mask[robot_point_idx] = True
     return mask
-
-
-JOINT_POSITIONS_LIMITS = np.array([[-2.8973, 2.8973],
-                                   [-1.7628, 1.7628],
-                                   [-2.8973, 2.8973],
-                                   [-3.0718, -0.0698],
-                                   [-2.8973, 2.8973],
-                                   [-0.0175, 3.7525],
-                                   [-2.8973, 2.8973]])
 
 
 def get_robot_workspace(real_robot=False, use_vlm=False):
