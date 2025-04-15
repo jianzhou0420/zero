@@ -8,13 +8,13 @@ Trainer:
   num_gpus: 1
 
   train:
-    batch_size: 8
+    batch_size: 1
     n_workers: 8
     pin_mem: True
     shuffle: True
 
   val:
-    batch_size: 4
+    batch_size: 1
     n_workers: 8
     pin_mem: True
     shuffle: False
@@ -28,6 +28,9 @@ TrainDataset:
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
+
+  num_points: 4096
+
 
 FK:
   Policy:

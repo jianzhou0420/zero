@@ -4,8 +4,6 @@ JP: Joint Position [7 Links theta, is_open]
 JPose: Jian Pose [x y z euler(x,y,z)], a little bit confusing with JP
 eePose: End Effector Pose [x y z euler(x,y,z)], a little bit confusing with JP
 '''
-
-
 import re
 import open3d as o3d
 import numpy as np
@@ -19,7 +17,8 @@ import json
 import collections
 from numpy import array as npa
 import random
-#
+
+
 from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
 from zero.z_utils.joint_position import normaliza_JP
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorBase
@@ -31,6 +30,10 @@ from zero.z_utils.utilities_all import normalize_theta_positions
 from zero.z_utils.utilities_all import pad_clip_features
 # --------------------------------------------------------------
 # region main logic
+
+
+def npafp32(x):
+    return np.array(x, dtype=np.float32)
 
 
 class ObsProcessorPtv3(ObsProcessorBase):
@@ -406,6 +409,10 @@ class ObsProcessorPtv3(ObsProcessorBase):
         return obs_static_process
 
     def dynamic_process_fk(self, data, taskvar):
+        '''
+        1. Downsample point cloud
+        2. Normalize point cloud and rgb
+        '''
         outs = {
             'pc_fts': [],
             'JP_hist': [],
@@ -418,16 +425,31 @@ class ObsProcessorPtv3(ObsProcessorBase):
         n_frames = len(data['rgb'])
         # dynamic process
         for i in range(n_frames):
-            xyz = tensorfp32(copy(data['xyz'][i]))
-            rgb = tensorfp32(copy(data['rgb'][i]))
-            JP_hist = tensorfp32(copy(data['JP_hist'][i]))
+            # 1. retrieve data
+            xyz = npa(copy(data['xyz'][i]))
+            rgb = npa(copy(data['rgb'][i]))
+            JP_hist = npa(copy(data['JP_hist'][i]))
+            height = npafp32(copy(xyz[:, 2])).unsqueeze(1)
+            height = (height - self.TABLE_HEIGHT)
 
             choice = random.choice(self.taskvar_instrs[taskvar])
             instr, instr_mask = pad_clip_features([self.instr_embeds[choice]])
             instr = tensorfp32(instr).squeeze(0)
             instr_mask = torch.tensor(instr_mask, dtype=torch.bool).squeeze(0)
-            height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
+            if self.train_flag is True:
+                noncollision_mask = npa(copy(data['noncollision_mask'][i]))
 
+            # 2. downsample by number
+            idx = pcd_random_downsample_by_num(xyz, rgb, num_points=self.num_points, return_idx=True)
+            xyz = xyz[idx]
+            rgb = rgb[idx]
+            height = height[idx]
+            if self.train_flag is True:
+                noncollision_mask = noncollision_mask[idx]
+
+            # 3. normalize point cloud
+            center = np.mean(xyz, 0)
+            xyz = xyz - center
             rgb = (rgb / 255.0) * 2 - 1
             pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
 
@@ -436,7 +458,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
             if self.train_flag is True:
                 JP_futr = tensorfp32(copy(data['JP_futr'][i]))
                 JP_futr = normalize_theta_positions(JP_futr)
-                noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
                 outs['JP_futr'].append(JP_futr)
                 outs['noncollision_mask'].append(noncollision_mask)
 
@@ -801,6 +822,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
         config = self.config
         self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
         self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
+        self.num_points = config['TrainDataset']['num_points']
 
     def _rm_robot_by_JP(self, xyz, JP):
         theta = JP - self.franka.JP_offset

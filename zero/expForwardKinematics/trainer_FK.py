@@ -15,12 +15,9 @@ from zero.expForwardKinematics.models.FK.Policy import Policy
 from zero.z_utils import *
 
 # helper package
-import argparse
 import time
-import re
 from datetime import datetime
 import yacs.config
-import math
 import os
 import warnings
 import os
@@ -52,6 +49,11 @@ class Trainer_DP(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         loss = self.policy.forward(batch)
         self.log('train_loss', loss, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        loss = self.policy.forward(batch)
+        self.log('val_loss', loss, prog_bar=True)
         return loss
 
     def configure_optimizers(self):
