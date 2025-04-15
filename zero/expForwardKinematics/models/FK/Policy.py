@@ -418,7 +418,7 @@ class Policy(BasePolicy):
         JP_hist = batch['JP_hist']  # [batch, horizon, action_dim]
         obs_features, obs_features_mask = self.FeatureExtractor(batch)
         instr = batch['instr']
-        instr_mask = None
+        instr_mask = batch['instr_mask']
         noncollision_mask = batch['noncollision_mask']  # TODO: inference 用不到，但用不到是不合理的,因此，放在这里，以便后用
 
         B = obs_features.shape[0]
@@ -428,7 +428,7 @@ class Policy(BasePolicy):
             t = x_t.new_ones([x_t.shape[0], ], dtype=torch.long) * time_step
             JP_futr_noisy = x_t
             actionhead_input = (JP_futr_noisy, JP_hist,
-                                obs_features, ~obs_features_mask,
+                                obs_features, obs_features_mask,
                                 instr, instr_mask,
                                 t)
             mean, var = self._p_mean_variance(x_t=x_t, t=t, actionhead_input=actionhead_input)

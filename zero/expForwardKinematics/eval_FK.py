@@ -65,6 +65,7 @@ class Actioner(object):
         self.model.eval()
 
         self.obs_processor = ObsProcessorPtv3(self.config, train_flag=False)
+        self.obs_processor._dataset_init_FK()
 
         self.data_container = {
             'JP_hist': [],
@@ -82,57 +83,13 @@ class Actioner(object):
         self.update_data_container('JP_hist', JP_curr)
         obs_raw['JP_hist_eval'] = np.array(self.data_container['JP_hist'])
         obs_static = self.obs_processor.static_process_fk(obs_raw)
-        obs_dynamic = self.fake_dynamic_process(obs_static, taskvar)
+        obs_dynamic = self.obs_processor.dynamic_process_fk(obs_static, taskvar)
         batch = self.obs_processor.collect_fn_fk([obs_dynamic])
 
         for item in batch:
             if isinstance(batch[item], torch.Tensor):
                 batch[item] = batch[item].to(self.device)
         return batch
-
-    def fake_dynamic_process(self, data, taskvar):
-        outs = {
-            'pc_fts': [],
-            'JP_hist': [],
-            'JP_futr': [],
-            'instr': [],
-            'pcd_mask': [],
-            'noncollision_mask': [],
-        }
-
-        n_frames = len(data['rgb'])
-        # dynamic process
-        for i in range(n_frames):
-            xyz = tensorfp32(copy(data['xyz'][i]))
-            rgb = tensorfp32(copy(data['rgb'][i]))
-            JP_hist = tensorfp32(copy(data['JP_hist'][i]))
-            JP_futr = tensorfp32(copy(data['JP_futr'][i]))
-            choice = random.choice(self.taskvar_instrs[taskvar])
-            instr = tensorfp32(pad_clip_features([self.instr_embeds[choice]]).squeeze(0))
-            height = tensorfp32(copy(xyz[:, 2])).unsqueeze(1)
-
-            rgb = (rgb / 255.0) * 2 - 1
-
-            pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
-
-            # # normalize joint positions
-            # JP_hist = normalize_theta_positions(JP_hist)
-            # JP_futr = normalize_theta_positions(JP_futr)
-
-            noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
-            outs['pc_fts'].append(pc_fts)
-            outs['JP_hist'].append(JP_hist)
-            outs['JP_futr'].append(JP_futr)
-            outs['instr'].append(instr)
-            outs['noncollision_mask'].append(noncollision_mask)
-            # from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-            # franka = FrankaEmikaPanda()
-            # for JP in JP_futr:
-            #     franka.visualize_pcd(xyz, rgb / 255, JP)
-
-        # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
-
-        return outs
 
     def predict(self, task_str=None, variation=None, step_id=None, obs_state_dict=None, episode_id=None, instructions=None,):
 
@@ -160,6 +117,7 @@ class Actioner(object):
         #     action = denormalize_JP(action)
         #     new_actions.append(action)
         # actions = np.stack(new_actions, 0)
+
         new_actions = [npa(actions[i]) for i in range(actions.shape[0])]
 
         out = {

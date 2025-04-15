@@ -23,7 +23,7 @@ from zero.z_utils.utilities_all import normalize_theta_positions
 import numpy as np
 import random
 import collections
-
+from zero.z_utils.utilities_all import pad_clip_features
 from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
 import numpy as np
 from numpy import array as npa
@@ -426,7 +426,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
             xyz = tensorfp32(copy(data['xyz'][i]))
             rgb = tensorfp32(copy(data['rgb'][i]))
             JP_hist = tensorfp32(copy(data['JP_hist'][i]))
-            JP_futr = tensorfp32(copy(data['JP_futr'][i]))
 
             choice = random.choice(self.taskvar_instrs[taskvar])
             instr, instr_mask = pad_clip_features([self.instr_embeds[choice]])
@@ -440,15 +439,17 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
             # normalize joint positions
             JP_hist = normalize_theta_positions(JP_hist)
-            JP_futr = normalize_theta_positions(JP_futr)
+            if self.train_flag is True:
+                JP_futr = tensorfp32(copy(data['JP_futr'][i]))
+                JP_futr = normalize_theta_positions(JP_futr)
+                noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
+                outs['JP_futr'].append(JP_futr)
+                outs['noncollision_mask'].append(noncollision_mask)
 
-            noncollision_mask = tensorfp32(copy(data['noncollision_mask'][i]))
             outs['pc_fts'].append(pc_fts)
             outs['JP_hist'].append(JP_hist)
-            outs['JP_futr'].append(JP_futr)
             outs['instr'].append(instr)
             outs['instr_mask'].append(instr_mask)
-            outs['noncollision_mask'].append(noncollision_mask)
         return outs
         # from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
         # franka = FrankaEmikaPanda()
@@ -658,7 +659,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
         batch['offset'] = torch.cumsum(torch.LongTensor(npoints_in_batch), dim=0)
         batch['pc_fts'] = torch.cat(batch['pc_fts'], 0)  # (#all points, 6)
 
-        for key in ['JP_hist', 'JP_futr', 'instr']:
+        for key in ['JP_hist', 'JP_futr', 'instr', 'instr_mask']:
             try:
                 batch[key] = torch.stack(batch[key], 0)
             except:
@@ -1075,38 +1076,6 @@ def test_inference():
 
 
 # endregion
-
-
-def pad_clip_features(features, target_length=77):
-    """
-    Pads a list of CLIP feature arrays (each of shape (L, 512)) to a fixed target length.
-
-    Args:
-        features (list of np.array): List of feature arrays with shape (L, 512), where L can vary.
-        target_length (int): The target sequence length (default is 77).
-
-    Returns:
-        np.array: A numpy array of shape (batch_size, target_length, 512) where each feature array
-                  has been padded with zeros if necessary.
-    """
-    padded_features = []
-    mask = []
-    for feat in features:
-        current_length, dim = feat.shape
-
-        padded = np.zeros((target_length, dim), dtype=feat.dtype)
-        mask_s = np.zeros((target_length,), dtype=bool)
-
-        padded[:current_length, :] = feat
-        mask_s[:current_length] = True
-
-        padded_features.append(padded)
-        mask.append(mask_s)
-
-    # Stack the padded features into a single numpy array.
-    padded_features = np.stack(padded_features, axis=0)
-    mask = np.stack(mask, axis=0, dtype=bool)
-    return padded_features, mask
 
 
 def natural_sort_key(s):
