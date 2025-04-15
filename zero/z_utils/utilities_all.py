@@ -5,6 +5,10 @@ import numpy as np
 import pdb
 
 
+def natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
+
+
 def summary_models(model, return_flag=False):
     summary = ModelSummary(model)
     if return_flag:
@@ -77,3 +81,29 @@ def denormalize_theta_positions(normalized_theta_positions):
     return test
 
 # endregion
+
+
+def normalize_theta_positions(theta_positions):
+    # must be batch
+
+    lower_limit = torch.tensor(JOINT_POSITION_LIMITS[0], device=theta_positions.device).repeat(theta_positions.shape[0], 1)
+    upper_limit = torch.tensor(JOINT_POSITION_LIMITS[1], device=theta_positions.device).repeat(theta_positions.shape[0], 1)
+
+    # print(lower_limit.shape)
+    # print(upper_limit.shape)
+    # print(theta_positions.shape)
+    # print('theta_position', theta_positions[0, :])
+    test1 = theta_positions - lower_limit
+    test2 = upper_limit - lower_limit
+    test3 = test1 / test2
+    # print(test3.shape)
+    # print('afterprocess', test3[0, :])
+    return test3
+
+
+def denormalize_theta_positions(normalized_theta_positions):
+    lower_limit = JOINT_POSITION_LIMITS[0, :]
+    upper_limit = JOINT_POSITION_LIMITS[1, :]
+
+    test = normalized_theta_positions * (upper_limit - lower_limit) + lower_limit
+    return test

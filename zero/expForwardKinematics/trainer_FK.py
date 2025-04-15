@@ -35,10 +35,6 @@ warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third a
 torch.set_float32_matmul_precision('medium')
 
 
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
-
-
 # endregion
 # ---------------------------------------------------------------
 
@@ -74,25 +70,50 @@ class MyDataModule(pl.LightningDataModule):
         self.config = config
 
     def setup(self, stage=None):
-        train_data_path = self.config['TrainDataset']['data_dir']
+        data_dir = self.config['TrainDataset']['data_dir']
+        train_data_path = os.path.join(data_dir, 'train')
+        val_data_path = os.path.join(data_dir, 'val')
+
         train_dataset = Dataset(self.config, data_dir=train_data_path)
+        val_dataset = Dataset(self.config, data_dir=val_data_path)
+
         self.train_dataset = train_dataset
+        self.val_dataset = val_dataset
 
     def train_dataloader(self):
-        batch_size = self.config['Trainer']['batch_size']
-        sampler = DistributedSampler(self.train_dataset, shuffle=self.config['Trainer']['shuffle'],) if self.config['Trainer']['num_gpus'] > 1 else None
+        batch_size = self.config['Trainer']['train']['batch_size']
+        sampler = DistributedSampler(self.train_dataset, shuffle=self.config['Trainer']['train']['shuffle'],) if self.config['Trainer']['num_gpus'] > 1 else None
 
         print(f"batch_size: {batch_size}")
         loader = DataLoader(
             self.train_dataset,
             batch_size=batch_size,
-            num_workers=self.config['Trainer']['n_workers'],
-            pin_memory=self.config['Trainer']['pin_mem'],
+            num_workers=self.config['Trainer']['train']['n_workers'],
+            pin_memory=self.config['Trainer']['train']['pin_mem'],
             collate_fn=collect_fn,
             sampler=sampler,
             drop_last=False,
             # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
-            shuffle=self.config['Trainer']['shuffle'],
+            shuffle=self.config['Trainer']['train']['shuffle'],
+            persistent_workers=True
+        )
+        return loader
+
+    def val_dataloader(self):
+        batch_size = self.config['Trainer']['val']['batch_size']
+        sampler = DistributedSampler(self.train_dataset, shuffle=self.config['Trainer']['val']['shuffle'],) if self.config['Trainer']['num_gpus'] > 1 else None
+
+        print(f"batch_size: {batch_size}")
+        loader = DataLoader(
+            self.val_dataset,
+            batch_size=batch_size,
+            num_workers=self.config['Trainer']['val']['n_workers'],
+            pin_memory=self.config['Trainer']['val']['pin_mem'],
+            collate_fn=collect_fn,
+            sampler=sampler,
+            drop_last=False,
+            # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
+            shuffle=self.config['Trainer']['val']['shuffle'],
             persistent_workers=True
         )
         return loader

@@ -294,7 +294,7 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader, Dataset
     config_path = '/data/zero/zero/expForwardKinematics/config/FK.yaml'
     config = get_config(config_path)
-    data_dir = config['TrainDataset']['data_dir']
+    data_dir = '/data/zero/1_Data/B_Preprocess/FK/1000_train_eval/train'
     dataset = DatasetFK(config, data_dir)
     loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collect_fn)
     data1 = next(iter(loader))

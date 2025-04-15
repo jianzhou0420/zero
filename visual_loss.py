@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # 读取 CSV 文件，假设文件名为 'loss.csv'
-df = pd.read_csv('/media/jian/ssd4t/zero/2_Train/FK/z_Apr14_19-26-15FK/version_0/metrics.csv')
+df = pd.read_csv('/data/zero/2_Train/FK/Apr15_10-41-23FK/version_0/metrics.csv')
 
 plt.figure(figsize=(8, 6))
 plt.plot(df['epoch'], df['train_loss'], marker='o', linestyle='-')
@@ -12,4 +12,4 @@ plt.ylabel('Train Loss')
 plt.title('Training Loss vs Epoch')
 plt.ylim(0, 0.1)  # 设置纵坐标范围为 [0, 1]
 plt.grid(True)
-plt.show()
+plt.savefig('train_loss.png')
