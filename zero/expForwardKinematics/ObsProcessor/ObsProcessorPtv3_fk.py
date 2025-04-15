@@ -26,7 +26,7 @@ from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quat
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 from codebase.z_utils.open3d import *
 from codebase.z_utils.idx_mask import *
-from zero.z_utils.utilities_all import normalize_theta_positions
+from zero.z_utils.utilities_all import normalize_JP
 from zero.z_utils.utilities_all import pad_clip_features
 # --------------------------------------------------------------
 # region main logic
@@ -429,7 +429,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
             xyz = npa(copy(data['xyz'][i]))
             rgb = npa(copy(data['rgb'][i]))
             JP_hist = npa(copy(data['JP_hist'][i]))
-            height = npafp32(copy(xyz[:, 2])).unsqueeze(1)
+            height = np.expand_dims(npafp32(copy(xyz[:, 2])), axis=1)
             height = (height - self.TABLE_HEIGHT)
 
             choice = random.choice(self.taskvar_instrs[taskvar])
@@ -451,19 +451,19 @@ class ObsProcessorPtv3(ObsProcessorBase):
             center = np.mean(xyz, 0)
             xyz = xyz - center
             rgb = (rgb / 255.0) * 2 - 1
-            pc_fts = torch.cat([xyz, rgb, height], dim=1)  # (N, 6)
+            pc_fts = np.hstack([xyz, rgb, height])  # (N, 6)
 
             # normalize joint positions
-            JP_hist = normalize_theta_positions(JP_hist)
+            JP_hist = normalize_JP(JP_hist)
             if self.train_flag is True:
                 JP_futr = tensorfp32(copy(data['JP_futr'][i]))
-                JP_futr = normalize_theta_positions(JP_futr)
+                JP_futr = normalize_JP(JP_futr)
                 outs['JP_futr'].append(JP_futr)
                 outs['noncollision_mask'].append(noncollision_mask)
 
-            outs['pc_fts'].append(pc_fts)
-            outs['JP_hist'].append(JP_hist)
-            outs['instr'].append(instr)
+            outs['pc_fts'].append(tensorfp32(pc_fts))
+            outs['JP_hist'].append(tensorfp32(JP_hist))
+            outs['instr'].append(tensorfp32(instr))
             outs['instr_mask'].append(instr_mask)
         return outs
         # from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
@@ -621,7 +621,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
             # theta_actions
             test = torch.from_numpy(np.array(gt_theta_position)).float()
-            test = normaliza_JP(test)
+            test = normalize_JP(test)
             test = einops.rearrange(test, 'h a -> a h')  # 现在channel是各个纬度的action
 
             obs_dynamic_out['ee_poses'].append(torch.from_numpy(ee_pose_current).float())
@@ -823,6 +823,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
         self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
         self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
         self.num_points = config['TrainDataset']['num_points']
+        self.TABLE_HEIGHT = get_robot_workspace(real_robot=False)['TABLE_HEIGHT']
 
     def _rm_robot_by_JP(self, xyz, JP):
         theta = JP - self.franka.JP_offset
@@ -996,7 +997,10 @@ def keypoint_discovery(demo):
 
 
 def tensorfp32(x):
-    x = torch.tensor(x, dtype=torch.float32)
+    if torch.is_tensor(x):
+        x = x.float()
+    else:
+        x = torch.tensor(x, dtype=torch.float32)
     return x
 
 # endregion

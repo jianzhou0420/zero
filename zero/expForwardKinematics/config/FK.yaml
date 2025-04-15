@@ -8,13 +8,13 @@ Trainer:
   num_gpus: 1
 
   train:
-    batch_size: 1
+    batch_size: 8
     n_workers: 8
     pin_mem: True
     shuffle: True
 
   val:
-    batch_size: 1
+    batch_size: 8
     n_workers: 8
     pin_mem: True
     shuffle: False
