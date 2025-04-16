@@ -9,7 +9,8 @@ import pytorch_lightning as pl
 
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
-from zero.expForwardKinematics.dataset.dataset_FK import DatasetFK, collect_fn
+from zero.expForwardKinematics.dataset.dataset_FK import DatasetFK as Dataset
+from zero.expForwardKinematics.dataset.dataset_FK import collect_fn
 from zero.expForwardKinematics.models.FK.Policy import PolicyFK
 from zero.z_utils import *
 
@@ -23,15 +24,6 @@ import os
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
-
-
-POLICY_FACTORY = {
-    'FK': PolicyFK,
-}
-DATASET_FACTORY = {
-    'FK': DatasetFK,
-}
-
 
 # ---------------------------------------------------------------
 # region 0.Some tools
@@ -52,8 +44,7 @@ class Trainer_DP(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.config = config
-        Policy = POLICY_FACTORY[config['Trainer']['policy_name']]
-        self.policy = Policy(config)
+        self.policy = PolicyFK(config)
 
     def training_step(self, batch, batch_idx):
         loss = self.policy.forward(batch)
@@ -84,16 +75,12 @@ class MyDataModule(pl.LightningDataModule):
         data_dir = self.config['TrainDataset']['data_dir']
         train_data_path = os.path.join(data_dir, 'train')
         val_data_path = os.path.join(data_dir, 'val')
-        if os.path.exists(train_data_path) is False:
-            self.use_val = False
 
-        Dataset = DATASET_FACTORY[self.config['Trainer']['policy_name']]
         train_dataset = Dataset(self.config, data_dir=train_data_path)
-        self.train_dataset = train_dataset
+        val_dataset = Dataset(self.config, data_dir=val_data_path)
 
-        if self.use_val:
-            val_dataset = Dataset(self.config, data_dir=val_data_path)
-            self.val_dataset = val_dataset
+        self.train_dataset = train_dataset
+        self.val_dataset = val_dataset
 
     def train_dataloader(self):
         batch_size = self.config['Trainer']['train']['batch_size']
@@ -115,8 +102,6 @@ class MyDataModule(pl.LightningDataModule):
         return loader
 
     def val_dataloader(self):
-        if self.use_val is False:
-            return []
         batch_size = self.config['Trainer']['val']['batch_size']
         sampler = DistributedSampler(self.train_dataset, shuffle=self.config['Trainer']['val']['shuffle'],) if self.config['Trainer']['num_gpus'] > 1 else None
 

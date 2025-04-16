@@ -322,7 +322,7 @@ class ActionHeadFKV1(BaseActionHead):
 # endregion
 # ---------------------------------------------------------------
 # region 3. Policy
-class Policy(BasePolicy):
+class PolicyFK(BasePolicy):
     def __init__(self, config):
         super().__init__()
 

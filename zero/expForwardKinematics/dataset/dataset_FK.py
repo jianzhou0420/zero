@@ -149,7 +149,8 @@ class DatasetFK(Dataset):
             'instr_mask': [],
             'noncollision_mask': [],
         }
-
+        if self.config['test']:
+            g_episode = 0
         data = self.check_cache(g_episode)
         outs = self.obs_processor.dynamic_process_fk(data, taskvar=self.g_episode_to_taskvar[g_episode])
         return outs
