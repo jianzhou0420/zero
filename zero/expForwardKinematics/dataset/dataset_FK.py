@@ -153,6 +153,9 @@ class DatasetFK(Dataset):
             g_episode = 0
         data = self.check_cache(g_episode)
         outs = self.obs_processor.dynamic_process_fk(data, taskvar=self.g_episode_to_taskvar[g_episode])
+        if self.config['test']:
+            for key in outs.keys():
+                outs[key] = outs[key][0]
         return outs
     # endregion
 
