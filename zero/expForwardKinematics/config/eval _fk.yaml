@@ -1,6 +1,6 @@
 
 
-exp_dir: /media/jian/ssd4t/zero/2_Train/FK/z_Apr14_19-26-15FK/version_0
+exp_dir: /media/jian/ssd4t/zero/2_Train/FK/Apr15_17-38-17FK/version_0
 epoch: null
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]
@@ -11,11 +11,8 @@ microstep_data_dir: ''
 queue_size: 20
 taskvar_file: '/data/zero/assets/taskvars_peract.json'
 num_ensembles:  1
-
 save_obs_outs_dir:  None
-
 best_disc_pos: 'max'  # max, ens1
-
 record_video:  False
 video_dir: null
 not_include_robot_cameras: False

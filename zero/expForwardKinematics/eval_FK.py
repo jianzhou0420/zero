@@ -36,39 +36,13 @@ from zero.expForwardKinematics.config.default import get_config
 from zero.expForwardKinematics.config.constants import get_robot_workspace, get_rlbench_labels
 
 # homemade utils
-from zero.z_utils.utilities_all import pad_clip_features
+from zero.z_utils.utilities_all import pad_clip_features, denormalize_JP
 
 # ----------------------------------------------
 # region Actioner
 
 JOINT_POSITION_LIMITS = [[-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973, 0],
                          [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973, 1]]
-
-
-def normalize_theta_positions(theta_positions):
-    # must be batch
-
-    lower_limit = torch.tensor(JOINT_POSITION_LIMITS[0], device=theta_positions.device).repeat(theta_positions.shape[0], 1)
-    upper_limit = torch.tensor(JOINT_POSITION_LIMITS[1], device=theta_positions.device).repeat(theta_positions.shape[0], 1)
-
-    # print(lower_limit.shape)
-    # print(upper_limit.shape)
-    # print(theta_positions.shape)
-    # print('theta_position', theta_positions[0, :])
-    test1 = theta_positions - lower_limit
-    test2 = upper_limit - lower_limit
-    test3 = test1 / test2
-    # print(test3.shape)
-    # print('afterprocess', test3[0, :])
-    return test3
-
-
-def denormalize_theta_positions(normalized_theta_positions):
-    lower_limit = torch.tensor(JOINT_POSITION_LIMITS[0], device=normalized_theta_positions.device).repeat(normalized_theta_positions.shape[0], 1)
-    upper_limit = torch.tensor(JOINT_POSITION_LIMITS[1], device=normalized_theta_positions.device).repeat(normalized_theta_positions.shape[0], 1)
-
-    test = normalized_theta_positions * (upper_limit - lower_limit) + lower_limit
-    return test
 
 
 class Actioner(object):
@@ -139,7 +113,7 @@ class Actioner(object):
             assert len(actions.shape) == 2
             assert actions.shape[1] == 8
 
-        actions = denormalize_theta_positions(actions)
+        actions = denormalize_JP(actions)
         new_actions = [npa(actions[i]) for i in range(actions.shape[0])]
 
         out = {

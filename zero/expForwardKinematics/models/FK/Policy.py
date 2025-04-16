@@ -20,7 +20,7 @@ from zero.expForwardKinematics.models.FK.component.DA3D_layers import (
 from zero.expForwardKinematics.models.FK.component.DA3D_position_encodings import (
     SinusoidalPosEmb,
     RotaryPositionEncoding3D,)
-
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from codebase.z_model.attentionlayer import SelfAttnFFW, CrossAttnFFW, PositionalEncoding
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 from zero.expForwardKinematics.models.Base.BaseAll import BaseActionHead, BaseFeatureExtractor, BasePolicy
@@ -322,9 +322,97 @@ class ActionHeadFKV1(BaseActionHead):
 # endregion
 # ---------------------------------------------------------------
 # region 3. Policy
-
-
 class Policy(BasePolicy):
+    def __init__(self, config):
+        super().__init__()
+
+        # Policy itself
+        self.ActionHead = ActionHeadFKV1(config)
+        self.FeatureExtractor = FeatureExtractorPTv3Clean(config)
+        self.config = config
+        self.franka = FrankaEmikaPanda()
+        self.action_theta_offset = [0, 0, 0, math.radians(-4), 0, 0, 0]
+
+        # DDPM
+        self.scheduler = DDPMScheduler(
+            beta_start=config['FK']['Policy']['DDPM']['beta_1'],
+            beta_end=config['FK']['Policy']['DDPM']['beta_T'],
+            beta_schedule="scaled_linear",
+            num_train_timesteps=config['FK']['Policy']['DDPM']['T'],
+            prediction_type="epsilon",
+        )
+
+        try:
+            self.horizon = config['FK']['ActionHead']['horizon']
+        except:
+            self.horizon = 8
+
+    def forward(self, batch):
+        # get data
+        JP_futr_0 = batch['JP_futr']  # [batch, horizon, action_dim]
+        JP_hist = batch['JP_hist']  # [batch, horizon, action_dim]
+        instr = batch['instr']
+        instr_mask = batch['instr_mask']
+        noncollision_mask = batch['noncollision_mask']  # [batch, horizon, action_dim]
+
+        # feature extraction
+
+        obs_features, obs_features_mask = self.FeatureExtractor(batch)
+
+        noise = torch.randn(JP_futr_0.shape, device=JP_futr_0.device)
+        # DDPM scheduler
+        timesteps = torch.randint(
+            0,
+            self.scheduler.config.num_train_timesteps,
+            (len(noise),), device=noise.device
+        ).long()
+
+        JP_futr_t = self.scheduler.add_noise(JP_futr_0, noise, timesteps)
+
+        noise_pred = self.ActionHead(JP_futr_t, JP_hist,
+                                     obs_features, obs_features_mask,
+                                     instr, instr_mask,  # TODO: instr mask
+                                     t=timesteps)  # [batch, horizon, action_dim]
+
+        loss = 64 * F.l1_loss(noise_pred, noise, reduction='mean')
+
+        return loss
+
+    @torch.no_grad()
+    def inference_one_sample(self, batch):
+        '''
+        actionhead input:(
+                JP_futr_noisy, JP_hist,
+                obs_features, obs_features_mask,
+                instr, instr_mask,
+                t)
+        '''
+
+        JP_futr_noisy_x_t = None
+        JP_hist = batch['JP_hist']  # [batch, horizon, action_dim]
+        obs_features, obs_features_mask = self.FeatureExtractor(batch)
+        instr = batch['instr']
+        instr_mask = batch['instr_mask']
+        noncollision_mask = batch['noncollision_mask']  # TODO: inference 用不到，但用不到是不合理的,因此，放在这里，以便后用
+
+        B = obs_features.shape[0]
+        JP_futr_noisy_x_t = torch.randn(B, self.horizon, 8).to(obs_features.device)  # [B, horizon, action_dim]
+
+        # inverse part
+        timesteps = self.scheduler.timesteps
+        for t in timesteps:
+            noise_pred = self.ActionHead(JP_futr_noisy_x_t, JP_hist,
+                                         obs_features, obs_features_mask,
+                                         instr, instr_mask,  # TODO: instr mask
+                                         t=t * torch.ones(len(obs_features)).to(obs_features.device).long()
+                                         )
+            JP_futr_noisy_x_t = self.scheduler.step(noise_pred, t, JP_futr_noisy_x_t).prev_sample
+
+        x_0 = JP_futr_noisy_x_t
+        return torch.clip(x_0, -1, 1)  # [B, horizon, action_dim]
+
+
+class PolicyV111(BasePolicy):
     def __init__(self, config):
         super().__init__()
 
@@ -390,18 +478,18 @@ class Policy(BasePolicy):
                                      obs_features, obs_features_mask,
                                      instr, instr_mask,  # TODO: instr mask
                                      t=t)  # [batch, horizon, action_dim]
+
         JP_futr_0_pred = self._inverse_q_sample(JP_futr_t, t, noise_pred)  # [batch, horizon, action_dim]
 
         # loss
-
-        ddpm_loss = F.mse_loss(noise_pred, noise, reduction='mean')
+        ddpm_loss = F.l1_loss(noise_pred, noise, reduction='mean')
 
         if self.collision_loss_flag:
             collision_loss = self._collision_loss(batch['pc_fts'][:, :3], batch['npoints_in_batch'], JP_futr_0_pred, noncollision_mask)
         else:
             collision_loss = 0
 
-        loss = ddpm_loss + collision_loss
+        loss = 30 * ddpm_loss + 10 * collision_loss
         return loss
 
     @torch.no_grad()
@@ -425,6 +513,7 @@ class Policy(BasePolicy):
         x_t = torch.randn(B, self.horizon, 8).to(obs_features.device)  # [B, horizon, action_dim]
 
         for time_step in reversed(range(self.t_max)):
+            print('time_step', time_step)
             t = x_t.new_ones([x_t.shape[0], ], dtype=torch.long) * time_step
             JP_futr_noisy = x_t
             actionhead_input = (JP_futr_noisy, JP_hist,
@@ -439,7 +528,7 @@ class Policy(BasePolicy):
             x_t = mean + torch.sqrt(var) * noise
             assert torch.isnan(x_t).int().sum() == 0, "nan in tensor."
         x_0 = x_t
-        return x_0  # [B, horizon, action_dim]
+        return torch.clip(x_0, -1, 1)  # [B, horizon, action_dim]
 
     # region 3.1 DDPM
     # Forward Part of Diffusion,
