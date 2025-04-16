@@ -86,6 +86,8 @@ class MyDataModule(pl.LightningDataModule):
         val_data_path = os.path.join(data_dir, 'val')
         if os.path.exists(train_data_path) is False:
             self.use_val = False
+        else:
+            self.use_val = True
 
         Dataset = DATASET_FACTORY[self.config['Trainer']['policy_name']]
         train_dataset = Dataset(self.config, data_dir=train_data_path)
