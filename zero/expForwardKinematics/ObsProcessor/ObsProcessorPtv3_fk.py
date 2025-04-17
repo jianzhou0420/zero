@@ -438,16 +438,17 @@ class ObsProcessorPtv3(ObsProcessorBase):
             instr_mask = torch.tensor(instr_mask, dtype=torch.bool).squeeze(0)
             if self.train_flag is True:
                 noncollision_mask = npa(copy(data['noncollision_mask'][i]))
-
-            # 2. downsample by number
-            idx = pcd_random_downsample_by_num(xyz, rgb, num_points=self.num_points, return_idx=True)
-            xyz = xyz[idx]
-            rgb = rgb[idx]
-            height = height[idx]
-            if self.train_flag is True:
-                noncollision_mask = noncollision_mask[idx]
-
-            # 3. normalize point cloud
+            if self.config['TrainDataset']['augmentation'] is True:
+                # 2. downsample by number
+                idx = pcd_random_downsample_by_num(xyz, rgb, num_points=self.num_points, return_idx=True)
+                xyz = xyz[idx]
+                rgb = rgb[idx]
+                height = height[idx]
+                if self.train_flag is True:
+                    noncollision_mask = noncollision_mask[idx]
+            else:
+                pass
+                # 3. normalize point cloud
             center = np.mean(xyz, 0)
             xyz = xyz - center
             rgb = (rgb / 255.0) * 2 - 1

@@ -34,7 +34,7 @@ TrainDataset:
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
 
   num_points: 4096
-
+  augmentation: False
 
 FK:
   Policy:
