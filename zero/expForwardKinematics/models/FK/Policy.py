@@ -374,7 +374,7 @@ class PolicyFK(BasePolicy):
                                      instr, instr_mask,  # TODO: instr mask
                                      t=timesteps)  # [batch, horizon, action_dim]
 
-        loss = 64 * F.l1_loss(noise_pred, noise, reduction='mean')
+        loss = F.l1_loss(noise_pred, noise, reduction='mean')
 
         return loss
 
