@@ -1,16 +1,20 @@
+import einops
 from tqdm import tqdm
 import re
 import random
 import copy
 import json
 import pickle
+import torch
 import os
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorBase
 from zero.dataprocess.utils import convert_gripper_pose_world_to_image, keypoint_discovery
 from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
 import collections
 import numpy as np
-from zero.z_utils.utilities_all import pad_clip_features
+from zero.z_utils.utilities_all import pad_clip_features, normalize_JP, normalize_pos, convert_rot, gripper_loc_bounds
+import torchvision.transforms as transforms
+import torchvision.transforms.functional as transforms_f
 # ---------------------------------------------------------------
 # region 0.Some tools
 
@@ -53,21 +57,7 @@ class ObsProcessorDA3D(ObsProcessorBase):
     def __init__(self, config, train_flag=True):
         super().__init__(config,)
         self.config = config
-
-    def get_obs_raw_sample(self,):
-        obs_raw = {
-            'key_frameids': [],
-            'rgb': [],  # (T, N, H, W, 3)
-            'pc': [],  # (T, N, H, W, 3)
-            'action': [],  # (T, A)
-            'bbox': [],  # [T of dict]
-            'pose': [],  # [T of dict]
-            'sem': [],  # (T, N, H, W, 3)
-            'actions_all': [],
-            'positions_all': [],
-        }
-        return obs_raw
-    # region obs_raw
+        self.gripper_loc_bounds = gripper_loc_bounds
 
     def obs_2_obs_raw(self, obs):
         key_frames = [0]
@@ -94,16 +84,16 @@ class ObsProcessorDA3D(ObsProcessorBase):
         positions.append(position)
         obs_raw = {
             'key_frameids': key_frames,
-            'rgb': state_dict['rgb'],  # (T, N, H, W, 3)
-            'pc': state_dict['pc'],  # (T, N, H, W, 3)
-            'action': state_dict['gripper'],  # (T, A)
+            'rgb': [state_dict['rgb']],  # (T, N, H, W, 3)
+            'pc': [state_dict['pc']],  # (T, N, H, W, 3)
+            'action': [state_dict['gripper']],  # (T, A)
             'bbox': bbox,  # [T of dict]
             'pose': pose,  # [T of dict]
-            'sem': state_dict['sem'],  # (T, N, H, W, 3)
+            'JP_curr_no_open': positions,
         }
         return obs_raw
 
-    def demo_2_obs_raw(self, demo):
+    def demo_2_obs_raw(self, demo):  # TODO: refine I/O variables name
         """Fetch the desired state based on the provided demo.
         :param obs: incoming obs
         :return: required observation (rgb, depth, pc, gripper state)
@@ -165,7 +155,7 @@ class ObsProcessorDA3D(ObsProcessorBase):
             'pose': pose,  # [T of dict]
             'sem': state_dict_ls['sem'],  # (T, N, H, W, 3)
             'actions_all': actions,
-            'positions_all': positions,
+            'joint_position_all': positions,
         }
         return obs_raw
 
@@ -217,8 +207,6 @@ class ObsProcessorDA3D(ObsProcessorBase):
 
         return state_dict
 
-    # endregion
-
     def find_middle_actions(self, actions_path, theta_actions_path, sub_keyframe_dection_mode='avg', horizon=8):
 
         indices = np.linspace(0, len(actions_path) - 1, horizon + 1).astype(int)[1:]  # 我为什么这里减1了？ 哦index从0开始
@@ -226,43 +214,34 @@ class ObsProcessorDA3D(ObsProcessorBase):
         gt_theta_actions = [theta_actions_path[i] for i in indices]
         return gt_actions, gt_theta_actions
 
-    def static_process_fk(self, root_dir, task, variation, episode):
+    def static_process_DA3D(self, root_dir, task, variation, episode):
         out = {
+            'xyz': [],
             'rgb': [],
-            'pcd': [],
-            'txt_embed': [],
-            'action_history': [],
-            'action_future': [],
-            'joint_position_history': [],
-            'joint_position_future': []
+            'eePose_hist': [],
+            'eePose_futr': [],
+            'JP_hist': [],
+            'JP_futr': []
         }
 
         # region 3.1 Path & Load
         data_folder = os.path.join(root_dir, task, variation, 'episodes', episode)
         with open(os.path.join(data_folder, 'data.pkl'), 'rb') as f:
             data = pickle.load(f)
-        with open(os.path.join(data_folder, 'actions_all.pkl'), 'rb') as f:
-            action_all = pickle.load(f)
-        with open(os.path.join(data_folder, 'positions_all.pkl'), 'rb') as f:
-            joint_position_all = pickle.load(f)
+        action_all = data['actions_all']
+        joint_position_all = data['joint_position_all']
 
         # save path
-        save_root = '/data/zero/1_Data/B_Preprocess/DA3D'
-        save_folder = os.path.join(save_root, task, variation, 'episodes', episode)
+
         num_frames = len(data['rgb']) - 1
 
-        # load instructions
-        if not hasattr(self, 'taskvar_instrs'):
-            self.taskvar_instrs = json.load(open('/data/zero/assets/taskvars_instructions_peract.json'))
-            self.instr_embeds = np.load('/data/zero/assets/instr_embeds_clip.npy', allow_pickle=True).item()
-
-        taskvar = task + '_' + 'peract+' + variation.split('variation')[1]
+        taskvar = task + '+' + variation.split('variation')[1]
         # endregion
 
         for i in range(num_frames):
             keyframe_id = copy.deepcopy(np.array(data['key_frameids'][i], dtype=np.int16))
             rgb = data['rgb'][i]
-            pcd = data['pc'][i]
+            xyz = data['pc'][i]
 
             action_curr = copy.deepcopy(np.array(data['action'][i], dtype=np.float64))
             action_next = copy.deepcopy(np.array(data['action'][i + 1], dtype=np.float64))
@@ -276,62 +255,195 @@ class ObsProcessorDA3D(ObsProcessorBase):
             joint_position_next = copy.deepcopy(np.array(JP_all_copy[data['key_frameids'][i + 1]], dtype=np.float64))
             joint_position_path = copy.deepcopy(np.array(JP_all_copy[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))
 
-            # action_history
+            # eePose_hist
             if keyframe_id - 8 <= 1:
-                action_history = [action_all[j] for j in range(keyframe_id)]
-                action_history += [action_curr] * (8 - keyframe_id)
+                eePose_hist = [action_all[j] for j in range(keyframe_id)]
+                eePose_hist += [action_curr] * (8 - keyframe_id)
 
-                joint_position_history = [JP_all_copy[j] for j in range(keyframe_id)]
-                joint_position_history += [joint_position_curr] * (8 - keyframe_id)
+                JP_hist = [JP_all_copy[j] for j in range(keyframe_id)]
+                JP_hist += [joint_position_curr] * (8 - keyframe_id)
             else:
-                action_history = [action_all[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
-                joint_position_history = [JP_all_copy[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
-            # action_future
-            action_future, joint_position_future = self.find_middle_actions(action_path, joint_position_path, sub_keyframe_dection_mode='avg')
+                eePose_hist = [action_all[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
+                JP_hist = [JP_all_copy[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
+            # eePose_futr
+            eePose_futr, JP_futr = self.find_middle_actions(action_path, joint_position_path, sub_keyframe_dection_mode='avg')
 
-            instr = random.choice(self.taskvar_instrs[taskvar])
-            instr_embed = copy.deepcopy(self.instr_embeds[instr])
-            instr_embed = pad_clip_features([instr_embed], 77)
             # concatenate
-            action_history = np.stack(action_history, axis=0)
-            action_future = np.stack(action_future, axis=0)
-            joint_position_history = np.stack(joint_position_history, axis=0)
-            joint_position_future = np.stack(joint_position_future, axis=0)
+            eePose_hist = np.stack(eePose_hist, axis=0)
+            eePose_futr = np.stack(eePose_futr, axis=0)
+            JP_hist = np.stack(JP_hist, axis=0)
+            JP_futr = np.stack(JP_futr, axis=0)
             # check & save
-            assert np.allclose(action_curr, action_history[-1])
-            assert np.allclose(action_next, action_future[-1])
-            assert np.allclose(action_curr, action_history[-1])
+            assert np.allclose(action_curr, eePose_hist[-1])
+            assert np.allclose(action_next, eePose_futr[-1])
+            assert np.allclose(action_curr, eePose_hist[-1])
 
             assert np.allclose(joint_position_curr, JP_all_copy[keyframe_id])
-            assert np.allclose(joint_position_next, joint_position_future[-1])
-            assert np.allclose(joint_position_curr, joint_position_history[-1])
+            assert np.allclose(joint_position_next, JP_futr[-1])
+            assert np.allclose(joint_position_curr, JP_hist[-1])
 
             out['rgb'].append(rgb)
-            out['pcd'].append(pcd)
-            out['txt_embed'].append(instr_embed)
+            out['xyz'].append(xyz)
+            out['eePose_hist'].append(eePose_hist)
+            out['eePose_futr'].append(eePose_futr)
+            out['JP_hist'].append(JP_hist)
+            out['JP_futr'].append(JP_futr)
 
-            out['action_history'].append(action_history)
-            out['action_future'].append(action_future)
+        return out
 
-            out['joint_position_history'].append(joint_position_history)
-            out['joint_position_future'].append(joint_position_future)
+    def dynamic_process_DA3D(self, data, taskvar):
+        outs = {
+            'rgb': None,
+            'xyz': None,
+            'instr': None,
+            'JP_hist': None,
+            'JP_futr': None,
+            'eePose_hist': None,
+            'eePose_futr': None
+        }
 
-        os.makedirs(save_folder, exist_ok=True)
-        with open(os.path.join(save_folder, 'data.pkl'), 'wb') as f:
-            pickle.dump(out, f)
+        B = len(data['rgb'])
+        rgb = torch.from_numpy(np.stack(copy.deepcopy(data['rgb']), axis=0))
+        xyz = torch.from_numpy(np.stack(copy.deepcopy(data['xyz']), axis=0))
+        JP_hist = torch.from_numpy(np.stack(copy.deepcopy(data['JP_hist']), axis=0))
+        JP_futr = torch.from_numpy(np.stack(copy.deepcopy(data['JP_futr']), axis=0))
+        eePose_hist = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_hist']), axis=0))
+        eePose_futr = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_futr']), axis=0))
+        # instruction = torch.tensor(np.stack(copy.deepcopy(data['txt_embed']), axis=0)).squeeze()
+        instr = []
+        for i in range(B):
+            instr_s = random.choice(self.taskvar_instrs[taskvar])
+            instr_s = copy.deepcopy(self.instr_embeds[instr_s])
+            instr_s, mask = pad_clip_features([instr_s], 53)
+            instr.append(instr_s)
+        instr = torch.tensor(np.stack(instr, axis=0)).squeeze()
+
+        # augmentation
+        resized_dict = self._resize(rgb=rgb, xyz=xyz)
+        rgb = resized_dict['rgb']
+        xyz = resized_dict['xyz']
+
+        rgb = einops.rearrange(rgb, 'bs ncam h w c-> bs ncam c h w')
+        xyz = einops.rearrange(xyz, 'bs ncam h w c-> bs ncam c h w')
+
+        # normalize
+        rgb = (rgb.float() / 255.0) * 2 - 1
+        JP_hist = normalize_JP(JP_hist)
+        JP_futr = normalize_JP(JP_futr)
+
+        eePose_futr[:, :, :3] = normalize_pos(eePose_futr[:, :, :3])
+        eePose_hist[:, :, :3] = normalize_pos(eePose_hist[:, :, :3])
+
+        xyz = torch.permute(normalize_pos(torch.permute(xyz, [0, 1, 3, 4, 2])), [0, 1, 4, 2, 3])
+
+        eePose_hist = convert_rot(eePose_hist)
+        eePose_futr = convert_rot(eePose_futr)
+        # 下面接 Policy的forward
+
+        # return
+        outs['rgb'] = rgb.float()
+        outs['xyz'] = xyz.float()
+        outs['instr'] = instr.float()
+        outs['JP_hist'] = JP_hist.float()
+        outs['JP_futr'] = JP_futr.float()
+        outs['eePose_hist'] = eePose_hist.float()
+        outs['eePose_futr'] = eePose_futr.float()
+        return outs
+
+    def _dataset_init_DA3D(self):
+        config = self.config
+        self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
+        self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
+        self._resize = Resize(config['TrainDataset']['image_rescales'])
+
+        pass
+# endregion
+# -------------------------------------------------------------------------------
+# region utils
 
 
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
-data_dir = '/data/zero/1_Data/A_Selfgen/2000demo_put_groceries/train/904744'
-tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
-obs_processor = ObsProcessorDA3D(config=None)
+class Resize:
+    """Resize and pad/crop the image and aligned point cloud."""
 
-for i, task in enumerate(tasks_all):
-    variations = sorted(os.listdir(os.path.join(data_dir, task)), key=natural_sort_key)
-    for j, variation in enumerate(variations):
-        episodes = sorted(os.listdir(os.path.join(data_dir, task, variation, 'episodes')), key=natural_sort_key)
-        for k, episode in tqdm(enumerate(episodes)):
-            obs_processor.static_process_fk(data_dir, task, variation, episode)
+    def __init__(self, scales):
+        self.scales = scales
+
+    def __call__(self, **kwargs):
+        """Accept tensors as T, N, C, H, W."""
+        keys = list(kwargs.keys())
+
+        if len(keys) == 0:
+            raise RuntimeError("No args")
+
+        # Sample resize scale from continuous range
+        sc = np.random.uniform(*self.scales)
+
+        t, n, c, raw_h, raw_w = kwargs[keys[0]].shape
+        kwargs = {n: arg.flatten(0, 1) for n, arg in kwargs.items()}
+        resized_size = [int(raw_h * sc), int(raw_w * sc)]
+
+        # Resize
+        kwargs = {
+            n: transforms_f.resize(
+                arg,
+                resized_size,
+                transforms.InterpolationMode.NEAREST
+            )
+            for n, arg in kwargs.items()
+        }
+
+        # If resized image is smaller than original, pad it with a reflection
+        if raw_h > resized_size[0] or raw_w > resized_size[1]:
+            right_pad, bottom_pad = max(raw_w - resized_size[1], 0), max(
+                raw_h - resized_size[0], 0
+            )
+            kwargs = {
+                n: transforms_f.pad(
+                    arg,
+                    padding=[0, 0, right_pad, bottom_pad],
+                    padding_mode="reflect",
+                )
+                for n, arg in kwargs.items()
+            }
+
+        # If resized image is larger than original, crop it
+        i, j, h, w = transforms.RandomCrop.get_params(
+            kwargs[keys[0]], output_size=(raw_h, raw_w)
+        )
+        kwargs = {
+            n: transforms_f.crop(arg, i, j, h, w) for n, arg in kwargs.items()
+        }
+
+        kwargs = {
+            n: einops.rearrange(arg, "(t n) c h w -> t n c h w", t=t)
+            for n, arg in kwargs.items()
+        }
+
+        return kwargs
+# endregion
+
+
+def static_process_data():
+    data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/20demo_put_groceries/train/520837'
+    tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
+    obs_processor = ObsProcessorDA3D(config=None)
+    save_root = '/data/zero/1_Data/B_Preprocess/DA3D'
+
+    for i, task in enumerate(tasks_all):
+        variations = sorted(os.listdir(os.path.join(data_dir, task)), key=natural_sort_key)
+        for j, variation in enumerate(variations):
+            episodes = sorted(os.listdir(os.path.join(data_dir, task, variation, 'episodes')), key=natural_sort_key)
+            for k, episode in tqdm(enumerate(episodes)):
+                outs = obs_processor.static_process_DA3D(data_dir, task, variation, episode)
+                save_folder = os.path.join(save_root, task, variation, 'episodes', episode)
+                os.makedirs(save_folder, exist_ok=True)
+                with open(os.path.join(save_folder, 'data.pkl'), 'wb') as f:
+                    pickle.dump(outs, f)
+
+
+if __name__ == '__main__':
+    static_process_data()

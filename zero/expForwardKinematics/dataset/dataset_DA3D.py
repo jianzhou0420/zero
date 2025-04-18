@@ -5,12 +5,12 @@ from torch.utils.data import Dataset
 import torch
 import os
 import numpy as np
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorDA3D import ObsProcessorDA3D
 import time
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as transforms_f
 import einops
-from zero.z_utils.utilities_all import pad_clip_features, normalize_theta_positions
+from zero.z_utils.utilities_all import pad_clip_features, normalize_JP
 import copy
 
 # --------------------------------------------------------------
@@ -142,6 +142,9 @@ class DatasetDA3D(Dataset):
         self.config = config
         data_dir = data_dir  # 因为namesapce不高亮，所以尽量用字典的方式，方便区分
 
+        self.obs_processor = ObsProcessorDA3D(config, data_dir)
+        self.obs_processor._dataset_init_DA3D()
+
         if config['TrainDataset']['cache_dataset_init_path'] is not None:
             cache_dataset_init_path = config['TrainDataset']['cache_dataset_init_path']
             with open(cache_dataset_init_path, 'rb') as f:
@@ -265,30 +268,10 @@ class DatasetDA3D(Dataset):
         }
 
         data = self.check_cache(g_episode)
+        taskvar = self.g_frame_to_taskvar[g_episode]
 
-        rgb = torch.tensor(np.stack(copy.deepcopy(data['rgb']), axis=0))
-        pcd = torch.tensor(np.stack(copy.deepcopy(data['pcd']), axis=0))
-        joint_position_history = torch.tensor(np.stack(copy.deepcopy(data['joint_position_history']), axis=0))
-        joint_position_future = torch.tensor(np.stack(copy.deepcopy(data['joint_position_future']), axis=0))
-        instruction = torch.tensor(np.stack(copy.deepcopy(data['txt_embed']), axis=0)).squeeze()
-        # augmentation
-        resized_dict = self._resize(rgbs=rgb, pcds=pcd)
-        rgb = resized_dict['rgbs']
-        pcd = resized_dict['pcds']
+        outs = self.obs_processor.dynamic_process_DA3D(data, taskvar)
 
-        rgb = einops.rearrange(rgb, 'bs ncam h w c-> bs ncam c h w')
-        pcd = einops.rearrange(pcd, 'bs ncam h w c-> bs ncam c h w')
-
-        # normalize
-        rgb = (rgb.float() / 255.0) * 2 - 1
-        joint_position_history = normalize_theta_positions(joint_position_history)
-        joint_position_future = normalize_theta_positions(joint_position_future)
-        # return
-        outs['rgb'] = rgb.float()
-        outs['pcd'] = pcd.float()
-        outs['joint_position_history'] = joint_position_history.float()
-        outs['joint_position_future'] = joint_position_future.float()
-        outs['instruction'] = instruction.float()
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
 
         return outs

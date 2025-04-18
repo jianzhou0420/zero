@@ -12,14 +12,17 @@ Trainer:
 
 TrainDataset:
   data_dir: /data/zero/1_Data/B_Preprocess/DA3D
-  tasks_to_use: null
-  cache_dataset_init_path: /data/zero/1_Data/D_Cache_init/2025-03-22-11-15-14cache_dataset_init_path.pkl
+  tasks_to_use: put_groceries_in_cupboard
+  cache_dataset_init_path: /media/jian/ssd4t/zero/1_Data/D_Cache_init/2025-04-18-14-18-26cache_dataset_init_path.pkl
   image_rescales: [0.75,1.25]
+  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
+  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
 
 DiffuserActor:
   Policy:
     num_timesteps: 100
     use_instruction: False
+    action_space: 'JP' # 'eePose', 'JP'
 
   FeatureExtractor:
     backbone: 'clip'
@@ -34,11 +37,11 @@ DiffuserActor:
 
   ActionHead:
     embedding_dim: 120
-    use_instruction: False
+    use_instruction: True
     rotation_parametrization: 'quat'
     nhist: 8
     lang_enhanced: False
-    action_dim: 8
+
     
 
 # Checking

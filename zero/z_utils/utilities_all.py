@@ -1,4 +1,6 @@
 
+from typing import Dict, Optional, Sequence
+import json
 import torch
 from pytorch_lightning.utilities.model_summary import ModelSummary
 import numpy as np
@@ -52,6 +54,8 @@ def pad_clip_features(features, target_length=77):
 JOINT_POSITION_LIMITS = [[-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973, 0],
                          [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973, 1]]
 
+# Normalize joint position
+
 
 def normalize_JP(JP):
     lower = JOINT_POSITION_LIMITS[0]
@@ -89,3 +93,110 @@ def denormalize_JP(norm_JP):
     else:
         raise TypeError("Input must be a numpy array or a torch tensor.")
     return JP
+
+
+# normalize gripper position
+
+
+def get_gripper_loc_bounds(path: str, buffer: float = 0.0, task: Optional[str] = None):
+    gripper_loc_bounds = json.load(open(path, "r"))
+    if task is not None and task in gripper_loc_bounds:
+        gripper_loc_bounds = gripper_loc_bounds[task]
+        gripper_loc_bounds_min = np.array(gripper_loc_bounds[0]) - buffer
+        gripper_loc_bounds_max = np.array(gripper_loc_bounds[1]) + buffer
+        gripper_loc_bounds = np.stack([gripper_loc_bounds_min, gripper_loc_bounds_max])
+    else:
+        # Gripper workspace is the union of workspaces for all tasks
+        gripper_loc_bounds = json.load(open(path, "r"))
+        gripper_loc_bounds_min = np.min(np.stack([bounds[0] for bounds in gripper_loc_bounds.values()]), axis=0) - buffer
+        gripper_loc_bounds_max = np.max(np.stack([bounds[1] for bounds in gripper_loc_bounds.values()]), axis=0) + buffer
+        gripper_loc_bounds = np.stack([gripper_loc_bounds_min, gripper_loc_bounds_max])
+    print("Gripper workspace size:", gripper_loc_bounds_max - gripper_loc_bounds_min)
+    return gripper_loc_bounds
+
+
+gripper_loc_bounds = torch.from_numpy(get_gripper_loc_bounds(
+    "/media/jian/ssd4t/zero/assets/18_peract_tasks_location_bounds.json",
+    buffer=0.04,
+))
+
+
+def normalize_pos(pos):
+    pos_min = gripper_loc_bounds[0].float().to(pos.device)
+    pos_max = gripper_loc_bounds[1].float().to(pos.device)
+    return (pos - pos_min) / (pos_max - pos_min) * 2.0 - 1.0
+
+
+def unnormalize_pos(self, pos):
+    pos_min = gripper_loc_bounds[0].float().to(pos.device)
+    pos_max = gripper_loc_bounds[1].float().to(pos.device)
+    return (pos + 1.0) / 2.0 * (pos_max - pos_min) + pos_min
+
+
+# rot
+def normalise_quat(x: torch.Tensor):
+    return x / torch.clamp(x.square().sum(dim=-1).sqrt().unsqueeze(-1), min=1e-10)
+
+
+def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
+    """
+    Convert rotations given as quaternions to rotation matrices.
+
+    Args:
+        quaternions: quaternions with real part first,
+            as tensor of shape (..., 4).
+
+    Returns:
+        Rotation matrices as tensor of shape (..., 3, 3).
+    """
+    r, i, j, k = torch.unbind(quaternions, -1)
+    # pyre-fixme[58]: `/` is not supported for operand types `float` and `Tensor`.
+    two_s = 2.0 / (quaternions * quaternions).sum(-1)
+
+    o = torch.stack(
+        (
+            1 - two_s * (j * j + k * k),
+            two_s * (i * j - k * r),
+            two_s * (i * k + j * r),
+            two_s * (i * j + k * r),
+            1 - two_s * (i * i + k * k),
+            two_s * (j * k - i * r),
+            two_s * (i * k - j * r),
+            two_s * (j * k + i * r),
+            1 - two_s * (i * i + j * j),
+        ),
+        -1,
+    )
+    return o.reshape(quaternions.shape[:-1] + (3, 3))
+
+
+def get_ortho6d_from_rotation_matrix(matrix):
+    # The orhto6d represents the first two column vectors a1 and a2 of the
+    # rotation matrix: [ | , |,  | ]
+    #                  [ a1, a2, a3]
+    #                  [ | , |,  | ]
+    ortho6d = matrix[:, :, :2].permute(0, 2, 1).flatten(-2)
+    return ortho6d
+
+
+def convert_rot(signal):
+    rotation_parametrization = '6D'
+    quaternion_format = 'wxyz'
+    signal[..., 3:7] = normalise_quat(signal[..., 3:7])
+    if rotation_parametrization == '6D':
+        # The following code expects wxyz quaternion format!
+        if quaternion_format == 'xyzw':
+            signal[..., 3:7] = signal[..., (6, 3, 4, 5)]
+        rot = quaternion_to_matrix(signal[..., 3:7])
+        res = signal[..., 7:] if signal.size(-1) > 7 else None
+        if len(rot.shape) == 4:
+            B, L, D1, D2 = rot.shape
+            rot = rot.reshape(B * L, D1, D2)
+            rot_6d = get_ortho6d_from_rotation_matrix(rot)
+            rot_6d = rot_6d.reshape(B, L, 6)
+        else:
+            rot_6d = get_ortho6d_from_rotation_matrix(rot)
+        signal = torch.cat([signal[..., :3], rot_6d], dim=-1)
+        if res is not None:
+            signal = torch.cat((signal, res), -1)
+    return signal

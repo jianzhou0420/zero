@@ -16,3 +16,9 @@ eePose_Path = 'eePose_path'
 
 # JPose
 JPose_all = 'joint_pose,with shape [..., 6], [x, y, z, eulerX,eulerY,eulerZ]'
+
+
+# xyz,rgb
+pcd = 'open3d pcd or [x,y,z,r,g,b]'
+xyz = "xyz of pcd"
+rgb = "rgb of pcd"

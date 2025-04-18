@@ -20,7 +20,6 @@ import random
 
 
 from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
-from zero.z_utils.joint_position import normaliza_JP
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorBase
 from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
@@ -153,7 +152,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
         }
         return obs_raw
 
-    def static_process_fk(self, obs_raw):
+    def static_process_DA3D(self, obs_raw):
         '''
         obs_raw={
             'key_frameids': [],
@@ -1039,7 +1038,7 @@ def test_preprocess(record_example=False):
 
     config = get_config('/data/zero/zero/expForwardKinematics/config/expBase_Lotus.yaml')
     test = ObsProcessorPtv3(config)
-    out = test.static_process_fk(raw_data, '/data/zero/1_Data/C_Dataset_Example/example_episode')
+    out = test.static_process_DA3D(raw_data, '/data/zero/1_Data/C_Dataset_Example/example_episode')
     print(out.keys())
 
     pcd = o3d.geometry.PointCloud()
@@ -1081,7 +1080,7 @@ def test_inference():
     collect_fn = obs_processor.get_collect_function()
 
     obs_raw = obs_processor.obs_2_obs_raw(obs)
-    obs_static = obs_processor.static_process_fk(obs_raw)
+    obs_static = obs_processor.static_process_DA3D(obs_raw)
     obs_dynamic = obs_processor.dynamic_process(obs_static, 'close_jar_peract+0')
     batch = collect_fn([obs_dynamic])
     print(batch.keys())
@@ -1117,7 +1116,7 @@ def static_process():
                 taskvar = f'{task}+{variation.split("variation")[-1]}'
                 with open(os.path.join(data_dir, task, variation, 'episodes', episode, 'data.pkl'), 'rb') as f:
                     data = pickle.load(f)
-                out = obs_processor.static_process_fk(data, taskvar)
+                out = obs_processor.static_process_DA3D(data, taskvar)
                 save_path = os.path.join(save_root, task, variation, episode)
                 check_and_make(save_path)
                 with open(os.path.join(save_path, 'data.pkl'), 'wb') as f:
