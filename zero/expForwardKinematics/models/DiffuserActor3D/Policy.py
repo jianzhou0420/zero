@@ -23,7 +23,6 @@ from zero.expForwardKinematics.models.DiffuserActor3D.components.position_encodi
 from zero.expForwardKinematics.models.DiffuserActor3D.components.layers import FFWRelativeCrossAttentionModule, ParallelAttention
 from zero.expForwardKinematics.models.DiffuserActor3D.components.resnet import load_resnet50, load_resnet18
 from zero.expForwardKinematics.models.DiffuserActor3D.components.clip import load_clip
-from zero.z_utils.joint_position import normaliza_JP, denormalize_JP
 
 
 import torch
@@ -359,7 +358,7 @@ class ActionHead_JP(BaseActionHead):
                  nhist=3,
                  lang_enhanced=False,
                  action_dim=8,
-                 **kwargs):
+                 ):
 
         super().__init__()
         self.use_instr = use_instr
@@ -902,8 +901,42 @@ class Policy(BasePolicy):
                 prediction_type="epsilon"
             )
 
-    def inference_one_sample(self, batch):
-        return super().inference_one_sample(batch)
+    def inference_one_sample_JP(self, batch):
+        rgb = batch['rgb']
+        pcd = batch['xyz']
+        instr = batch['instr']
+        A_hist = batch['JP_hist']
+
+        # Condition on start-end pose
+        B, nhist, D = A_hist.shape
+        condition_data = torch.zeros(
+            (B, 8, D),  # 8是horizon
+            device=rgb.device
+        )
+        cond_mask = torch.zeros_like(condition_data)
+        cond_mask = cond_mask.bool()
+        # feature extraction
+        features_all = self.feature_extractor(rgb, pcd, instr, A_hist)
+        noise = torch.randn(
+            size=condition_data.shape,
+            dtype=condition_data.dtype,
+            device=condition_data.device
+        )
+        # Noisy condition data
+        noise_t = torch.ones(
+            (len(condition_data),), device=condition_data.device
+        ).long().mul(self.JP_scheduler.timesteps[0])
+
+        noisy_JP = self.JP_scheduler.add_noise(
+            condition_data, noise, noise_t
+        )
+
+        timesteps = self.JP_scheduler.timesteps
+        for t in timesteps:
+            out = self.action_head(noisy_JP, t * torch.ones(len(noisy_JP)).to(noisy_JP.device).long(), features_all)
+            noisy_JP = self.JP_scheduler.step(out[0][..., :7], t, noisy_JP[..., :7]).prev_sample
+        JP_0 = torch.cat((noisy_JP, out[..., 7:]), dim=-1)
+        return JP_0
 
     def compute_loss(self, pred, A_futr):
         pass

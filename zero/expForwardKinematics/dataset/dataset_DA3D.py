@@ -219,7 +219,7 @@ class DatasetDA3D(Dataset):
             print('cache_dataset_init_path.pkl has been saved')
         # 3.container
         self.cache = dict()
-        self.max_cache_length = 300
+        self.max_cache_length = 50
         print(f"max_cache_length: {self.max_cache_length}")
         # for i in range(len(self.g_episode_to_path)):
         #     if len(self.cache) >= self.max_cache_length:

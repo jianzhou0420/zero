@@ -598,8 +598,8 @@ class Policy(BasePolicy):
             prediction_type="epsilon"
         )
 
-    def inference_one_sample(self, batch):
-        return super().inference_one_sample(batch)
+    def inference_one_sample_JP(self, batch):
+        return super().inference_one_sample_JP(batch)
 
     def compute_loss(self, pred, joint_position_future):
         pass

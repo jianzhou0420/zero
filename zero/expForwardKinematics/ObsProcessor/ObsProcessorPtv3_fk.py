@@ -632,38 +632,6 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
         return obs_dynamic_out
 
-    def get_collect_function(self):
-        def ptv3_collate_fn(data):
-            batch = {}
-            if type(data) == dict:
-                data = [data]
-
-            for key in obs_raw[0].keys():
-                batch[key] = sum([x[key] for x in data], [])
-
-            npoints_in_batch = [x.size(0) for x in batch['pc_fts']]
-            batch['npoints_in_batch'] = npoints_in_batch
-            batch['offset'] = torch.cumsum(torch.LongTensor(npoints_in_batch), dim=0)
-            batch['pc_fts'] = torch.cat(batch['pc_fts'], 0)  # (#all points, 6)
-
-            for key in ['ee_poses', 'gt_actions', 'theta_positions']:
-                if len(batch[key]) != 0:
-                    batch[key] = torch.stack(batch[key], 0)
-
-            # if 'disc_pos_probs' in batch:
-            #     batch['disc_pos_probs'] = batch['disc_pos_probs'] # [(3, #all pointspos_bins*2)]
-
-            batch['step_ids'] = torch.LongTensor(batch['step_ids'])
-
-            batch['txt_lens'] = [x.size(0) for x in batch['txt_embeds']]
-            batch['txt_embeds'] = torch.cat(batch['txt_embeds'], 0)
-
-            if len(batch['pc_centroids']) > 0:
-                batch['pc_centroids'] = np.stack(batch['pc_centroids'], 0)
-
-            return batch
-        return ptv3_collate_fn
-
     @staticmethod
     def collect_fn_fk(data):
         batch = {}

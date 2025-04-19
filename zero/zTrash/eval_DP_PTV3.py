@@ -130,7 +130,7 @@ class Actioner(object):
         taskvar = f'{task_str}+{variation}'
         batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
         with torch.no_grad():
-            actions = self.model.inference_one_sample(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
+            actions = self.model.inference_one_sample_JP(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
             # actions analysis
             if type(actions) == list:
                 actions = torch.stack(actions, 0)

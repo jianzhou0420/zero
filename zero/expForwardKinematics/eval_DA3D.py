@@ -28,8 +28,8 @@ from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 from zero.env.rlbench_lotus.recorder import TaskRecorder, StaticCameraMotion, CircleCameraMotion, AttachedCameraMotion
 
 # policy & pytorch-lightning
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
-from zero.expForwardKinematics.trainer_FK import Trainer_DP
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorDA3D import ObsProcessorDA3D
+from zero.expForwardKinematics.trainer_DA3D import TrainerDA3D
 from zero.expForwardKinematics.config.default import build_args
 
 from zero.expForwardKinematics.config.default import get_config
@@ -62,16 +62,17 @@ class Actioner(object):
             config = yaml.load(f, Loader=yaml.UnsafeLoader)
         self.config = config['config']
 
-        model = Trainer_DP.load_from_checkpoint(checkpoint_path=eval_config['checkpoint'], config=self.config, strict=False)
+        model = TrainerDA3D.load_from_checkpoint(checkpoint_path=eval_config['checkpoint'], config=self.config, strict=False)
         self.model = model.policy
         self.model.to(self.device)
         self.model.eval()
 
-        self.obs_processor = ObsProcessorPtv3(self.config, train_flag=False)
-        self.obs_processor._dataset_init_FK()
+        self.obs_processor = ObsProcessorDA3D(self.config, train_flag=False)
+        self.obs_processor._dataset_init_DA3D()
 
         self.data_container = {
             'JP_hist': [],
+            'eePose_hist': [],
         }
         self.taskvar_instrs = json.load(open(self.config['TrainDataset']['taskvar_instr_file']))
         self.instr_embeds = np.load(self.config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
@@ -83,11 +84,15 @@ class Actioner(object):
         JP_curr_no_open = copy(obs_raw['JP_curr_no_open'][0])
         is_open = obs_raw['action'][0][-1]
         JP_curr = np.concatenate((JP_curr_no_open, npa([is_open])), axis=0)
+        eePose_curr = copy(obs_raw['action'][0])
+        # TODO：迁移到obs_processor里面
         self.update_data_container('JP_hist', JP_curr)
-        obs_raw['JP_hist_eval'] = np.array(self.data_container['JP_hist'])
+        self.update_data_container('eePose_hist', eePose_curr)
+        obs_raw['JP_hist_eval'] = self.data_container['JP_hist']
+        obs_raw['eePose_hist_eval'] = self.data_container['eePose_hist']
         obs_static = self.obs_processor.static_process_DA3D(obs_raw)
-        obs_dynamic = self.obs_processor.dynamic_process_fk(obs_static, taskvar)
-        batch = self.obs_processor.collect_fn_fk([obs_dynamic])
+        obs_dynamic = self.obs_processor.dynamic_process_DA3D(obs_static, taskvar)
+        batch = self.obs_processor.collect_fn([obs_dynamic])
 
         for item in batch:
             if isinstance(batch[item], torch.Tensor):
@@ -141,11 +146,10 @@ class Actioner(object):
         if length == H:
             self.data_container[name].pop(0)
             self.data_container[name].append(value)
-        elif length < H:
-            self.data_container[name].append(value)
+        elif length == 0:
+            [self.data_container[name].append(value)for _ in range(H)]
         else:
-            self.data_container[name] = self.data_container[name][-H + 1:]
-            self.data_container[name].append(value)
+            raise ValueError(f"data_container {name} length is {length}, but it should be 0 or {H}.")
 # endregion
 # ----------------------------------------------
 # region Evaluator
@@ -342,7 +346,7 @@ class Evaluator():
         mp.set_start_method('spawn')
 
         # 1. get eval config and train config
-        eval_config = build_args('/media/jian/ssd4t/zero/zero/expForwardKinematics/config/eval _fk.yaml')
+        eval_config = build_args('/media/jian/ssd4t/zero/zero/expForwardKinematics/config/eval_DA3D.yaml')
         eval_config.defrost()
         exp_dir = eval_config['exp_dir']
         model_config_path = os.path.join(exp_dir, 'hparams.yaml')
@@ -481,5 +485,5 @@ def natural_sort_key(s):
 if __name__ == '__main__':
     Evaluator.main()
     # def test_actioner():
-    #     eval_config = get_config('/media/jian/ssd4t/zero/zero/expForwardKinematics/config/eval _fk.yaml')
+    #     eval_config = get_config('/media/jian/ssd4t/zero/zero/expForwardKinematics/config/eval _DA3D.yaml')
     #     actioner = Actioner(eval_config)

@@ -207,7 +207,7 @@ class PolicyPtv3DP1d(BasePolicy):
         loss = self.ActionHead.forward(batch['theta_positions'], features)
         return loss
 
-    def inference_one_sample(self, batch):
+    def inference_one_sample_JP(self, batch):
         ptv3_batch = self.FeatureExtractor.prepare_ptv3_batch(batch)
         cond = self.FeatureExtractor(ptv3_batch)
         return self.ActionHead.inference_one_sample(cond)

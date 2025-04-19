@@ -379,7 +379,7 @@ class PolicyFK(BasePolicy):
         return loss
 
     @torch.no_grad()
-    def inference_one_sample(self, batch):
+    def inference_one_sample_JP(self, batch):
         '''
         actionhead input:(
                 JP_futr_noisy, JP_hist,
@@ -493,7 +493,7 @@ class PolicyV111(BasePolicy):
         return loss
 
     @torch.no_grad()
-    def inference_one_sample(self, batch):
+    def inference_one_sample_JP(self, batch):
         '''
         actionhead input:(
                 JP_futr_noisy, JP_hist,

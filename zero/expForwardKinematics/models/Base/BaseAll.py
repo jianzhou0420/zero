@@ -46,7 +46,7 @@ class BasePolicy(nn.Module):
         loss = self.ActionHead.forward(features,)
         return loss
 
-    def inference_one_sample(self, batch):
+    def inference_one_sample_JP(self, batch):
         example_data = batch['data']
         features = self.FeatureExtractor(example_data)
         action = self.ActionHead.inference_one_sample(features,)
