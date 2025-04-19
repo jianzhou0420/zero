@@ -357,7 +357,7 @@ class ActionHead_JP(BaseActionHead):
                  use_instr=False,
                  nhist=3,
                  lang_enhanced=False,
-                 action_dim=8,
+                 action_dim=7,  # JP是7
                  ):
 
         super().__init__()
@@ -489,6 +489,7 @@ class ActionHead_JP(BaseActionHead):
 
     def predict_pos(self, features, rel_pos, time_embs, num_gripper,
                     instr_feats):
+
         position_features = self.position_self_attn(
             query=features,
             query_pos=rel_pos,
@@ -981,7 +982,7 @@ class Policy(BasePolicy):
             noisy_rot = self.pos_scheduler.add_noise(A_futr[..., 3:9], noise[..., 3:9], timesteps)
             A_futr_noisy = torch.cat((noisy_pos, noisy_rot), dim=-1)
         elif self.action_space == 'JP':
-            A_futr_noisy = self.JP_scheduler.add_noise(A_futr, noise, timesteps)
+            A_futr_noisy = self.JP_scheduler.add_noise(A_futr[..., :7], noise[..., :7], timesteps)
 
         pred = self.action_head(A_futr_noisy, timesteps, features_all)
 

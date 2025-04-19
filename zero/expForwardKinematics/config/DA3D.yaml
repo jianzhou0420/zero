@@ -3,7 +3,7 @@ Trainer:
   model_name: DA3D
   lr: 0.0001
   weight_decay: 0.0005
-  epoches: 100
+  epoches: 400
   batch_size: 8
   n_workers: 8
   pin_mem: True
@@ -22,7 +22,7 @@ DiffuserActor:
   Policy:
     num_timesteps: 100
     use_instruction: False
-    action_space: 'eePose' # 'eePose', 'JP'
+    action_space: 'JP' # 'eePose', 'JP'
 
   FeatureExtractor:
     backbone: 'clip'
