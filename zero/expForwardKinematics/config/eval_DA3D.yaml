@@ -1,6 +1,6 @@
 
 
-exp_dir: /media/jian/ssd4t/zero/2_Train/0419_eePose/version_0
+exp_dir: /data/zero/2_Train/0419_eePose/version_0
 epoch: null
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]

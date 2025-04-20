@@ -119,7 +119,7 @@ def get_gripper_loc_bounds(path: str, buffer: float = 0.0, task: Optional[str] =
 
 
 gripper_loc_bounds = torch.from_numpy(get_gripper_loc_bounds(
-    "/media/jian/ssd4t/zero/assets/18_peract_tasks_location_bounds.json",
+    "/data/zero/assets/18_peract_tasks_location_bounds.json",
     buffer=0.04,
 ))
 

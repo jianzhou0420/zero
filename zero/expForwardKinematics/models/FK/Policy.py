@@ -717,7 +717,7 @@ def ptv3_collate_fn(data):
 
 
 def test():
-    config_path = '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/FK.yaml'
+    config_path = '/data/zero/zero/expForwardKinematics/config/FK.yaml'
     config = get_config(config_path)
     FeatureExtractorPTv3Clean(config)
 

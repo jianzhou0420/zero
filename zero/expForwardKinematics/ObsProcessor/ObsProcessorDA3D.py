@@ -447,7 +447,7 @@ class Resize:
 
 
 def static_process_data():
-    data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/20demo_put_groceries/train/520837'
+    data_dir = '/data/zero/1_Data/A_Selfgen/20demo_put_groceries/train/520837'
     tasks_all = sorted(os.listdir(data_dir), key=natural_sort_key)
     obs_processor = ObsProcessorDA3D(config=None)
     save_root = '/data/zero/1_Data/B_Preprocess/DA3D'

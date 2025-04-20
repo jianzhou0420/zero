@@ -358,7 +358,7 @@ class Evaluator():
         mp.set_start_method('spawn')
 
         # 1. get eval config and train config
-        eval_config = build_args('/media/jian/ssd4t/zero/zero/expForwardKinematics/config/eval_DA3D.yaml')
+        eval_config = build_args('/data/zero/zero/expForwardKinematics/config/eval_DA3D.yaml')
         eval_config.defrost()
         exp_dir = eval_config['exp_dir']
         model_config_path = os.path.join(exp_dir, 'hparams.yaml')
@@ -497,5 +497,5 @@ def natural_sort_key(s):
 if __name__ == '__main__':
     Evaluator.main()
     # def test_actioner():
-    #     eval_config = get_config('/media/jian/ssd4t/zero/zero/expForwardKinematics/config/eval _DA3D.yaml')
+    #     eval_config = get_config('/data/zero/zero/expForwardKinematics/config/eval _DA3D.yaml')
     #     actioner = Actioner(eval_config)
