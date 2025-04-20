@@ -1,6 +1,5 @@
 from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
 
-from rlbench.demo import Demo
 
 from typing import List, Dict, Optional, Sequence, Tuple, TypedDict, Union, Any
 from typing import List, Tuple
@@ -80,7 +79,7 @@ def _is_stopped(demo, i, obs, stopped_buffer):
     return stopped
 
 
-def keypoint_discovery(demo: Demo) -> List[int]:
+def keypoint_discovery(demo) -> List[int]:
     episode_keypoints = []
     prev_gripper_open = demo[0].gripper_open
     stopped_buffer = 0
