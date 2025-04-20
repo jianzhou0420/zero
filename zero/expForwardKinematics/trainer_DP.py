@@ -10,7 +10,7 @@ import pytorch_lightning as pl
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.expForwardKinematics.dataset.dataset_DP_use_obsprocessor import Dataset_DP_PTV3
-from zero.expForwardKinematics.models.dp2d.ptv3_DP1d_policy import PolicyPtv3DP1d
+from zero.expForwardKinematics.models.DP.ptv3_DP1d_policy import PolicyPtv3DP1d
 from zero.z_utils import *
 
 # helper package

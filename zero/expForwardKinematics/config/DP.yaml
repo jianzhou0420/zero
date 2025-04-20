@@ -46,42 +46,6 @@ TRAIN_DATASET:
   tasks_to_use: "close_jar"
 
 
-FeatureaExtractor:
-
-  pool: 'max' # max, mean
-  ptv3:
-    in_channels: 7
-    order: ["z", "z-trans", "hilbert", "hilbert-trans"]
-    stride: [2, 2, 2, 2]
-
-    # encode 
-    enc_depths: [1, 1, 1, 1]
-    enc_channels: [64,128,128,256]
-    enc_num_head: [2, 4, 8, 16]
-    enc_patch_size: [128, 128, 128, 128]
-    mlp_ratio: 4
-    qkv_bias: True
-    qk_scale: null
-    qk_norm: True
-    scaled_cosine_attn: False
-    attn_drop: 0.1
-    proj_drop: 0.1
-    drop_path: 0
-    pre_norm: True
-    shuffle_orders: True
-    enable_rpe: False
-    enable_flash: False
-    upcast_attention: False
-    upcast_softmax: False
-    cls_mode: True ####这里改了
-    pdnorm_bn: False
-    pdnorm_ln: False
-    pdnorm_decouple: False
-    pdnorm_adaptive: False
-    pdnorm_affine: True
-    pdnorm_conditions: null
-    pdnorm_only_decoder: False
-    add_coords_in_attn: 'none' # none, qk, qkv
 
 ActionHead:
   horizon: 8
