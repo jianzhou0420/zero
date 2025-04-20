@@ -358,6 +358,7 @@ class ActionHead_JP(BaseActionHead):
                  nhist=3,
                  lang_enhanced=False,
                  action_dim=7,  # JP是7
+                 horizon=8,
                  ):
 
         super().__init__()
@@ -365,7 +366,7 @@ class ActionHead_JP(BaseActionHead):
         self.lang_enhanced = lang_enhanced
         rotation_dim = 6
         # embedding
-        self.traj_embedding = nn.Linear(action_dim, embedding_dim)
+        self.traj_embedding = nn.Linear(7, embedding_dim)
         self.time_embedding = nn.Sequential(
             SinusoidalPosEmb(embedding_dim),
             nn.Linear(embedding_dim, embedding_dim),
@@ -618,7 +619,8 @@ class ActionHead_eePose(BaseActionHead):
                  nhist=3,
                  lang_enhanced=False,
                  action_dim=9,
-                 **kwargs):
+                 horizon=8,
+                 ):
 
         super().__init__()
         self.use_instr = use_instr
@@ -934,13 +936,63 @@ class Policy(BasePolicy):
 
         timesteps = self.JP_scheduler.timesteps
         for t in timesteps:
-            out = self.action_head(noisy_JP, t * torch.ones(len(noisy_JP)).to(noisy_JP.device).long(), features_all)
+            out = self.action_head(noisy_JP[..., :7], t * torch.ones(len(noisy_JP)).to(noisy_JP.device).long(), features_all)
             noisy_JP = self.JP_scheduler.step(out[0][..., :7], t, noisy_JP[..., :7]).prev_sample
-        JP_0 = torch.cat((noisy_JP, out[..., 7:]), dim=-1)
+        JP_0 = torch.cat((noisy_JP, out[0][..., 7:]), dim=-1)
         return JP_0
 
-    def compute_loss(self, pred, A_futr):
-        pass
+    def inference_one_sample_eePose(self, batch):
+        rgb = batch['rgb']
+        pcd = batch['xyz']
+        instr = batch['instr']
+        A_hist = batch['eePose_hist']
+
+        # Condition on start-end pose
+        B, nhist, D = A_hist.shape
+        condition_data = torch.zeros(
+            (B, 8, D),  # 8是horizon
+            device=rgb.device
+        )
+        cond_mask = torch.zeros_like(condition_data)
+        cond_mask = cond_mask.bool()
+        # feature extraction
+        features_all = self.feature_extractor(rgb, pcd, instr, A_hist)
+        noise = torch.randn(
+            size=condition_data.shape,
+            dtype=condition_data.dtype,
+            device=condition_data.device
+        )
+        # Noisy condition data
+        noise_t = torch.ones(
+            (len(condition_data),), device=condition_data.device
+        ).long().mul(self.pos_scheduler.timesteps[0])
+
+        pos = self.pos_scheduler.add_noise(
+            condition_data[..., :3], noise[..., :3], noise_t
+        )
+        rot = self.rot_scheduler.add_noise(
+            condition_data[..., 3:9], noise[..., 3:9], noise_t
+        )
+        noisy_eePose = torch.cat((pos, rot), dim=-1)
+
+        timesteps = self.pos_scheduler.timesteps
+        for t in timesteps:
+            out = self.action_head(
+                noisy_eePose,
+                t * torch.ones(len(noisy_eePose)).to(noisy_eePose.device).long(),
+                features_all
+            )
+            out = out[-1]  # keep only last layer's output
+            pos = self.pos_scheduler.step(
+                out[..., :3], t, noisy_eePose[..., :3]
+            ).prev_sample
+            rot = self.rot_scheduler.step(
+                out[..., 3:9], t, noisy_eePose[..., 3:9]
+            ).prev_sample
+            noisy_eePose = torch.cat((pos, rot), -1)
+
+        JP_0 = torch.cat((noisy_eePose, out[..., 9:]), dim=-1)
+        return JP_0
 
     def forward(self, batch):
         '''

@@ -22,7 +22,7 @@ DiffuserActor:
   Policy:
     num_timesteps: 100
     use_instruction: False
-    action_space: 'JP' # 'eePose', 'JP'
+    action_space: 'eePose' # 'eePose', 'JP'
 
   FeatureExtractor:
     backbone: 'clip'
@@ -40,6 +40,7 @@ DiffuserActor:
     use_instr: True
     nhist: 8
     lang_enhanced: False
+    horizon: 1
 
     
 

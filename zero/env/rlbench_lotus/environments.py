@@ -143,12 +143,13 @@ class RLBenchEnv(object):
             apply_rgb, apply_depth, apply_pc, apply_mask, apply_cameras, image_size,
         )
 
-        if action_mode == "ee_pose":
+        if action_mode == "eePose":
+            print("Using end effector pose action mode")
             self.action_mode = MoveArmThenGripper(
                 arm_action_mode=EndEffectorPoseViaPlanning(collision_checking=False),
                 gripper_action_mode=Discrete(),
             )
-        elif action_mode == "theta_position":
+        elif action_mode == "JP":
             print("Using theta position action mode")
             self.action_mode = MoveArmThenGripper(
                 arm_action_mode=JointPosition(),

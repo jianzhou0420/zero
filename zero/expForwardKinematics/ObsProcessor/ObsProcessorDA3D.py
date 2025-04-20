@@ -307,10 +307,11 @@ class ObsProcessorDA3D(ObsProcessorBase):
         }
 
         B = len(data['rgb'])
+        H = self.config['DiffuserActor']['ActionHead']['horizon']
         rgb = torch.from_numpy(np.stack(copy.deepcopy(data['rgb']), axis=0))
         xyz = torch.from_numpy(np.stack(copy.deepcopy(data['xyz']), axis=0))
-        JP_hist = torch.from_numpy(np.stack(copy.deepcopy(data['JP_hist']), axis=0))
-        eePose_hist = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_hist']), axis=0))
+        JP_hist = torch.from_numpy(np.stack(copy.deepcopy(data['JP_hist']), axis=0))[:, :H, :]
+        eePose_hist = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_hist']), axis=0))[:, :H, :]
         # instruction = torch.tensor(np.stack(copy.deepcopy(data['txt_embed']), axis=0)).squeeze()
         instr = []
         for i in range(B):
@@ -340,8 +341,8 @@ class ObsProcessorDA3D(ObsProcessorBase):
 
         # 下面接 Policy的forward
         if self.train_flag:  # TODO: reorganize the code
-            JP_futr = torch.from_numpy(np.stack(copy.deepcopy(data['JP_futr']), axis=0))
-            eePose_futr = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_futr']), axis=0))
+            JP_futr = torch.from_numpy(np.stack(copy.deepcopy(data['JP_futr']), axis=0))[:, :H, :]
+            eePose_futr = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_futr']), axis=0))[:, :H, :]
             JP_futr = normalize_JP(JP_futr)
             eePose_futr[:, :, :3] = normalize_pos(eePose_futr[:, :, :3])
             eePose_futr = convert_rot(eePose_futr)

@@ -36,7 +36,7 @@ from zero.expForwardKinematics.config.default import get_config
 from zero.expForwardKinematics.config.constants import get_robot_workspace, get_rlbench_labels
 
 # homemade utils
-from zero.z_utils.utilities_all import pad_clip_features, denormalize_JP
+from zero.z_utils.utilities_all import denormalize_JP, denormalize_pos, deconvert_rot
 
 # ----------------------------------------------
 # region Actioner
@@ -105,7 +105,10 @@ class Actioner(object):
         taskvar = f'{task_str}+{variation}'
         batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
         with torch.no_grad():
-            actions = self.model.inference_one_sample_JP(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
+            if self.config['DiffuserActor']['Policy']['action_space'] == 'JP':
+                actions = self.model.inference_one_sample_JP(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
+            elif self.config['DiffuserActor']['Policy']['action_space'] == 'eePose':
+                actions = self.model.inference_one_sample_eePose(batch)[0].data.cpu()
             # actions analysis
             if type(actions) == list:
                 actions = torch.stack(actions, 0)
@@ -115,10 +118,14 @@ class Actioner(object):
             if len(actions.shape) == 3:
                 actions = actions.squeeze(0)
             # check actions shape
-            assert len(actions.shape) == 2
-            assert actions.shape[1] == 8
 
-        actions = denormalize_JP(actions)
+        if self.config['DiffuserActor']['Policy']['action_space'] == 'JP':
+
+            actions = denormalize_JP(actions)
+        elif self.config['DiffuserActor']['Policy']['action_space'] == 'eePose':
+            actions[..., :3] = denormalize_pos(actions[..., :3])
+            actions = deconvert_rot(actions)
+
         new_actions = [npa(actions[i]) for i in range(actions.shape[0])]
 
         out = {
@@ -192,6 +199,11 @@ class Evaluator():
                 producer_queue.put((proc_id, k_res))
                 return
 
+        if args['action_mode'] == 'eePose':
+            action_mode = 'eePose'
+        elif args['action_mode'] == 'JP':
+            action_mode = 'JP'
+
         env = RLBenchEnv(
             data_path=args['microstep_data_dir'],
             apply_cameras=("left_shoulder", "right_shoulder", "overhead", "front"),
@@ -201,7 +213,7 @@ class Evaluator():
             headless=args['headless'],
             image_size=args['image_size'],
             cam_rand_factor=0,
-            action_mode='theta_position',
+            action_mode=action_mode,
         )
 
         env.env.launch()
