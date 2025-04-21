@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import einops
-import diffusion_policy.model.bet.latent_generators.latent_generator as latent_generator
+import zero.expForwardKinematics.models.DP.model.bet.latent_generators.latent_generator as latent_generator
 
-import diffusion_policy.model.bet.libraries.mingpt.model as mingpt_model
-import diffusion_policy.model.bet.libraries.mingpt.trainer as mingpt_trainer
-from diffusion_policy.model.bet.libraries.loss_fn import FocalLoss, soft_cross_entropy
+import zero.expForwardKinematics.models.DP.model.bet.libraries.mingpt.model as mingpt_model
+import zero.expForwardKinematics.models.DP.model.bet.libraries.mingpt.trainer as mingpt_trainer
+from zero.expForwardKinematics.models.DP.model.bet.libraries.loss_fn import FocalLoss, soft_cross_entropy
 
 from typing import Optional, Tuple
 
@@ -97,7 +97,7 @@ class MinGPT(latent_generator.AbstractLatentGenerator):
         if self.predict_offsets:
             output, _ = self.model(obs_rep)
             logits = output[:, :, : self.vocab_size]
-            offsets = output[:, :, self.vocab_size :]
+            offsets = output[:, :, self.vocab_size:]
             batch = logits.shape[0]
             seq = logits.shape[1]
             offsets = einops.rearrange(
@@ -154,7 +154,7 @@ class MinGPT(latent_generator.AbstractLatentGenerator):
         output, _ = self.model(obs_rep, None)
         if self.predict_offsets:
             logits = output[:, :, : self.vocab_size]
-            offsets = output[:, :, self.vocab_size :]
+            offsets = output[:, :, self.vocab_size:]
             offsets = einops.rearrange(
                 offsets,
                 "N T (V A) -> (N T) V A",  # N = batch, T = seq

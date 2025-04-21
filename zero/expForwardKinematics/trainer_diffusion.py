@@ -10,7 +10,7 @@ import pytorch_lightning as pl
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.expForwardKinematics.dataset.dataset_FK import DatasetFK as Dataset
-from zero.expForwardKinematics.dataset.dataset_FK import collect_fn
+from zero.expForwardKinematics.dataset.dataset_FK import collect_fn_fk
 from zero.expForwardKinematics.models.FK.Policy import PolicyFK
 from zero.z_utils import *
 
@@ -92,7 +92,7 @@ class MyDataModule(pl.LightningDataModule):
             batch_size=batch_size,
             num_workers=self.config['Trainer']['train']['n_workers'],
             pin_memory=self.config['Trainer']['train']['pin_mem'],
-            collate_fn=collect_fn,
+            collate_fn=collect_fn_fk,
             sampler=sampler,
             drop_last=False,
             # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
@@ -111,7 +111,7 @@ class MyDataModule(pl.LightningDataModule):
             batch_size=batch_size,
             num_workers=self.config['Trainer']['val']['n_workers'],
             pin_memory=self.config['Trainer']['val']['pin_mem'],
-            collate_fn=collect_fn,
+            collate_fn=collect_fn_fk,
             sampler=sampler,
             drop_last=False,
             # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,

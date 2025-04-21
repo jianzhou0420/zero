@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import einops
-import diffusion_policy.model.bet.latent_generators.latent_generator as latent_generator
+import zero.expForwardKinematics.models.DP.model.bet.latent_generators.latent_generator as latent_generator
 
-from diffusion_policy.model.diffusion.transformer_for_diffusion import TransformerForDiffusion
-from diffusion_policy.model.bet.libraries.loss_fn import FocalLoss, soft_cross_entropy
+from zero.expForwardKinematics.models.DP.model.diffusion.transformer_for_diffusion import TransformerForDiffusion
+from zero.expForwardKinematics.models.DP.model.bet.libraries.loss_fn import FocalLoss, soft_cross_entropy
 
 from typing import Optional, Tuple
+
 
 class Transformer(latent_generator.AbstractLatentGenerator):
     def __init__(
@@ -31,15 +32,15 @@ class Transformer(latent_generator.AbstractLatentGenerator):
         self.focal_loss_gamma = focal_loss_gamma
         self.offset_loss_scale = offset_loss_scale
         self.action_dim = action_dim
-    
+
     def get_optimizer(self, **kwargs) -> torch.optim.Optimizer:
         return self.model.configure_optimizers(**kwargs)
-    
-    def get_latent_and_loss(self, 
-            obs_rep: torch.Tensor, 
-            target_latents: torch.Tensor, 
-            return_loss_components=True,
-            ) -> Tuple[torch.Tensor, torch.Tensor]:
+
+    def get_latent_and_loss(self,
+                            obs_rep: torch.Tensor,
+                            target_latents: torch.Tensor,
+                            return_loss_components=True,
+                            ) -> Tuple[torch.Tensor, torch.Tensor]:
         target_latents, target_offsets = target_latents
         target_latents = target_latents.view(-1)
         criterion = FocalLoss(gamma=self.focal_loss_gamma)
@@ -47,7 +48,7 @@ class Transformer(latent_generator.AbstractLatentGenerator):
         t = torch.tensor(0, device=self.model.device)
         output = self.model(obs_rep, t)
         logits = output[:, :, : self.vocab_size]
-        offsets = output[:, :, self.vocab_size :]
+        offsets = output[:, :, self.vocab_size:]
         batch = logits.shape[0]
         seq = logits.shape[1]
         offsets = einops.rearrange(
@@ -87,7 +88,7 @@ class Transformer(latent_generator.AbstractLatentGenerator):
         t = torch.tensor(0, device=self.model.device)
         output = self.model(obs_rep, t)
         logits = output[:, :, : self.vocab_size]
-        offsets = output[:, :, self.vocab_size :]
+        offsets = output[:, :, self.vocab_size:]
         offsets = einops.rearrange(
             offsets,
             "N T (V A) -> (N T) V A",  # N = batch, T = seq

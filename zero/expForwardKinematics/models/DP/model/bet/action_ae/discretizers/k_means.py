@@ -4,7 +4,7 @@ import numpy as np
 import tqdm
 
 from typing import Optional, Tuple, Union
-from diffusion_policy.model.common.dict_of_tensor_mixin import DictOfTensorMixin
+from zero.expForwardKinematics.models.DP.model.common.dict_of_tensor_mixin import DictOfTensorMixin
 
 
 class KMeansDiscretizer(DictOfTensorMixin):

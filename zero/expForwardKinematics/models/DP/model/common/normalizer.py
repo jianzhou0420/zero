@@ -5,8 +5,8 @@ import zarr
 import numpy as np
 import torch
 import torch.nn as nn
-from diffusion_policy.common.pytorch_util import dict_apply
-from diffusion_policy.model.common.dict_of_tensor_mixin import DictOfTensorMixin
+from zero.expForwardKinematics.models.DP.model.common.pytorch_util import dict_apply
+from zero.expForwardKinematics.models.DP.model.common.dict_of_tensor_mixin import DictOfTensorMixin
 
 
 class LinearNormalizer(DictOfTensorMixin):

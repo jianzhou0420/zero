@@ -5,7 +5,7 @@ import abc
 
 from typing import Optional, Union
 
-import diffusion_policy.model.bet.utils as utils
+import zero.expForwardKinematics.models.DP.model.bet.utils as utils
 
 
 class AbstractActionAE(utils.SaveModule, abc.ABC):

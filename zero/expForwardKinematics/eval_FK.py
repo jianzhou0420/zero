@@ -29,7 +29,7 @@ from zero.env.rlbench_lotus.recorder import TaskRecorder, StaticCameraMotion, Ci
 
 # policy & pytorch-lightning
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorPtv3_fk import ObsProcessorPtv3
-from zero.expForwardKinematics.trainer_FK import Trainer_DP
+from zero.expForwardKinematics.trainer_FK_all import Trainer_all
 from zero.expForwardKinematics.config.default import build_args
 
 from zero.expForwardKinematics.config.default import get_config
@@ -62,7 +62,7 @@ class Actioner(object):
             config = yaml.load(f, Loader=yaml.UnsafeLoader)
         self.config = config['config']
 
-        model = Trainer_DP.load_from_checkpoint(checkpoint_path=eval_config['checkpoint'], config=self.config, strict=False)
+        model = Trainer_all.load_from_checkpoint(checkpoint_path=eval_config['checkpoint'], config=self.config, strict=False)
         self.model = model.policy
         self.model.to(self.device)
         self.model.eval()

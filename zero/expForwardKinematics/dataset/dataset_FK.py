@@ -25,7 +25,6 @@ class DatasetFK(Dataset):
         super().__init__()
         '''
         如果没有cache_dataset_init_path,那么就从头开始
-        
         '''
         self.config = config
         data_dir = data_dir  # 因为namesapce不高亮，所以尽量用字典的方式，方便区分
@@ -43,7 +42,6 @@ class DatasetFK(Dataset):
              self.g_frame_to_g_episode,
              self.g_frame_to_frame,
              self.g_frame_to_l_episode) = cache_init
-
         else:
             cache_init = None
 
@@ -62,7 +60,7 @@ class DatasetFK(Dataset):
                 variation_list = sorted(os.listdir(task_folder_path), key=natural_sort_key)
                 for variation_folder in variation_list:
                     l_episode = 0
-                    variation_folder_path = os.path.join(task_folder_path, variation_folder)
+                    variation_folder_path = os.path.join(task_folder_path, variation_folder, 'episodes')
                     episodes_list = sorted(os.listdir(variation_folder_path), key=natural_sort_key)
                     for episode_folder in episodes_list:
                         episode_folder_path = os.path.join(variation_folder_path, episode_folder)
@@ -184,7 +182,7 @@ def ptv3_collate_fn(data):
     return batch
 
 
-def collect_fn(data):
+def collect_fn_fk(data):
     batch = {}
     for key in data[0].keys():
         batch[key] = sum([x[key] for x in data], [])
@@ -297,5 +295,5 @@ if __name__ == '__main__':
     config = get_config(config_path)
     data_dir = '/data/zero/1_Data/B_Preprocess/FK/1000_train_eval/train'
     dataset = DatasetFK(config, data_dir)
-    loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collect_fn)
+    loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collect_fn_fk)
     data1 = next(iter(loader))

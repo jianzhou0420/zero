@@ -7,8 +7,9 @@ with open('/media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D/put_groceries_in_cupb
     data = pickle.load(f)
 
 print(data.keys())
-eePose = data['eePose_hist'][0][0, :]
-print(eePose.shape)
-print(eePose)
+# eePose = data['eePose_hist'][0][0, :]
+# print(eePose.shape)
+# print(eePose)
 
-quat = eePose[3:7]
+# quat = eePose[3:7]
+print(data['rgb'][0].shape)

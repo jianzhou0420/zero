@@ -9,31 +9,44 @@ import pytorch_lightning as pl
 
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
-from zero.expForwardKinematics.dataset.dataset_DP_use_obsprocessor import Dataset_DP_PTV3
-from zero.expForwardKinematics.models.DP.ptv3_DP1d_policy import PolicyPtv3DP1d
+from zero.expForwardKinematics.dataset.dataset_FK import DatasetFK, collect_fn_fk
+from zero.expForwardKinematics.models.FK.Policy import PolicyFK
 from zero.z_utils import *
 
+from zero.expForwardKinematics.models.DP.DP import DPWrapper
+from zero.expForwardKinematics.dataset.dataset_DP import DatasetDP, collect_fn_dp
 # helper package
-import argparse
 import time
-import re
 from datetime import datetime
 import yacs.config
-import math
 import os
 import warnings
+import os
 
-warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+os.environ['TORCH_USE_CUDA_DSA'] = "1"
+
+
+POLICY_FACTORY = {
+    'FK': PolicyFK,
+    'DP': DPWrapper,
+}
+
+DATASET_FACTORY = {
+    'FK': DatasetFK,
+    'DP': DatasetDP,
+}
+
+COLLECT_FN_FACTORY = {
+    'FK': collect_fn_fk,
+    'DP': collect_fn_dp,
+}
 
 # ---------------------------------------------------------------
 # region 0.Some tools
-
+warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
 
 torch.set_float32_matmul_precision('medium')
-
-
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
 # endregion
@@ -43,26 +56,34 @@ def natural_sort_key(s):
 # region 1. Trainer
 
 
-class TrainerDP(pl.LightningModule):
+class Trainer_all(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.save_hyperparameters()
         self.config = config
-        self.policy = PolicyPtv3DP1d(config)
+        Policy = POLICY_FACTORY[config['Trainer']['policy_name']]
+        self.policy = Policy(config)
 
     def training_step(self, batch, batch_idx):
         loss = self.policy.forward(batch)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        if batch is None:
+            return
+        loss = self.policy.forward(batch)
+        self.log('val_loss', loss, prog_bar=True)
         return loss
 
     def configure_optimizers(self):
-        # 1. default optimizer
-        optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.config.Train.lr)
+        optimizer = torch.optim.AdamW(self.policy.parameters(), weight_decay=self.config['Trainer']['weight_decay'], lr=self.config['Trainer']['lr'])
         return optimizer
 
 
 # endregion
 # ---------------------------------------------------------------
+
 
 # ---------------------------------------------------------------
 # region 2. DataModule
@@ -72,49 +93,64 @@ class MyDataModule(pl.LightningDataModule):
         self.config = config
 
     def setup(self, stage=None):
-        train_data_path = os.path.join(self.config.B_Preprocess, 'train')
-        val_data_path = os.path.join(self.config.B_Preprocess, 'val')
-        train_dataset = Dataset_DP_PTV3(self.config, data_dir=train_data_path)
-        val_dataset = Dataset_DP_PTV3(self.config, data_dir=val_data_path)
+        data_dir = self.config['TrainDataset']['data_dir']
+        train_data_path = os.path.join(data_dir, 'train')
+        val_data_path = os.path.join(data_dir, 'val')
+        if os.path.exists(val_data_path) is False:
+            self.use_val = False
+        else:
+            self.use_val = True
+
+        Dataset = DATASET_FACTORY[self.config['Trainer']['policy_name']]
+        train_dataset = Dataset(self.config, data_dir=train_data_path)
         self.train_dataset = train_dataset
-        self.val_dataset = val_dataset
-        print(f"Train dataset size: {len(train_dataset)}, Val dataset size: {len(val_dataset)}")
+
+        collect_fn = COLLECT_FN_FACTORY[self.config['Trainer']['policy_name']]
+        self.collect_fn = collect_fn
+        if self.use_val:
+            val_dataset = Dataset(self.config, data_dir=val_data_path)
+            self.val_dataset = val_dataset
 
     def train_dataloader(self):
-        batch_size = self.config.Train.batch_size
-        sampler = DistributedSampler(self.train_dataset, shuffle=self.config.Train.shuffle,) if self.config.Train.num_gpus > 1 else None
+        batch_size = self.config['Trainer']['train']['batch_size']
+        sampler = DistributedSampler(self.train_dataset, shuffle=self.config['Trainer']['train']['shuffle'],) if self.config['Trainer']['num_gpus'] > 1 else None
 
         print(f"batch_size: {batch_size}")
         loader = DataLoader(
             self.train_dataset,
             batch_size=batch_size,
-            num_workers=self.config.Train.n_workers,
-            pin_memory=self.config.Train.pin_mem,
-            collate_fn=self.train_dataset.obs_processor.get_collect_function(),
+            num_workers=self.config['Trainer']['train']['n_workers'],
+            pin_memory=self.config['Trainer']['train']['pin_mem'],
+            collate_fn=self.collect_fn,
             sampler=sampler,
             drop_last=False,
-            prefetch_factor=2 if self.config.Train.n_workers > 0 else None,
-            shuffle=self.config.Train.shuffle,
+            # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
+            shuffle=self.config['Trainer']['train']['shuffle'],
             persistent_workers=True
         )
         return loader
 
     def val_dataloader(self):
-        batch_size = self.config.batch_size
-        sampler = DistributedSampler(self.val_dataset, shuffle=False) if self.config.num_gpus > 1 else None
+        if self.use_val is False:
+            return []
+        batch_size = self.config['Trainer']['val']['batch_size']
+        sampler = DistributedSampler(self.train_dataset, shuffle=self.config['Trainer']['val']['shuffle'],) if self.config['Trainer']['num_gpus'] > 1 else None
+
+        print(f"batch_size: {batch_size}")
         loader = DataLoader(
             self.val_dataset,
             batch_size=batch_size,
-            num_workers=self.config.Train.n_workers,
-            pin_memory=self.config.Train.pin_mem,
-            collate_fn=self.val_dataset.obs_processor.get_collect_function(),
+            num_workers=self.config['Trainer']['val']['n_workers'],
+            pin_memory=self.config['Trainer']['val']['pin_mem'],
+            collate_fn=self.collect_fn,
             sampler=sampler,
             drop_last=False,
-            prefetch_factor=2 if self.config.Train.n_workers > 0 else None,
-            shuffle=self.config.Train.shuffle,
+            # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
+            shuffle=self.config['Trainer']['val']['shuffle'],
             persistent_workers=True
         )
         return loader
+
 # endregion
 # ---------------------------------------------------------------
 
@@ -139,13 +175,14 @@ class EpochCallback(pl.Callback):
 
 
 def train(config: yacs.config.CfgNode):
+    model_name = config['Trainer']['model_name']
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-    ckpt_name = current_time + '_DP'
-    log_path = "/data/zero/2_Train/DP"
+    ckpt_name = current_time + model_name
+    log_path = f"/data/zero/2_Train/{model_name}"
     log_name = ckpt_name
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=200,
+        every_n_epochs=config['Trainer']['save_every_n_epochs'],
         save_top_k=-1,
         save_last=False,
         filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
@@ -159,7 +196,7 @@ def train(config: yacs.config.CfgNode):
 
     epoch_callback = EpochCallback()
     trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
-                         max_epochs=config.Train.epochs,
+                         max_epochs=config['Trainer']['epoches'],
                          devices='auto',
                          strategy='auto',
                          logger=csvlogger1,
@@ -168,7 +205,7 @@ def train(config: yacs.config.CfgNode):
                          use_distributed_sampler=False,
                          )
     config.freeze()
-    trainer_model = TrainerDP(config)
+    trainer_model = Trainer_all(config)
     data_module = MyDataModule(config)
     trainer.fit(trainer_model, datamodule=data_module)
     # print(profiler.key_averages().table(max_len=200))
@@ -178,6 +215,7 @@ def train(config: yacs.config.CfgNode):
 # ---------------------------------------------------------------
 if __name__ == '__main__':
     # 0.1 args & 0.2 config
+    pl.seed_everything(42)
     config_path = '/data/zero/zero/expForwardKinematics/config/DP.yaml'
     config = build_args(config_path)
     # 1. train

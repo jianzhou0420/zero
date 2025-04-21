@@ -1,68 +1,102 @@
 
-B_Preprocess: /data/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions
-horizon: 8
-unit_test: False
-
-Train:
-  name: test
-  tasks_to_use: "close_jar"
-  n_workers: 1
-  batch_size: 1
-  epochs: 6000
-  lr: 0.001
-  pin_mem: True
+test: 1
+Trainer:
+  model_name: DP
+  lr: 0.00001
+  weight_decay: 0.001
+  epoches: 800
+  save_every_n_epochs: 100
   num_gpus: 1
-  shuffle: True
+  
+  policy_name: DP
 
-TRAIN_DATASET:
-  data_dir: '/data/zero/1_Data/B_Preprocess/0.01all_with_path_with_positionactions'
+
+  train:
+    batch_size: 8
+    n_workers: 8
+    pin_mem: True
+    shuffle: True
+
+  val:
+    batch_size: 8
+    n_workers: 8
+    pin_mem: True
+    shuffle: False
+
+
+TrainDataset:
+  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D/
+  tasks_to_use: null
+  cache_dataset_init_path: null
+  image_rescales: [0.75,1.25]
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
+
   num_points: 4096
-  xyz_shift: center # none, center, gripper
-  xyz_norm: False
-  use_height: True
+  augmentation: False
 
-  rot_type: euler_disc # quat, rot6d, euler, euler_delta, euler_disc
-  pos_type: disc # disc, cont
-  instr_embed_type: 'all' # last, all
+FK:
+  Policy:
+    num_timesteps: 100
+    use_instruction: False
+    DDPM:
+      beta_1: 0.0001
+      beta_T: 0.02
+      T: 100
+    collision_loss: False
 
-  rm_robot: box_keep_gripper  # none, gt, box, box_keep_gripper
-  augment_pc: True
-  aug_max_rot: 45
-  same_npoints_per_example: False
-  pos_bins: null
-  pos_bin_size: null
-  pos_heatmap_type: 'dist' # plain, dist
-  pos_heatmap_no_robot: True
-  real_robot: False
-  euler_resolution: 1
-  rm_table: True
-  rm_pc_outliers: False
-  rm_pc_outliers_neighbors: 25
-  sample_points_by_distance: False
-  variations_to_use: null
-  tasks_to_use: "close_jar"
+  FeatureExtractor:
+    ptv3:
+      in_channels: 7
+      order: ["z", "z-trans", "hilbert", "hilbert-trans"]
+      stride: [2, 2, 2,2]
+      # encode 
+      enc_depths: [1, 1, 1, 1,1]
+      enc_channels: [64,128,128,256,512]
+      enc_num_head: [2, 4, 8, 16,32]
+      enc_patch_size: [128, 128, 128, 128,128]
+      mlp_ratio: 4
+      qkv_bias: True
+      qk_scale: null
+      qk_norm: True
+      scaled_cosine_attn: False
+      attn_drop: 0.1
+      proj_drop: 0.1
+      drop_path: 0
+      pre_norm: True
+      shuffle_orders: True
+      enable_rpe: False
+      enable_flash: False
+      upcast_attention: False
+      upcast_softmax: False
+      cls_mode: True ####这里改了
+      pdnorm_bn: False
+      pdnorm_ln: False
+      pdnorm_decouple: False
+      pdnorm_adaptive: False
+      pdnorm_affine: True
+      pdnorm_conditions: null
+      pdnorm_only_decoder: False
+      add_coords_in_attn: 'none' # none, qk, qkv
+
+  ActionHead:
+    d_model: 512
+    d_instr: 512
+    d_ffw: 512
+    n_heads: 8
+    n_features: 96
+    horizon: 8
+    n_cross_attn_layers: 4
+    n_self_attn_layers: 4
 
 
-
-ActionHead:
-  horizon: 8
-  action_dim: 8
-  global_cond_dim: 256 #与
-  diffusion_step_embed_dim: 256
-
-
-
+# region tmp
 Dataset:
   voxel_size: 0.01
   txt_ft_size: 512
   context_channels: 256
   txt_reduce: 'attn' # mean, attn
+  max_seq_len: 20
 
 
-Tmp:
-  txt_ft_size: 512
-  context_channels: 256
-  txt_reduce: 'attn' # mean, attn

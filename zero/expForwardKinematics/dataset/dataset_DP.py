@@ -10,9 +10,9 @@ import time
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as transforms_f
 import einops
-from zero.z_utils.utilities_all import pad_clip_features, normalize_JP, normalise_quat
+from zero.z_utils.utilities_all import pad_clip_features, normalize_JP, normalize_pos, normalise_quat
 import copy
-
+import random
 # --------------------------------------------------------------
 # region tools
 
@@ -66,73 +66,13 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
 
 
-class Resize:
-    """Resize and pad/crop the image and aligned point cloud."""
-
-    def __init__(self, scales):
-        self.scales = scales
-
-    def __call__(self, **kwargs):
-        """Accept tensors as T, N, C, H, W."""
-        keys = list(kwargs.keys())
-
-        if len(keys) == 0:
-            raise RuntimeError("No args")
-
-        # Sample resize scale from continuous range
-        sc = np.random.uniform(*self.scales)
-
-        t, n, c, raw_h, raw_w = kwargs[keys[0]].shape
-        kwargs = {n: arg.flatten(0, 1) for n, arg in kwargs.items()}
-        resized_size = [int(raw_h * sc), int(raw_w * sc)]
-
-        # Resize
-        kwargs = {
-            n: transforms_f.resize(
-                arg,
-                resized_size,
-                transforms.InterpolationMode.NEAREST
-            )
-            for n, arg in kwargs.items()
-        }
-
-        # If resized image is smaller than original, pad it with a reflection
-        if raw_h > resized_size[0] or raw_w > resized_size[1]:
-            right_pad, bottom_pad = max(raw_w - resized_size[1], 0), max(
-                raw_h - resized_size[0], 0
-            )
-            kwargs = {
-                n: transforms_f.pad(
-                    arg,
-                    padding=[0, 0, right_pad, bottom_pad],
-                    padding_mode="reflect",
-                )
-                for n, arg in kwargs.items()
-            }
-
-        # If resized image is larger than original, crop it
-        i, j, h, w = transforms.RandomCrop.get_params(
-            kwargs[keys[0]], output_size=(raw_h, raw_w)
-        )
-        kwargs = {
-            n: transforms_f.crop(arg, i, j, h, w) for n, arg in kwargs.items()
-        }
-
-        kwargs = {
-            n: einops.rearrange(arg, "(t n) c h w -> t n c h w", t=t)
-            for n, arg in kwargs.items()
-        }
-
-        return kwargs
-
-
 # endregion
 
 # --------------------------------------------------------------
 # region Dataset
 
 
-class DatasetDA3D(Dataset):
+class DatasetDP(Dataset):
     def __init__(self, config, data_dir=None):
         super().__init__()
         '''
@@ -149,7 +89,6 @@ class DatasetDA3D(Dataset):
             cache_dataset_init_path = config['TrainDataset']['cache_dataset_init_path']
             with open(cache_dataset_init_path, 'rb') as f:
                 cache_init = pickle.load(f)
-
             (self.g_episode_to_taskvar,
              self.g_episode_to_path,
              self.g_episode_to_l_episode,
@@ -158,7 +97,6 @@ class DatasetDA3D(Dataset):
              self.g_frame_to_g_episode,
              self.g_frame_to_frame,
              self.g_frame_to_l_episode) = cache_init
-
         else:
             cache_init = None
 
@@ -178,6 +116,7 @@ class DatasetDA3D(Dataset):
                 for variation_folder in variation_list:
                     l_episode = 0
                     variation_folder_path = os.path.join(task_folder_path, variation_folder, 'episodes')
+
                     episodes_list = sorted(os.listdir(variation_folder_path), key=natural_sort_key)
                     for episode_folder in episodes_list:
                         episode_folder_path = os.path.join(variation_folder_path, episode_folder)
@@ -227,7 +166,6 @@ class DatasetDA3D(Dataset):
         #     self.check_cache(i)
 
         # 4, other
-        self._resize = Resize(config['TrainDataset']['image_rescales'])
 
     def check_cache(self, g_episode):
         if self.cache.get(g_episode) is None:
@@ -259,42 +197,67 @@ class DatasetDA3D(Dataset):
             }
 
         '''
-        outs = {
-            'rgb': None,
-            'pcd': None,
-            'joint_position_history': None,
-            'joint_position_future': None,
-            'instruction': None
-        }
-
-        data = self.check_cache(g_episode)
-        taskvar = self.g_frame_to_taskvar[g_episode]
-        outs = self.obs_processor.dynamic_process_DA3D(data, taskvar)
 
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
+        data = self.check_cache(g_episode)
+        taskvar = self.g_episode_to_taskvar[g_episode]
 
-        return outs
+        rgb = torch.from_numpy(np.stack(copy.deepcopy(data['rgb']), axis=0))
+        image0 = rgb[:, 0, :, :, :].permute(0, 3, 1, 2)
+        image1 = rgb[:, 1, :, :, :].permute(0, 3, 1, 2)
+        image2 = rgb[:, 2, :, :, :].permute(0, 3, 1, 2)
+        image3 = rgb[:, 3, :, :, :].permute(0, 3, 1, 2)
+        eePose = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_hist']), axis=0))
+        eePos = eePose[:, :, :3]
+        eeRot = eePose[:, :, 3:7]
+        eeOpen = eePose[:, :, 7:8]
+        action = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_futr']), axis=0))
+
+        # normalize
+
+        image0 = image0 / 255.0
+        image1 = image1 / 255.0
+        image2 = image2 / 255.0
+        image3 = image3 / 255.0
+
+        eePos = normalize_pos(eePos)
+        eeRot = normalise_quat(eeRot)
+
+        action[..., :3] = normalize_pos(action[..., :3])
+        action[..., 3:7] = normalise_quat(action[..., 3:7])
+
+        batch = {
+            'obs': {
+                'image0': image0.unsqueeze(1),
+                'image1': image1.unsqueeze(1),
+                'image2': image2.unsqueeze(1),
+                'image3': image3.unsqueeze(1),
+                'eePos': eePos,
+                'eeRot': eeRot,
+                'eeOpen': eeOpen
+            },
+            'action': action
+        }
+        return batch
 # endregion
 
 
-def collect_fn(batch):
-    collated = {}
-    for key in batch[0]:
+def collect_fn_dp(batch):
+    collated = {
+        'obs': {},
+        'action': None,
+    }
+    for key in batch[0]['obs'].keys():
         # Concatenate the tensors from each dict in the batch along dim=0.
-        collated[key] = torch.cat([item[key] for item in batch], dim=0)
+        collated['obs'][key] = torch.cat([minibatch['obs'][key] for minibatch in batch], dim=0)
+    collated['action'] = torch.cat([minibatch['action'] for minibatch in batch], dim=0)
     return collated
 
 
 if __name__ == '__main__':
     from zero.expForwardKinematics.config.default import get_config
     from torch.utils.data import DataLoader, Dataset
-    config_path = '/data/zero/zero/expForwardKinematics/config/DA3D.yaml'
+    config_path = '/data/zero/zero/expForwardKinematics/config/DP.yaml'
     config = get_config(config_path)
     data_dir = config['TrainDataset']['data_dir']
-    dataset = DatasetDA3D(config, data_dir)
-    loader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=collect_fn)
-
-    for i, batch in enumerate(loader):
-        for key in batch.keys():
-            print(key, batch[key].shape)
-        break
+    dataset = DatasetDP(config, data_dir)
