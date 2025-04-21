@@ -1,25 +1,14 @@
-import numpy as np
 import torch
+import torch.nn as nn
+import pickle
 
-a = torch.tensor([[2.1532e-03, 7.8020e-03, 1.8721e-02, 3.3440e-02, 5.4105e-02,
-                  8.5748e-02, 1.1676e-01, 1.3907e-01],
-                  [6.4203e-02, -3.4137e-03, -7.4296e-02, -1.2439e-01, -1.5971e-01,
-                 -1.6936e-01, -1.3615e-01, -8.0503e-02],
-                  [2.5479e-03, 8.9109e-03, 1.8013e-02, 2.7061e-02, 3.8016e-02,
-                  5.5138e-02, 7.5300e-02, 9.3841e-02],
-                  [3.8352e-01, 2.2466e-01, 4.4707e-02, -1.0156e-01, -2.3759e-01,
-                   -3.7555e-01, -4.6101e-01, -4.9468e-01],
-                  [2.9874e-04, 2.1611e-03, 6.7781e-03, 1.1963e-02, 1.7404e-02,
-                   2.2549e-02, 2.2534e-02, 1.5406e-02],
-                  [-3.1362e-01, -2.5669e-01, -1.9134e-01, -1.3556e-01, -7.7598e-02,
-                   -2.9832e-03, 6.9531e-02, 1.2664e-01],
-                  [2.6206e-01, 2.3663e-01, 1.9243e-01, 1.4395e-01, 8.7280e-02,
-                   1.2571e-02, -5.5271e-02, -1.0615e-01],
-                  [1.0000e+00, 1.0000e+00, 1.0000e+00, 1.0000e+00, 1.0000e+00,
-                   1.0000e+00, 1.0000e+00, 1.0000e+00]])
 
-np.set_printoptions(precision=4, suppress=True)
-print(a[0, :])
-a = a.T.numpy()
-print(a.shape)
-print(a)
+with open('/media/jian/ssd4t/zero/1_Data/B_Preprocess/DA3D/put_groceries_in_cupboard/variation0/episodes/episode0/data.pkl', 'rb') as f:
+    data = pickle.load(f)
+
+print(data.keys())
+eePose = data['eePose_hist'][0][0, :]
+print(eePose.shape)
+print(eePose)
+
+quat = eePose[3:7]

@@ -184,7 +184,7 @@ def get_ortho6d_from_rotation_matrix(matrix):
 
 def convert_rot(signal):
     rotation_parametrization = '6D'
-    quaternion_format = 'wxyz'
+    quaternion_format = 'xyzw'
     signal[..., 3:7] = normalise_quat(signal[..., 3:7])
     if rotation_parametrization == '6D':
         # The following code expects wxyz quaternion format!
@@ -318,7 +318,7 @@ def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
 
 def deconvert_rot(signal):
     rotation_parametrization = '6D'
-    quaternion_format = 'wxyz'
+    quaternion_format = 'xyzw'
     if rotation_parametrization == '6D':
         res = signal[..., 9:] if signal.size(-1) > 9 else None
         if len(signal.shape) == 3:

@@ -949,8 +949,9 @@ class Policy(BasePolicy):
 
         # Condition on start-end pose
         B, nhist, D = A_hist.shape
+        H = self.config['DiffuserActor']['ActionHead']['horizon']
         condition_data = torch.zeros(
-            (B, 8, D),  # 8是horizon
+            (B, H, D),  # 8是horizon
             device=rgb.device
         )
         cond_mask = torch.zeros_like(condition_data)
