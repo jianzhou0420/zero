@@ -8,7 +8,6 @@ Trainer:
   save_every_n_epochs: 50
   num_gpus: 1
   
-  policy_name: FK
 
 
   train:
