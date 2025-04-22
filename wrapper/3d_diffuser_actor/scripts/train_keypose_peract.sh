@@ -21,12 +21,12 @@ CUDA_LAUNCH_BLOCKING=1 torchrun --nproc_per_node $ngpus --master_port $RANDOM \
     --instructions instructions/peract/instructions.pkl \
     --gripper_loc_bounds tasks/18_peract_tasks_location_bounds.json \
     --num_workers 1 \
-    --train_iters 33333 \
+    --train_iters 35000 \
     --embedding_dim $C \
     --use_instruction 1 \
     --rotation_parametrization 6D \
     --diffusion_timesteps $diffusion_timesteps \
-    --val_freq 4000 \
+    --val_freq  5000\
     --dense_interpolation $dense_interpolation \
     --interpolation_length $interpolation_length \
     --exp_log_dir $main_dir \
@@ -42,3 +42,6 @@ CUDA_LAUNCH_BLOCKING=1 torchrun --nproc_per_node $ngpus --master_port $RANDOM \
     --max_episodes_per_task -1 \
     --quaternion_format $quaternion_format \
     --run_log_dir diffusion_multitask-C$C-B$B-lr$lr-DI$dense_interpolation-$interpolation_length-H$num_history-DT$diffusion_timesteps
+
+
+#600000,4000

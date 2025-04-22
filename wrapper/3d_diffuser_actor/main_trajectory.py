@@ -449,4 +449,5 @@ if __name__ == '__main__':
 
     # Run
     train_tester = TrainTester(args)
-    train_tester.main(collate_fn=traj_collate_fn)
+    model = train_tester.main(collate_fn=traj_collate_fn)
+    # torch.save(model, log_dir / "model.pth")

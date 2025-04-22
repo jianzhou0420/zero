@@ -65,14 +65,14 @@ class Trainer_all(pl.LightningModule):
         self.policy = Policy(config)
 
     def training_step(self, batch, batch_idx):
-        loss = self.policy.forward(batch)
+        loss = self.policy(batch)
         self.log('train_loss', loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         if batch is None:
             return
-        loss = self.policy.forward(batch)
+        loss = self.policy(batch)
         self.log('val_loss', loss, prog_bar=True)
         return loss
 

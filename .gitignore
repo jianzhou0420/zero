@@ -34,7 +34,7 @@ zero/v1/env/gym-aloha/
 4_Paper/*
 5_templates/*
 6_ThirdParty/*
-
+wrapper/3d_diffuser_actor/train_logs/*
 
 !1_Data/.gitkeep
 !2_Train/.gitkeep
