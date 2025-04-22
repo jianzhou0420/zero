@@ -32,8 +32,6 @@ from zero.expForwardKinematics.ObsProcessor.ObsProcessorDA3D import ObsProcessor
 from zero.expForwardKinematics.trainer_DA3D import TrainerDA3D
 from zero.expForwardKinematics.config.default import build_args
 
-from zero.expForwardKinematics.config.default import get_config
-from zero.expForwardKinematics.config.constants import get_robot_workspace, get_rlbench_labels
 
 # homemade utils
 from zero.z_utils.utilities_all import denormalize_JP, denormalize_pos, deconvert_rot
@@ -46,10 +44,6 @@ JOINT_POSITION_LIMITS = [[-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, 
 
 
 class Actioner(object):
-    '''
-    process_obs accept rlbench.backend.observation.Observation class
-    '''
-
     def __init__(self, eval_config) -> None:
         self.args = eval_config
         if self.args.save_obs_outs_dir is not None:

@@ -1,20 +1,3 @@
-# framework package
-import torch
-from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
-
-from pytorch_lightning.loggers import CSVLogger
-from pytorch_lightning.callbacks import ModelCheckpoint
-import pytorch_lightning as pl
-
-# zero package
-from zero.expForwardKinematics.config.default import get_config, build_args
-from zero.expForwardKinematics.dataset.dataset_FK import DatasetFK, collect_fn_fk
-from zero.expForwardKinematics.models.FK.Policy import PolicyFK
-from zero.z_utils import *
-
-from zero.expForwardKinematics.models.DP.DP import DPWrapper
-from zero.expForwardKinematics.dataset.dataset_DP import DatasetDP, collect_fn_dp
 # helper package
 import time
 from datetime import datetime
@@ -22,6 +5,25 @@ import yacs.config
 import os
 import warnings
 import os
+
+# framework package
+import argparse
+import torch
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
+import pytorch_lightning as pl
+
+# zero package
+from zero.expForwardKinematics.config.default import get_config, build_args
+from zero.expForwardKinematics.models.FK.Policy import PolicyFK
+from zero.z_utils import *
+from zero.expForwardKinematics.models.DP.DP import DPWrapper
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import ObsProcessorDA3D, ObsProcessorDP, ObsProcessorFK
+from zero.expForwardKinematics.dataset.dataset_all import DatasetAll
+
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
@@ -32,14 +34,16 @@ POLICY_FACTORY = {
     'DP': DPWrapper,
 }
 
-DATASET_FACTORY = {
-    'FK': DatasetFK,
-    'DP': DatasetDP,
+
+OBS_FACTORY = {
+    'DA3D': ObsProcessorDA3D,
+    'FK': ObsProcessorFK,
+    'DP': ObsProcessorDP,
 }
 
-COLLECT_FN_FACTORY = {
-    'FK': collect_fn_fk,
-    'DP': collect_fn_dp,
+CONFIG_FACTORY = {
+    'FK': '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/FK.yaml',
+    'DP': '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/DP.yaml',
 }
 
 # ---------------------------------------------------------------
@@ -61,7 +65,7 @@ class Trainer_all(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.config = config
-        Policy = POLICY_FACTORY[config['Trainer']['policy_name']]
+        Policy = POLICY_FACTORY[config['Trainer']['model_name']]
         self.policy = Policy(config)
 
     def training_step(self, batch, batch_idx):
@@ -100,15 +104,14 @@ class MyDataModule(pl.LightningDataModule):
             self.use_val = False
         else:
             self.use_val = True
-
-        Dataset = DATASET_FACTORY[self.config['Trainer']['policy_name']]
-        train_dataset = Dataset(self.config, data_dir=train_data_path)
+        self.obs_processor = OBS_FACTORY[self.config['Trainer']['model_name']]
+        collect_fn = self.obs_processor.collect_fn
+        train_dataset = DatasetAll(self.config, data_dir=train_data_path, ObsProcessor=self.obs_processor)
         self.train_dataset = train_dataset
 
-        collect_fn = COLLECT_FN_FACTORY[self.config['Trainer']['policy_name']]
         self.collect_fn = collect_fn
         if self.use_val:
-            val_dataset = Dataset(self.config, data_dir=val_data_path)
+            val_dataset = DatasetAll(self.config, data_dir=val_data_path, ObsProcessor=self.obs_processor)
             self.val_dataset = val_dataset
 
     def train_dataloader(self):
@@ -170,6 +173,7 @@ class EpochCallback(pl.Callback):
 # endregion
 # ---------------------------------------------------------------
 
+
 # ---------------------------------------------------------------
 # region Main
 
@@ -188,7 +192,7 @@ def train(config: yacs.config.CfgNode):
         filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
     )
 
-    csvlogger1 = CSVLogger(
+    tflogger = TensorBoardLogger(
         save_dir=log_path,
         name=log_name,
         version=None
@@ -199,7 +203,7 @@ def train(config: yacs.config.CfgNode):
                          max_epochs=config['Trainer']['epoches'],
                          devices='auto',
                          strategy='auto',
-                         logger=csvlogger1,
+                         logger=tflogger,
                          #  profiler=profiler，
                          #  profiler='simple',
                          use_distributed_sampler=False,
@@ -214,9 +218,13 @@ def train(config: yacs.config.CfgNode):
 # endregion
 # ---------------------------------------------------------------
 if __name__ == '__main__':
-    # 0.1 args & 0.2 config
+    argparser = argparse.ArgumentParser(description='Train FK')
+    argparser.add_argument('--model', type=str, default='FK', help='model name')
+    args = argparser.parse_args()
+
+    config_path = CONFIG_FACTORY[args.model]
     pl.seed_everything(42)
-    config_path = '/data/zero/zero/expForwardKinematics/config/DP.yaml'
-    config = build_args(config_path)
+
+    config = get_config(config_path)
     # 1. train
     train(config)

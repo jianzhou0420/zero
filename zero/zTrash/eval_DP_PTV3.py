@@ -113,7 +113,7 @@ class Actioner(object):
         #     pickle.dump(obs, f)
         # raise NotImplementedError
         obs_raw = self.obs_processor.obs_2_obs_raw(obs)
-        obs_static = self.obs_processor.static_process_DA3D(obs_raw)
+        obs_static = self.obs_processor.static_process(obs_raw)
         obs_dynamic = self.obs_processor.dynamic_process(obs_static, taskvar)
         batch = self.collect_fn(obs_dynamic)
         for item in batch:

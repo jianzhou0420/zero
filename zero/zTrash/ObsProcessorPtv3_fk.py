@@ -20,7 +20,7 @@ import random
 
 
 from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorBase
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
 from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 from codebase.z_utils.open3d import *
@@ -35,7 +35,7 @@ def npafp32(x):
     return np.array(x, dtype=np.float32)
 
 
-class ObsProcessorPtv3(ObsProcessorBase):
+class ObsProcessorPtv3(ObsProcessorRLBenchBase):
     def __init__(self, config, train_flag=True):
         '''
         simulator generate demo or obs
@@ -52,107 +52,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
         self.train_flag = train_flag
         self.franka = FrankaEmikaPanda()
 
-    def obs_2_obs_raw(self, obs):
-        key_frames = [0]
-        state_dict = self.obs2dict(obs)
-
-        bbox = []
-        pose = []
-
-        single_bbox = dict()
-        single_pose = dict()
-        for key, value in obs.misc.items():
-            if key.split('_')[-1] == 'bbox':
-                single_bbox[key.split('_bbox')[0]] = value
-            if key.split('_')[-1] == 'pose':
-                single_pose[key.split('_pose')[0]] = value
-        bbox.append(single_bbox)
-        pose.append(single_pose)
-
-        actions = []
-        positions = []
-        action = np.concatenate([obs.gripper_pose, [obs.gripper_open]]).astype(np.float32)
-        position = obs.joint_positions
-        actions.append(action)
-        positions.append(position)
-        obs_raw = {
-            'key_frameids': key_frames,
-            'rgb': [state_dict['rgb']],  # (T, N, H, W, 3)
-            'pc': [state_dict['pc']],  # (T, N, H, W, 3)
-            'action': [state_dict['gripper']],  # (T, A)
-            'bbox': bbox,  # [T of dict]
-            'pose': pose,  # [T of dict]
-            'JP_curr_no_open': positions,
-        }
-        return obs_raw
-
-    def demo_2_obs_raw(self, demo):  # TODO: refine I/O variables name
-        """Fetch the desired state based on the provided demo.
-        :param obs: incoming obs
-        :return: required observation (rgb, depth, pc, gripper state)
-        """
-
-        key_frames = keypoint_discovery(demo)
-        key_frames.insert(0, 0)
-
-        state_dict_ls = collections.defaultdict(list)
-        for f in key_frames:
-            state_dict = self.obs2dict(demo._observations[f])
-            for k, v in state_dict.items():
-                if len(v) > 0:
-                    # rgb: (N: num_of_cameras, H, W, C); gripper: (7+1, )
-                    state_dict_ls[k].append(v)
-
-        for k, v in state_dict_ls.items():
-            state_dict_ls[k] = np.stack(v, 0)  # (T, N, H, W, C)
-
-        action_ls = state_dict_ls['gripper']  # (T, 7+1)
-        del state_dict_ls['gripper']
-
-        # return demo, key_frames, state_dict_ls, action_ls
-
-        gripper_pose = []
-        for key_frameid in key_frames:
-            gripper_pose.append(demo[key_frameid].gripper_pose)
-
-        # get bbox and poses of each link
-        bbox = []
-        pose = []
-        for key_frameid in key_frames:
-            single_bbox = dict()
-            single_pose = dict()
-            for key, value in demo[key_frameid].misc.items():
-                if key.split('_')[-1] == 'bbox':
-                    single_bbox[key.split('_bbox')[0]] = value
-                if key.split('_')[-1] == 'pose':
-                    single_pose[key.split('_pose')[0]] = value
-            bbox.append(single_bbox)
-            pose.append(single_pose)
-
-        # get actions_all
-        # get positions_all
-        actions = []
-        positions = []
-        for obs in demo._observations:
-            action = np.concatenate([obs.gripper_pose, [obs.gripper_open]]).astype(np.float32)
-            position = obs.joint_positions
-            actions.append(action)
-            positions.append(position)
-
-        obs_raw = {
-            'key_frameids': key_frames,
-            'rgb': state_dict_ls['rgb'],  # (T, N, H, W, 3)
-            'pc': state_dict_ls['pc'],  # (T, N, H, W, 3)
-            'action': action_ls,  # (T, A)
-            'bbox': bbox,  # [T of dict]
-            'pose': pose,  # [T of dict]
-            'sem': state_dict_ls['sem'],  # (T, N, H, W, 3)
-            'actions_all': actions,
-            'joint_position_all': positions,
-        }
-        return obs_raw
-
-    def static_process_DA3D(self, obs_raw):
+    def static_process(self, obs_raw):
         '''
         obs_raw={
             'key_frameids': [],
@@ -407,7 +307,7 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
         return obs_static_process
 
-    def dynamic_process_fk(self, data, taskvar):
+    def dynamic_process(self, data, taskvar):
         '''
         1. Downsample point cloud
         2. Normalize point cloud and rgb
@@ -473,167 +373,8 @@ class ObsProcessorPtv3(ObsProcessorBase):
 
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
 
-    def dynamic_process(self, obs_static, taskvar):  # TODO: refine
-        '''
-        obs_static_process = {
-            'xyz': [],
-            'rgb': [],
-            'action_current': [],
-            'action_next': [],
-            'data_ids': [],
-            'arm_links_info': [],
-            'actions_path': [],
-            'theta_actions_path': [],
-        }
-
-        '''
-        if self.dataset_init_flag is False:
-            self._dataset_init()
-
-        obs_dynamic_out = {
-            'data_ids': [],
-            'pc_fts': [],
-            'step_ids': [],
-            'pc_centroids': [],
-            'pc_radius': [],
-            'ee_poses': [],
-            'txt_embeds': [],
-            'gt_actions': [],
-            'disc_pos_probs': [],
-            'theta_positions': [],
-        }
-        num_frames = len(obs_static['xyz'])
-        # 1.get specific frame data
-
-        aug_angle = []  # because I seperate the xyz process and action process, so I need to store the aug_angle for second loop
-
-        for t in range(num_frames):
-            sub_keyframe_dection_mode = 'avg'
-            assert sub_keyframe_dection_mode in ['avg', 'xyzpeak']
-
-            # end of path processs
-            # data_ids = obs_raw['data_ids'][t]
-            xyz = copy(obs_static['xyz'][t])
-            rgb = copy(obs_static['rgb'][t])
-
-            xyz, rgb = obs_static['xyz'][t], obs_static['rgb'][t]
-
-            # randomly select one instruction
-            instr = random.choice(self.taskvar_instrs[taskvar])
-            instr_embed = copy(self.instr_embeds[instr])
-
-            # 5. downsample point cloud
-            # sampling points
-
-            if len(xyz) > self.num_points:  # 如果不要它，直接num_points=10000000
-                tmp_flag = True  # TODO： remove tmp_flag
-                point_idxs = np.random.choice(len(xyz), self.num_points, replace=False)
-            else:
-                tmp_flag = False
-                max_npoints = int(len(xyz) * np.random.uniform(0.4, 0.6))
-                point_idxs = np.random.permutation(len(xyz))[:max_npoints]
-
-            xyz = xyz[point_idxs]
-            rgb = rgb[point_idxs]
-
-            height = xyz[:, -1] - self.TABLE_HEIGHT
-            # print(f"After downsample xyz: {xyz.shape}")
-
-            # 6. point cloud augmentation
-
-            if self.augment_pc:
-                # rotate around z-axis
-                aug_angle.append(np.random.uniform(-1, 1) * self.aug_max_rot)
-                xyz = random_rotate_z(xyz, angle=aug_angle[t])
-
-            if tmp_flag:
-                pc_noises = np.random.uniform(0, 0.002, size=xyz.shape)
-                xyz = pc_noises + xyz
-
-            # 7. normalize point cloud
-            if self.xyz_shift == 'none':
-                centroid = np.zeros((3, ))
-            elif self.xyz_shift == 'center':
-                centroid = np.mean(xyz, 0)
-            elif self.xyz_shift == 'gripper':
-                centroid = copy(ee_pose_current[:3])
-            if self.xyz_norm:
-                radius = np.max(np.sqrt(np.sum((xyz - centroid) ** 2, axis=1)))
-            else:
-                radius = 1
-
-            xyz = (xyz - centroid) / radius
-            height = height / radius
-
-            rgb = (rgb / 255.) * 2 - 1
-            pc_ft = np.concatenate([xyz, rgb], 1)
-            if self.use_height:
-                pc_ft = np.concatenate([pc_ft, height[:, None]], 1)
-
-            # print(f"{taskvar}: {xyz.shape}")
-            # outs['data_ids'].append(data_ids)
-            obs_dynamic_out['pc_centroids'].append(centroid)
-            obs_dynamic_out['pc_radius'].append(radius)
-            obs_dynamic_out['pc_fts'].append(torch.from_numpy(pc_ft).float())
-            obs_dynamic_out['txt_embeds'].append(torch.from_numpy(instr_embed).float())
-            obs_dynamic_out['step_ids'].append(t)
-
-        if self.train_flag is False:
-            return obs_dynamic_out
-
-        for t in range(num_frames):
-            ee_pose_current = copy(obs_static['action_current'][t])
-            ee_pose_next = copy(obs_static['action_next'][t])
-
-            action_path = copy(obs_static['actions_path'][t])
-            theta_actions_path = copy(obs_static['theta_actions_path'][t])
-
-            gt_ee_poses, gt_theta_position = self._find_gt_actions(action_path, theta_actions_path, sub_keyframe_dection_mode)
-            # assert (gt_actions[0] == ee_pose).all()
-            assert (gt_ee_poses[-1] == ee_pose_next).all()
-            assert len(gt_ee_poses) == self.config.horizon
-            # append open to theta_actions
-            for i in range(len(gt_theta_position)):
-                gt_theta_position[i] = np.append(gt_theta_position[i], gt_ee_poses[i][-1])
-
-            if self.augment_pc:
-                ee_pose_current[:3] = random_rotate_z(ee_pose_current[:3], angle=aug_angle[t])
-                ee_pose_current[3:-1] = self._rotate_gripper(ee_pose_current[3:-1], aug_angle[t])
-                new_gt_actions = []
-                for i, action in enumerate(gt_ee_poses):
-                    action[:3] = random_rotate_z(action[:3], angle=aug_angle[t])
-                    action[3:-1] = self._rotate_gripper(action[3:-1], aug_angle[t])
-                    new_gt_actions.append(action)
-                gt_ee_poses = np.stack(new_gt_actions, 0)
-
-                gt_rot = []
-                for action in gt_ee_poses:
-                    gt_rot.append(quaternion_to_discrete_euler(action[3:-1], self.euler_resolution))
-                gt_rot = np.stack(gt_rot, 0)
-
-            centroid_t = obs_dynamic_out['pc_centroids'][t]
-            radius_t = obs_dynamic_out['pc_radius'][t]
-
-            # ee_pose_actions
-            gt_ee_poses[:, :3] = (gt_ee_poses[:, :3] - centroid_t) / radius_t
-            ee_pose_current[:3] = (ee_pose_current[:3] - centroid_t) / radius_t
-            gt_ee_poses = np.concatenate([gt_ee_poses[:, :3], gt_rot, gt_ee_poses[:, -1:]], 1)
-
-            # theta_actions
-            test = torch.from_numpy(np.array(gt_theta_position)).float()
-            test = normalize_JP(test)
-            test = einops.rearrange(test, 'h a -> a h')  # 现在channel是各个纬度的action
-
-            obs_dynamic_out['ee_poses'].append(torch.from_numpy(ee_pose_current).float())
-            obs_dynamic_out['gt_actions'].append(torch.from_numpy(gt_ee_poses).float())
-            obs_dynamic_out['theta_positions'].append(torch.from_numpy(np.array(test)).float())
-
-        obs_dynamic_out = obs_dynamic_out
-
-        return obs_dynamic_out
-
     @staticmethod
-    def collect_fn_fk(data):
+    def collect_fn(data):
         batch = {}
         for key in data[0].keys():
             batch[key] = sum([x[key] for x in data], [])
@@ -1006,7 +747,7 @@ def test_preprocess(record_example=False):
 
     config = get_config('/data/zero/zero/expForwardKinematics/config/expBase_Lotus.yaml')
     test = ObsProcessorPtv3(config)
-    out = test.static_process_DA3D(raw_data, '/data/zero/1_Data/C_Dataset_Example/example_episode')
+    out = test.static_process(raw_data, '/data/zero/1_Data/C_Dataset_Example/example_episode')
     print(out.keys())
 
     pcd = o3d.geometry.PointCloud()
@@ -1048,7 +789,7 @@ def test_inference():
     collect_fn = obs_processor.get_collect_function()
 
     obs_raw = obs_processor.obs_2_obs_raw(obs)
-    obs_static = obs_processor.static_process_DA3D(obs_raw)
+    obs_static = obs_processor.static_process(obs_raw)
     obs_dynamic = obs_processor.dynamic_process(obs_static, 'close_jar_peract+0')
     batch = collect_fn([obs_dynamic])
     print(batch.keys())
@@ -1084,7 +825,7 @@ def static_process():
                 taskvar = f'{task}+{variation.split("variation")[-1]}'
                 with open(os.path.join(data_dir, task, variation, 'episodes', episode, 'data.pkl'), 'rb') as f:
                     data = pickle.load(f)
-                out = obs_processor.static_process_DA3D(data, taskvar)
+                out = obs_processor.static_process(data, taskvar)
                 save_path = os.path.join(save_root, task, variation, episode)
                 check_and_make(save_path)
                 with open(os.path.join(save_path, 'data.pkl'), 'wb') as f:

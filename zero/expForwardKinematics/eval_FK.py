@@ -85,9 +85,9 @@ class Actioner(object):
         JP_curr = np.concatenate((JP_curr_no_open, npa([is_open])), axis=0)
         self.update_data_container('JP_hist', JP_curr)
         obs_raw['JP_hist_eval'] = np.array(self.data_container['JP_hist'])
-        obs_static = self.obs_processor.static_process_DA3D(obs_raw)
-        obs_dynamic = self.obs_processor.dynamic_process_fk(obs_static, taskvar)
-        batch = self.obs_processor.collect_fn_fk([obs_dynamic])
+        obs_static = self.obs_processor.static_process(obs_raw)
+        obs_dynamic = self.obs_processor.dynamic_process(obs_static, taskvar)
+        batch = self.obs_processor.collect_fn([obs_dynamic])
 
         for item in batch:
             if isinstance(batch[item], torch.Tensor):

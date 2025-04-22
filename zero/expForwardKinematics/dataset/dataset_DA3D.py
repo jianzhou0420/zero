@@ -143,7 +143,7 @@ class DatasetDA3D(Dataset):
         data_dir = data_dir  # 因为namesapce不高亮，所以尽量用字典的方式，方便区分
 
         self.obs_processor = ObsProcessorDA3D(config, data_dir)
-        self.obs_processor._dataset_init_DA3D()
+        self.obs_processor.dataset_init()
 
         if config['TrainDataset']['cache_dataset_init_path'] is not None:
             cache_dataset_init_path = config['TrainDataset']['cache_dataset_init_path']
@@ -259,17 +259,10 @@ class DatasetDA3D(Dataset):
             }
 
         '''
-        outs = {
-            'rgb': None,
-            'pcd': None,
-            'joint_position_history': None,
-            'joint_position_future': None,
-            'instruction': None
-        }
 
         data = self.check_cache(g_episode)
         taskvar = self.g_frame_to_taskvar[g_episode]
-        outs = self.obs_processor.dynamic_process_DA3D(data, taskvar)
+        outs = self.obs_processor.dynamic_process(data, taskvar)
 
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
 

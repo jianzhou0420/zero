@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 import torch
 import os
 import numpy as np
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
+
 import time
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as transforms_f
@@ -15,13 +15,13 @@ from copy import deepcopy as copy
 import json
 import random
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
 # --------------------------------------------------------------
 # region Dataset
 
 
-class DatasetFK(Dataset):
-    def __init__(self, config, data_dir=None):
+class DatasetAll(Dataset):
+    def __init__(self, config, data_dir: str, ObsProcessor: ObsProcessorRLBenchBase):
         super().__init__()
         '''
         如果没有cache_dataset_init_path,那么就从头开始
@@ -61,6 +61,8 @@ class DatasetFK(Dataset):
                 for variation_folder in variation_list:
                     l_episode = 0
                     variation_folder_path = os.path.join(task_folder_path, variation_folder)
+                    if len(os.listdir(variation_folder_path)) <= 1:
+                        variation_folder_path = os.path.join(task_folder_path, variation_folder, 'episodes')
                     episodes_list = sorted(os.listdir(variation_folder_path), key=natural_sort_key)
                     for episode_folder in episodes_list:
                         episode_folder_path = os.path.join(variation_folder_path, episode_folder)
@@ -111,8 +113,8 @@ class DatasetFK(Dataset):
         # 4.franka
         # self.franka = FrankaEmikaPanda()
         # 5. obs_processor
-        self.obs_processor = ObsProcessorPtv3(config, train_flag=True)
-        self.obs_processor._dataset_init_FK()
+        self.obs_processor = ObsProcessor(config, train_flag=True)
+        self.obs_processor.dataset_init()
 
     def check_cache(self, g_episode):
         if self.cache.get(g_episode) is None:
@@ -131,24 +133,6 @@ class DatasetFK(Dataset):
         return len(self.frames)
 
     def __getitem__(self, g_episode):
-        '''
-            data={
-                'xyz': (N, 3),
-                'rgb': (N, 3),
-                'JP_hist': (N, 7),
-                'JP_futr': (N, 7),
-            }
-        '''
-        outs = {
-            'pc_fts': [],
-            'JP_hist': [],
-            'JP_futr': [],
-            'instr': [],
-            'instr_mask': [],
-            'noncollision_mask': [],
-        }
-        if self.config['test']:
-            g_episode = 0
         data = self.check_cache(g_episode)
         outs = self.obs_processor.dynamic_process(data, taskvar=self.g_episode_to_taskvar[g_episode])
         return outs
@@ -294,6 +278,6 @@ if __name__ == '__main__':
     config_path = '/data/zero/zero/expForwardKinematics/config/FK.yaml'
     config = get_config(config_path)
     data_dir = '/data/zero/1_Data/B_Preprocess/FK/1000_train_eval/train'
-    dataset = DatasetFK(config, data_dir)
+    dataset = DatasetAll(config, data_dir)
     loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collect_fn_fk)
     data1 = next(iter(loader))

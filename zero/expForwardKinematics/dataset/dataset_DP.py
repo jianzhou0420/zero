@@ -83,7 +83,7 @@ class DatasetDP(Dataset):
         data_dir = data_dir  # 因为namesapce不高亮，所以尽量用字典的方式，方便区分
 
         self.obs_processor = ObsProcessorDA3D(config, data_dir)
-        self.obs_processor._dataset_init_DA3D()
+        self.obs_processor.dataset_init()
 
         if config['TrainDataset']['cache_dataset_init_path'] is not None:
             cache_dataset_init_path = config['TrainDataset']['cache_dataset_init_path']
