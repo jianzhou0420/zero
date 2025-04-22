@@ -1,10 +1,6 @@
 
 
-<<<<<<< Updated upstream
-exp_dir: /media/jian/ssd4t/zero/2_Train/0420_1/version_0
-=======
-exp_dir: /data/zero/2_Train/0420_1/version_0
->>>>>>> Stashed changes
+exp_dir: /media/jian/ssd4t/zero/2_Train/0421_01/version_0
 epoch: null
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]
