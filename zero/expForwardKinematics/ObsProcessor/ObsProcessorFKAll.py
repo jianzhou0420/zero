@@ -12,7 +12,7 @@ import collections
 from numpy import array as npa
 import random
 
-
+from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
 from zero.z_utils.utilities_all import *
 import torchvision.transforms.functional as transforms_f
@@ -60,21 +60,21 @@ class ObsProcessorDA3D(ObsProcessorRLBenchBase):
             num_frames = len(data['rgb']) - 1
 
             for i in range(num_frames):
-                keyframe_id = copy.deepcopy(np.array(data['key_frameids'][i], dtype=np.int16))
+                keyframe_id = copy(np.array(data['key_frameids'][i], dtype=np.int16))
                 rgb = data['rgb'][i]
                 xyz = data['xyz'][i]
 
-                action_curr = copy.deepcopy(np.array(data['action'][i], dtype=np.float64))
-                action_next = copy.deepcopy(np.array(data['action'][i + 1], dtype=np.float64))
-                action_path = copy.deepcopy(np.array(action_all[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
+                action_curr = copy(np.array(data['action'][i], dtype=np.float64))
+                action_next = copy(np.array(data['action'][i + 1], dtype=np.float64))
+                action_path = copy(np.array(action_all[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
                 open_all = np.array([a[7] for a in action_all])
-                JP_all_copy = copy.deepcopy(joint_position_all)
+                JP_all_copy = copy(joint_position_all)
                 JP_all_copy = np.concatenate([JP_all_copy, open_all[:, None]], axis=1)
 
-                JP_curr = copy.deepcopy(np.array(JP_all_copy[data['key_frameids'][i]], dtype=np.float64))
-                JP_next = copy.deepcopy(np.array(JP_all_copy[data['key_frameids'][i + 1]], dtype=np.float64))
-                JP_path = copy.deepcopy(np.array(JP_all_copy[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))
+                JP_curr = copy(np.array(JP_all_copy[data['key_frameids'][i]], dtype=np.float64))
+                JP_next = copy(np.array(JP_all_copy[data['key_frameids'][i + 1]], dtype=np.float64))
+                JP_path = copy(np.array(JP_all_copy[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))
 
                 # eePose_hist
                 if keyframe_id - 8 <= 1:
@@ -110,10 +110,10 @@ class ObsProcessorDA3D(ObsProcessorRLBenchBase):
                 out['JP_hist'].append(JP_hist)
                 out['JP_futr'].append(JP_futr)
         else:
-            rgb = copy.deepcopy(data['rgb'])
-            xyz = copy.deepcopy(data['xyz'])
-            eePose_hist = copy.deepcopy(data['eePose_hist_eval'])
-            JP_hist = copy.deepcopy(data['JP_hist_eval'])
+            rgb = copy(data['rgb'])
+            xyz = copy(data['xyz'])
+            eePose_hist = copy(data['eePose_hist_eval'])
+            JP_hist = copy(data['JP_hist_eval'])
 
             out['rgb'].append(rgb[0])
             out['xyz'].append(xyz[0])
@@ -134,15 +134,15 @@ class ObsProcessorDA3D(ObsProcessorRLBenchBase):
 
         B = len(data['rgb'])
         H = self.config['DiffuserActor']['ActionHead']['horizon']
-        rgb = torch.from_numpy(np.stack(copy.deepcopy(data['rgb']), axis=0))
-        xyz = torch.from_numpy(np.stack(copy.deepcopy(data['xyz']), axis=0))
-        JP_hist = torch.from_numpy(np.stack(copy.deepcopy(data['JP_hist']), axis=0))[:, :H, :]
-        eePose_hist = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_hist']), axis=0))[:, :H, :]
-        # instruction = torch.tensor(np.stack(copy.deepcopy(data['txt_embed']), axis=0)).squeeze()
+        rgb = torch.from_numpy(np.stack(copy(data['rgb']), axis=0))
+        xyz = torch.from_numpy(np.stack(copy(data['xyz']), axis=0))
+        JP_hist = torch.from_numpy(np.stack(copy(data['JP_hist']), axis=0))[:, :H, :]
+        eePose_hist = torch.from_numpy(np.stack(copy(data['eePose_hist']), axis=0))[:, :H, :]
+        # instruction = torch.tensor(np.stack(copy(data['txt_embed']), axis=0)).squeeze()
         instr = []
         for i in range(B):
             instr_s = random.choice(self.taskvar_instrs[taskvar])
-            instr_s = copy.deepcopy(self.instr_embeds[instr_s])
+            instr_s = copy(self.instr_embeds[instr_s])
             instr_s, mask = pad_clip_features([instr_s], 53)
             instr.append(instr_s)
         instr = torch.tensor(np.stack(instr, axis=0)).squeeze(0)
@@ -167,8 +167,8 @@ class ObsProcessorDA3D(ObsProcessorRLBenchBase):
 
         # 下面接 Policy的forward
         if self.train_flag:  # TODO: reorganize the code
-            JP_futr = torch.from_numpy(np.stack(copy.deepcopy(data['JP_futr']), axis=0))[:, :H, :]
-            eePose_futr = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_futr']), axis=0))[:, :H, :]
+            JP_futr = torch.from_numpy(np.stack(copy(data['JP_futr']), axis=0))[:, :H, :]
+            eePose_futr = torch.from_numpy(np.stack(copy(data['eePose_futr']), axis=0))[:, :H, :]
             JP_futr = normalize_JP(JP_futr)
             eePose_futr[:, :, :3] = normalize_pos(eePose_futr[:, :, :3])
             eePose_futr = convert_rot(eePose_futr)
@@ -232,21 +232,21 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
             num_frames = len(data['rgb']) - 1
 
             for i in range(num_frames):
-                keyframe_id = copy.deepcopy(np.array(data['key_frameids'][i], dtype=np.int16))
+                keyframe_id = copy(np.array(data['key_frameids'][i], dtype=np.int16))
                 rgb = data['rgb'][i]
                 xyz = data['xyz'][i]
 
-                action_curr = copy.deepcopy(np.array(data['action'][i], dtype=np.float64))
-                action_next = copy.deepcopy(np.array(data['action'][i + 1], dtype=np.float64))
-                action_path = copy.deepcopy(np.array(action_all[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
+                action_curr = copy(np.array(data['action'][i], dtype=np.float64))
+                action_next = copy(np.array(data['action'][i + 1], dtype=np.float64))
+                action_path = copy(np.array(action_all[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
                 open_all = np.array([a[7] for a in action_all])
-                JP_all_copy = copy.deepcopy(joint_position_all)
+                JP_all_copy = copy(joint_position_all)
                 JP_all_copy = np.concatenate([JP_all_copy, open_all[:, None]], axis=1)
 
-                JP_curr = copy.deepcopy(np.array(JP_all_copy[data['key_frameids'][i]], dtype=np.float64))
-                JP_next = copy.deepcopy(np.array(JP_all_copy[data['key_frameids'][i + 1]], dtype=np.float64))
-                JP_path = copy.deepcopy(np.array(JP_all_copy[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))
+                JP_curr = copy(np.array(JP_all_copy[data['key_frameids'][i]], dtype=np.float64))
+                JP_next = copy(np.array(JP_all_copy[data['key_frameids'][i + 1]], dtype=np.float64))
+                JP_path = copy(np.array(JP_all_copy[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))
 
                 # eePose_hist
                 if keyframe_id - 8 <= 1:
@@ -282,10 +282,10 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
                 out['JP_hist'].append(JP_hist)
                 out['JP_futr'].append(JP_futr)
         else:
-            rgb = copy.deepcopy(data['rgb'])
-            xyz = copy.deepcopy(data['xyz'])
-            eePose_hist = copy.deepcopy(data['eePose_hist_eval'])
-            JP_hist = copy.deepcopy(data['JP_hist_eval'])
+            rgb = copy(data['rgb'])
+            xyz = copy(data['xyz'])
+            eePose_hist = copy(data['eePose_hist_eval'])
+            JP_hist = copy(data['JP_hist_eval'])
 
             out['rgb'].append(rgb[0])
             out['xyz'].append(xyz[0])
@@ -293,14 +293,14 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
             out['eePose_hist'].append(eePose_hist)
         return out
 
-    def dynamic_process(self, data):
+    def dynamic_process(self, data, **kwargs):
         batch = {}
-        rgb = torch.from_numpy(np.stack(copy.deepcopy(data['rgb']), axis=0))
+        rgb = torch.from_numpy(np.stack(copy(data['rgb']), axis=0))
         image0 = rgb[:, 0, :, :, :].permute(0, 3, 1, 2)
         image1 = rgb[:, 1, :, :, :].permute(0, 3, 1, 2)
         image2 = rgb[:, 2, :, :, :].permute(0, 3, 1, 2)
         image3 = rgb[:, 3, :, :, :].permute(0, 3, 1, 2)
-        eePose = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_hist']), axis=0))
+        eePose = torch.from_numpy(np.stack(copy(data['eePose_hist']), axis=0))
         eePos = eePose[:, :, :3]
         eeRot = eePose[:, :, 3:7]
         eeOpen = eePose[:, :, 7:8]
@@ -327,7 +327,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         }
 
         if self.train_flag:
-            action = torch.from_numpy(np.stack(copy.deepcopy(data['eePose_futr']), axis=0))
+            action = torch.from_numpy(np.stack(copy(data['eePose_futr']), axis=0))
             action[..., :3] = normalize_pos(action[..., :3])
             action[..., 3:7] = normalise_quat(action[..., 3:7])
             batch['action'] = action
@@ -700,6 +700,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
         #     franka.visualize_pcd(xyz, rgb / 255, JP)
 
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
+
     def dataset_init(self):
         self.taskvar_instrs = json.load(open(self.config.TRAIN_DATASET.taskvar_instr_file))
         self.instr_embeds = np.load(self.config.TRAIN_DATASET.instr_embed_file, allow_pickle=True).item()
@@ -732,7 +733,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
         self.dataset_init_flag = True
 
     @staticmethod
-    def collect_fn_fk(data):
+    def collect_fn(data):
         batch = {}
         for key in data[0].keys():
             batch[key] = sum([x[key] for x in data], [])

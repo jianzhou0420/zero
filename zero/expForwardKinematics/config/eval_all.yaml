@@ -1,6 +1,4 @@
-
-
-exp_dir: /data/zero/zero/2_Train/0421_01/version_0
+exp_dir: /media/jian/ssd4t/zero/2_Train/0421_02_DP/version_0
 epoch: null
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]
@@ -31,5 +29,5 @@ config: null
 name: null
 checkpoint: null
 tasks_to_use: put_groceries_in_cupboard
-headless: 0
+headless: 1
 action_mode: 'eePose'  # eePose, JP

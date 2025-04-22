@@ -368,7 +368,7 @@ class DPWrapper(nn.Module):
         DP.set_normalizer(normalizer)
         self.DP = DP
 
-    def forward(self, batch):
+    def forward(self, batch, **kwargs):
         return self.DP.compute_loss(batch)
 
 

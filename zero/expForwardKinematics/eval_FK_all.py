@@ -28,19 +28,16 @@ from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 from zero.env.rlbench_lotus.recorder import TaskRecorder, StaticCameraMotion, CircleCameraMotion, AttachedCameraMotion
 
 # policy & pytorch-lightning
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorDA3D import ObsProcessorDA3D
-from zero.expForwardKinematics.trainer_DA3D import TrainerDA3D
+
+
 from zero.expForwardKinematics.config.default import build_args
-
-
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import ObsProcessorRLBenchBase
+from zero.expForwardKinematics.trainer_FK_all import Trainer_all
 # homemade utils
 from zero.z_utils.utilities_all import denormalize_JP, denormalize_pos, deconvert_rot
 
 # ----------------------------------------------
 # region Actioner
-
-JOINT_POSITION_LIMITS = [[-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973, 0],
-                         [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973, 1]]
 
 
 class Actioner(object):
@@ -48,43 +45,41 @@ class Actioner(object):
         self.args = eval_config
         if self.args.save_obs_outs_dir is not None:
             os.makedirs(self.args.save_obs_outs_dir, exist_ok=True)
-
         self.device = torch.device(eval_config['device'])
-
-        # config = get_config(args.model_config_path, args.remained_args)
         with open(eval_config.model_config_path, "r") as f:
             config = yaml.load(f, Loader=yaml.UnsafeLoader)
         self.config = config['config']
 
-        model = TrainerDA3D.load_from_checkpoint(checkpoint_path=eval_config['checkpoint'], config=self.config, strict=False)
-        self.model = model.policy
-        self.model.to(self.device)
-        self.model.eval()
+        model_name = self.config['Trainer']['model_name']
+        test = Trainer_all(self.config)
+        print('1111111')
+        # self.model = model.policy
+        # self.model.to(self.device)
+        # self.model.eval()
 
-        self.obs_processor = ObsProcessorDA3D(self.config, train_flag=False)
-        self.obs_processor.dataset_init()
+        # self.obs_processor = OBS_FACTORY[model_name](self.config, train_flag=False)  # type: ObsProcessorRLBenchBase
+        # self.obs_processor.dataset_init()
 
-        self.data_container = {
-            'JP_hist': [],
-            'eePose_hist': [],
-        }
-        self.taskvar_instrs = json.load(open(self.config['TrainDataset']['taskvar_instr_file']))
-        self.instr_embeds = np.load(self.config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
+        # self.data_container = {
+        #     'JP_hist': [],
+        #     'eePose_hist': [],
+        # }
 
     def preprocess_obs(self, taskvar, step_id, obs: Observation):
         obs_raw = self.obs_processor.obs_2_obs_raw(obs)
-
         # 一点中间处理
+
         JP_curr_no_open = copy(obs_raw['JP_curr_no_open'][0])
         is_open = obs_raw['action'][0][-1]
         JP_curr = np.concatenate((JP_curr_no_open, npa([is_open])), axis=0)
         eePose_curr = copy(obs_raw['action'][0])
+
         # TODO：迁移到obs_processor里面
         self.update_data_container('JP_hist', JP_curr)
         self.update_data_container('eePose_hist', eePose_curr)
         obs_raw['JP_hist_eval'] = self.data_container['JP_hist']
         obs_raw['eePose_hist_eval'] = self.data_container['eePose_hist']
-        obs_static = self.obs_processor.static_process_DA3D(obs_raw)
+        obs_static = self.obs_processor.static_process(obs_raw)
         obs_dynamic = self.obs_processor.dynamic_process(obs_static, taskvar)
         batch = self.obs_processor.collect_fn([obs_dynamic])
 
@@ -347,12 +342,10 @@ class Evaluator():
         get expriment folder which should be the version folder of pytorch lightning
         args:
         exp-config: the path of the eval config file
-
         '''
-        mp.set_start_method('spawn')
-
+        # mp.set_start_method('spawn')
         # 1. get eval config and train config
-        eval_config = build_args('/data/zero/zero/expForwardKinematics/config/eval_DA3D.yaml')
+        eval_config = build_args('/data/zero/zero/expForwardKinematics/config/eval_all.yaml')
         eval_config.defrost()
         exp_dir = eval_config['exp_dir']
         model_config_path = os.path.join(exp_dir, 'hparams.yaml')
@@ -489,7 +482,9 @@ def natural_sort_key(s):
 
 
 if __name__ == '__main__':
+    if mp.get_start_method(allow_none=True) != 'spawn':
+        mp.set_start_method('spawn')
     Evaluator.main()
     # def test_actioner():
-    #     eval_config = get_config('/data/zero/zero/expForwardKinematics/config/eval _DA3D.yaml')
+    #     eval_config = get_config('/data/zero/zero/expForwardKinematics/config/eval _fk.yaml')
     #     actioner = Actioner(eval_config)
