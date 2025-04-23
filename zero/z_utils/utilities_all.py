@@ -338,5 +338,3 @@ def deconvert_rot(signal):
         if quaternion_format == 'xyzw':
             signal[..., 3:7] = signal[..., (4, 5, 6, 3)]
     return signal
-
-#

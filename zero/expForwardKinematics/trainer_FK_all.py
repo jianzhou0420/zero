@@ -49,7 +49,7 @@ CONFIG_FACTORY = {
 # ---------------------------------------------------------------
 # region 0.Some tools
 warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
-
+warnings.filterwarnings("ignore", message="`torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.")
 torch.set_float32_matmul_precision('medium')
 
 
@@ -105,7 +105,7 @@ class MyDataModule(pl.LightningDataModule):
         else:
             self.use_val = True
         self.obs_processor = OBS_FACTORY[self.config['Trainer']['model_name']]
-        collect_fn = self.obs_processor.collect_fn
+        collect_fn = self.obs_processor.collate_fn
         train_dataset = DatasetAll(self.config, data_dir=train_data_path, ObsProcessor=self.obs_processor)
         self.train_dataset = train_dataset
 

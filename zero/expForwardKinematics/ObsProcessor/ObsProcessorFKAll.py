@@ -31,7 +31,6 @@ class ObsProcessorDA3D(ObsProcessorRLBenchBase):
     def __init__(self, config, train_flag=True):
         super().__init__(config,)
         self.config = config
-        self.gripper_loc_bounds = gripper_loc_bounds
         self.train_flag = train_flag
 
     def find_middle_actions(self, actions_path, theta_actions_path, sub_keyframe_dection_mode='avg', horizon=8):
@@ -190,7 +189,7 @@ class ObsProcessorDA3D(ObsProcessorRLBenchBase):
         self._resize = Resize(config['TrainDataset']['image_rescales'])
 
     @staticmethod
-    def collect_fn(batch):
+    def collate_fn(batch):
         collated = {}
         for key in batch[0]:
             # Concatenate the tensors from each dict in the batch along dim=0.
@@ -210,7 +209,6 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
     def __init__(self, config, train_flag=True):
         super().__init__(config,)
         self.config = config
-        self.gripper_loc_bounds = gripper_loc_bounds
         self.train_flag = train_flag
 
     def static_process(self, data):
@@ -293,8 +291,9 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
             out['eePose_hist'].append(eePose_hist)
         return out
 
-    def dynamic_process(self, data, **kwargs):
+    def dynamic_process(self, data, *args, **kwargs):
         batch = {}
+        H = self.config['FK']['ActionHead']['horizon']
         rgb = torch.from_numpy(np.stack(copy(data['rgb']), axis=0))
         image0 = rgb[:, 0, :, :, :].permute(0, 3, 1, 2)
         image1 = rgb[:, 1, :, :, :].permute(0, 3, 1, 2)
@@ -330,7 +329,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
             action = torch.from_numpy(np.stack(copy(data['eePose_futr']), axis=0))
             action[..., :3] = normalize_pos(action[..., :3])
             action[..., 3:7] = normalise_quat(action[..., 3:7])
-            batch['action'] = action
+            batch['action'] = action[:, :H, :]
 
         return batch
 
@@ -341,7 +340,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         self._resize = Resize(config['TrainDataset']['image_rescales'])
 
     @staticmethod
-    def collect_fn(batch):
+    def collate_fn(batch):
         collated = {
             'obs': {},
             'action': None,
@@ -349,7 +348,10 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         for key in batch[0]['obs'].keys():
             # Concatenate the tensors from each dict in the batch along dim=0.
             collated['obs'][key] = torch.cat([minibatch['obs'][key] for minibatch in batch], dim=0)
-        collated['action'] = torch.cat([minibatch['action'] for minibatch in batch], dim=0)
+        try:
+            collated['action'] = torch.cat([minibatch['action'] for minibatch in batch], dim=0)
+        except:
+            pass
         return collated
 
     # utils
@@ -359,6 +361,17 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         gt_theta_actions = [theta_actions_path[i] for i in indices]
         return gt_actions, gt_theta_actions
 
+    def denormalize_action(self, action: dict) -> list:
+        '''
+        assume action has shape (1, H, D), batch size, horizon, action dim
+        '''
+        action = action['action_pred']
+        action[..., :3] = denormalize_pos(action[..., :3])
+        action[..., 3:7] = action[..., 3:7]
+
+        action = [action[0, i, :].cpu().detach().numpy() for i in range(action.shape[1])]
+        return action
+# endregion
 # --------------------------------------------------------------
 # region FK
 
@@ -733,7 +746,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
         self.dataset_init_flag = True
 
     @staticmethod
-    def collect_fn(data):
+    def collate_fn(data):
         batch = {}
         for key in data[0].keys():
             batch[key] = sum([x[key] for x in data], [])

@@ -40,13 +40,16 @@ class BasePolicy(nn.Module):
         self.ActionHead = BaseActionHead()
         self.FeatureExtractor = BaseFeatureExtractor()
 
-    def forward(self, batch):
+    def forward(self, batch: dict) -> torch.Tensor:
         example_data = batch['data']
         features = self.FeatureExtractor(example_data)
         loss = self.ActionHead.forward(features,)
         return loss
 
-    def inference_one_sample_JP(self, batch):
+    def inference_one_sample(self, batch: dict) -> torch.Tensor:
+        '''
+        output action should already be denormalized
+        '''
         example_data = batch['data']
         features = self.FeatureExtractor(example_data)
         action = self.ActionHead.inference_one_sample(features,)

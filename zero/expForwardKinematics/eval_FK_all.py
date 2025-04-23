@@ -8,10 +8,10 @@ import json
 import jsonlines
 import torch
 import numpy as np
-import pickle
 from filelock import FileLock
 import random
 import torch.multiprocessing as mp
+
 from termcolor import colored
 from typing import Callable
 from copy import deepcopy as copy
@@ -28,11 +28,10 @@ from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 from zero.env.rlbench_lotus.recorder import TaskRecorder, StaticCameraMotion, CircleCameraMotion, AttachedCameraMotion
 
 # policy & pytorch-lightning
-
-
 from zero.expForwardKinematics.config.default import build_args
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import ObsProcessorRLBenchBase
-from zero.expForwardKinematics.trainer_FK_all import Trainer_all
+from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
+from zero.expForwardKinematics.trainer_FK_all import Trainer_all, OBS_FACTORY
 # homemade utils
 from zero.z_utils.utilities_all import denormalize_JP, denormalize_pos, deconvert_rot
 
@@ -51,28 +50,26 @@ class Actioner(object):
         self.config = config['config']
 
         model_name = self.config['Trainer']['model_name']
-        test = Trainer_all(self.config)
-        print('1111111')
-        # self.model = model.policy
-        # self.model.to(self.device)
-        # self.model.eval()
+        policy = Trainer_all.load_from_checkpoint(eval_config['checkpoint'], config=self.config)
 
-        # self.obs_processor = OBS_FACTORY[model_name](self.config, train_flag=False)  # type: ObsProcessorRLBenchBase
-        # self.obs_processor.dataset_init()
+        self.model = policy.policy  # type: BasePolicy
 
-        # self.data_container = {
-        #     'JP_hist': [],
-        #     'eePose_hist': [],
-        # }
+        self.obs_processor = OBS_FACTORY[model_name](self.config, train_flag=False)  # type: ObsProcessorRLBenchBase
+        self.obs_processor.dataset_init()
+
+        self.data_container = {
+            'JP_hist': [],
+            'eePose_hist': [],
+        }
 
     def preprocess_obs(self, taskvar, step_id, obs: Observation):
         obs_raw = self.obs_processor.obs_2_obs_raw(obs)
         # 一点中间处理
 
         JP_curr_no_open = copy(obs_raw['JP_curr_no_open'][0])
-        is_open = obs_raw['action'][0][-1]
+        is_open = obs_raw['eePose'][0][-1]
         JP_curr = np.concatenate((JP_curr_no_open, npa([is_open])), axis=0)
-        eePose_curr = copy(obs_raw['action'][0])
+        eePose_curr = copy(obs_raw['eePose'][0])
 
         # TODO：迁移到obs_processor里面
         self.update_data_container('JP_hist', JP_curr)
@@ -81,7 +78,7 @@ class Actioner(object):
         obs_raw['eePose_hist_eval'] = self.data_container['eePose_hist']
         obs_static = self.obs_processor.static_process(obs_raw)
         obs_dynamic = self.obs_processor.dynamic_process(obs_static, taskvar)
-        batch = self.obs_processor.collect_fn([obs_dynamic])
+        batch = self.obs_processor.collate_fn([obs_dynamic])
 
         for item in batch:
             if isinstance(batch[item], torch.Tensor):
@@ -89,33 +86,11 @@ class Actioner(object):
         return batch
 
     def predict(self, task_str=None, variation=None, step_id=None, obs_state_dict=None, episode_id=None, instructions=None,):
-
         # print(obs_state_dict)
         taskvar = f'{task_str}+{variation}'
         batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
-        with torch.no_grad():
-            if self.config['DiffuserActor']['Policy']['action_space'] == 'JP':
-                actions = self.model.inference_one_sample_JP(batch)[0].data.cpu()  # 原本这里是(7) # 现在，这里要变成(horizon_length,7)
-            elif self.config['DiffuserActor']['Policy']['action_space'] == 'eePose':
-                actions = self.model.inference_one_sample_eePose(batch)[0].data.cpu()
-            # actions analysis
-            if type(actions) == list:
-                actions = torch.stack(actions, 0)
-            if len(actions.shape) == 1:
-                # single horizon
-                actions = actions.unsqueeze(0)
-            if len(actions.shape) == 3:
-                actions = actions.squeeze(0)
-            # check actions shape
-
-        if self.config['DiffuserActor']['Policy']['action_space'] == 'JP':
-
-            actions = denormalize_JP(actions)
-        elif self.config['DiffuserActor']['Policy']['action_space'] == 'eePose':
-            actions[..., :3] = denormalize_pos(actions[..., :3])
-            actions = deconvert_rot(actions)
-
-        new_actions = [npa(actions[i]) for i in range(actions.shape[0])]
+        actions = self.model.inference_one_sample(batch)  # assume it has shape(1,H,action_dim)
+        new_actions = self.obs_processor.denormalize_action(actions)
 
         out = {
             'actions': new_actions
@@ -127,7 +102,7 @@ class Actioner(object):
                 {
                     'batch': {k: v.data.cpu().numpy() if isinstance(v, torch.Tensor) else v for k, v in batch.items()},
                     'obs': obs_state_dict,
-                    'action': new_actions
+                    'eePose': new_actions
                 }
             )
         return out
@@ -482,8 +457,8 @@ def natural_sort_key(s):
 
 
 if __name__ == '__main__':
-    if mp.get_start_method(allow_none=True) != 'spawn':
-        mp.set_start_method('spawn')
+    print('mp set start method spawn0101')
+    mp.set_start_method('spawn')
     Evaluator.main()
     # def test_actioner():
     #     eval_config = get_config('/data/zero/zero/expForwardKinematics/config/eval _fk.yaml')

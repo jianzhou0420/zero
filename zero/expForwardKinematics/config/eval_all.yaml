@@ -29,5 +29,5 @@ config: null
 name: null
 checkpoint: null
 tasks_to_use: put_groceries_in_cupboard
-headless: 1
+headless: 0
 action_mode: 'eePose'  # eePose, JP

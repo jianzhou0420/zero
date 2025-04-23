@@ -172,3 +172,13 @@ class ObsProcessorRLBenchBase:
         raise NotImplementedError(
             "ObsProcessorBase: collate_fn is not implemented, please implement it in your own ObsProcessor class."
         )
+
+    def denormalize_action(self, action):
+        """
+        Denormalize the action to the original space.
+        :param action: (A, )
+        :return: denormalized action
+        """
+        raise NotImplementedError(
+            "ObsProcessorBase: denormalize_action is not implemented, please implement it in your own ObsProcessor class."
+        )

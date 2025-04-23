@@ -45,39 +45,6 @@ FK:
       T: 100
     collision_loss: False
 
-  FeatureExtractor:
-    ptv3:
-      in_channels: 7
-      order: ["z", "z-trans", "hilbert", "hilbert-trans"]
-      stride: [2, 2, 2,2]
-      # encode 
-      enc_depths: [1, 1, 1, 1,1]
-      enc_channels: [64,128,128,256,512]
-      enc_num_head: [2, 4, 8, 16,32]
-      enc_patch_size: [128, 128, 128, 128,128]
-      mlp_ratio: 4
-      qkv_bias: True
-      qk_scale: null
-      qk_norm: True
-      scaled_cosine_attn: False
-      attn_drop: 0.1
-      proj_drop: 0.1
-      drop_path: 0
-      pre_norm: True
-      shuffle_orders: True
-      enable_rpe: False
-      enable_flash: False
-      upcast_attention: False
-      upcast_softmax: False
-      cls_mode: True ####这里改了
-      pdnorm_bn: False
-      pdnorm_ln: False
-      pdnorm_decouple: False
-      pdnorm_adaptive: False
-      pdnorm_affine: True
-      pdnorm_conditions: null
-      pdnorm_only_decoder: False
-      add_coords_in_attn: 'none' # none, qk, qkv
 
   ActionHead:
     d_model: 512
@@ -85,7 +52,7 @@ FK:
     d_ffw: 512
     n_heads: 8
     n_features: 96
-    horizon: 8
+    horizon: 4
     n_cross_attn_layers: 4
     n_self_attn_layers: 4
 

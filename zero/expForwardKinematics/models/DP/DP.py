@@ -1,3 +1,4 @@
+from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 from typing import Dict
 import torch
 import torch.nn as nn
@@ -150,6 +151,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         """
         assert 'past_action' not in obs_dict  # not implemented yet
         # normalize input
+        obs_dict = obs_dict['obs']
         nobs = self.normalizer.normalize(obs_dict)
         value = next(iter(nobs.values()))
         B, To = value.shape[:2]
@@ -282,7 +284,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         return loss
 
 
-class DPWrapper(nn.Module):
+class DPWrapper(BasePolicy):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -342,7 +344,7 @@ class DPWrapper(nn.Module):
             shape_meta=shape_meta,
             noise_scheduler=noise_scheduler,
             obs_encoder=encoder,
-            horizon=1,
+            horizon=self.config['FK']['ActionHead']['horizon'],
             n_action_steps=8,
             n_obs_steps=1,
             obs_as_global_cond=True,
@@ -371,9 +373,13 @@ class DPWrapper(nn.Module):
     def forward(self, batch, **kwargs):
         return self.DP.compute_loss(batch)
 
+    def inference_one_sample(self, batch):
+        results = self.DP.predict_action(batch)
+
+        return results
+
 
 if __name__ == '__main__':
-
     def test():
         shape_meta = {
             # acceptable types: rgb, low_dim
