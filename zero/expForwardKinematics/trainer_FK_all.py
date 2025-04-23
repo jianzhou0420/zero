@@ -52,9 +52,9 @@ DATASET_FACTORY: Dict[str, Type[Dataset]] = {
 
 
 CONFIG_FACTORY = {
-    'FK': '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/FK.yaml',
-    'DP': '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/DP.yaml',
-    'DA3D': '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/DA3DWrapper.yaml',
+    'FK': '/data/zero/zero/expForwardKinematics/config/FK.yaml',
+    'DP': '/data/zero/zero/expForwardKinematics/config/DP.yaml',
+    'DA3D': '/data/zero/zero/expForwardKinematics/config/DA3DWrapper.yaml',
 }
 
 OPTIMIZER_FACTORY = {

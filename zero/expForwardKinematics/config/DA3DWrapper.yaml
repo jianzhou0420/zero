@@ -22,4 +22,4 @@ Trainer:
 
 
 TrainDataset:
-  data_dir: /media/jian/ssd4t/zero/1_Data/E_ThirdParty/Peract_packaged
+  data_dir: /data/zero/1_Data/E_ThirdParty/Peract_packaged
