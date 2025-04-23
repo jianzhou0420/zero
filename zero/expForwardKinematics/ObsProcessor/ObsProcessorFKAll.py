@@ -21,6 +21,7 @@ from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPan
 import torchvision.transforms as transforms
 from codebase.z_utils.open3d import *
 from codebase.z_utils.idx_mask import *
+from codebase.z_utils.Rotation import quat2euler
 from scipy.spatial.transform import Rotation as R
 
 # --------------------------------------------------------------
@@ -328,7 +329,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         image3 = image3 / 255.0
 
         eePos = normalize_pos(eePos)
-        eeRot = normalise_quat(eeRot)
+        eeRot = tensorfp32([quat2euler(eeRot[i]) for i in range(eeRot.shape[0])]) / 3.15
 
         batch = {
             'obs': {
@@ -344,8 +345,10 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
 
         if self.train_flag:
             action = torch.from_numpy(np.stack(copy(data['eePose_futr']), axis=0))
-            action[..., :3] = normalize_pos(action[..., :3])
-            action[..., 3:7] = normalise_quat(action[..., 3:7])
+            act_pos = normalize_pos(action[..., :3])
+            act_rot = tensorfp32([quat2euler(action[i][..., 3:7]) for i in range(action.shape[0])]) / 3.15
+            act_open = action[..., 7:8]
+            action = torch.cat([act_pos, act_rot, act_open], dim=-1)
             batch['action'] = action[:, :H, :]
 
         return batch
@@ -466,9 +469,9 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
             rgb = obs_raw['rgb'][t].reshape(-1, 3)
 
             # 1. within workspace
-            in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
-                      (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
-                      (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+            in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) &\
+                (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) &\
+                (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
             # 2. remove table
             in_mask = in_mask & (xyz[:, 2] > self.WORKSPACE['TABLE_HEIGHT'])
             xyz = xyz[in_mask]
@@ -859,9 +862,9 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
         return gt_actions, gt_theta_actions
 
     def within_workspace(self, xyz, rgb):
-        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) & \
-                  (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) & \
-                  (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
+        in_mask = (xyz[:, 0] > self.WORKSPACE['X_BBOX'][0]) & (xyz[:, 0] < self.WORKSPACE['X_BBOX'][1]) &\
+            (xyz[:, 1] > self.WORKSPACE['Y_BBOX'][0]) & (xyz[:, 1] < self.WORKSPACE['Y_BBOX'][1]) &\
+            (xyz[:, 2] > self.WORKSPACE['Z_BBOX'][0]) & (xyz[:, 2] < self.WORKSPACE['Z_BBOX'][1])
         xyz = xyz[in_mask]
         rgb = rgb[in_mask]
         return xyz, rgb

@@ -7,12 +7,12 @@ Trainer:
   epoches: 800
   save_every_n_epochs: 100
   num_gpus: 1
-  
+  check_val_every_n_epoch: 25
 
 
   train:
     batch_size: 8
-    n_workers: 8
+    n_workers: 1
     pin_mem: True
     shuffle: True
 

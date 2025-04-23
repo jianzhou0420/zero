@@ -311,14 +311,14 @@ class DPWrapper(BasePolicy):
                     "shape": [3],
                 },
                 "eeRot": {
-                    "shape": [4],
+                    "shape": [3],
                 },
                 "eeOpen": {
                     "shape": [1],
                 },
             },
             "action": {
-                "shape": [8],
+                "shape": [7],
             },
         }
 
