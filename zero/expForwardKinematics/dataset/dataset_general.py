@@ -19,7 +19,7 @@ from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessor
 # region Dataset
 
 
-class DatasetAll(Dataset):
+class DatasetGeneral(Dataset):
     def __init__(self, config, data_dir: str, ObsProcessor: ObsProcessorRLBenchBase):
         super().__init__()
         '''
@@ -277,6 +277,6 @@ if __name__ == '__main__':
     config_path = '/data/zero/zero/expForwardKinematics/config/FK.yaml'
     config = get_config(config_path)
     data_dir = '/data/zero/1_Data/B_Preprocess/FK/1000_train_eval/train'
-    dataset = DatasetAll(config, data_dir)
+    dataset = DatasetGeneral(config, data_dir)
     loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collect_fn_fk)
     data1 = next(iter(loader))

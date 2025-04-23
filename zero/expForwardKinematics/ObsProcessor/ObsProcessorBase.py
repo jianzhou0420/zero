@@ -168,10 +168,15 @@ class ObsProcessorRLBenchBase:
         )
 
     @staticmethod
-    def collate_fn(self, **kwargs):
-        raise NotImplementedError(
-            "ObsProcessorBase: collate_fn is not implemented, please implement it in your own ObsProcessor class."
-        )
+    def collate_fn(batch, *args, **kwargs):
+        collated = {}
+        for key in batch[0]:
+            # Concatenate the tensors from each dict in the batch along dim=0.
+            try:
+                collated[key] = torch.cat([item[key] for item in batch], dim=0)
+            except:
+                continue
+        return collated
 
     def denormalize_action(self, action):
         """

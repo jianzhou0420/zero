@@ -5,7 +5,7 @@ import yacs.config
 import os
 import warnings
 import os
-
+from typing import Type, Dict
 # framework package
 import argparse
 import torch
@@ -15,15 +15,16 @@ from torch.utils.data.distributed import DistributedSampler
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 import pytorch_lightning as pl
-
+from torch.utils.data import Dataset
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.expForwardKinematics.models.FK.Policy import PolicyFK
 from zero.z_utils import *
 from zero.expForwardKinematics.models.DP.DP import DPWrapper
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import ObsProcessorDA3D, ObsProcessorDP, ObsProcessorFK
-from zero.expForwardKinematics.dataset.dataset_all import DatasetAll
-
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import ObsProcessorDA3D_Old, ObsProcessorDP, ObsProcessorFK, ObsProcessorDA3DWrapper, ObsProcessorRLBenchBase
+from zero.expForwardKinematics.dataset.dataset_general import DatasetGeneral
+from zero.expForwardKinematics.dataset.dataset_DA3DWrapper import DA3DDatasetWrapper
+from zero.expForwardKinematics.models.DA3DWrapper.DA3DWrapper import DA3DWrapper
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
@@ -32,29 +33,39 @@ os.environ['TORCH_USE_CUDA_DSA'] = "1"
 POLICY_FACTORY = {
     'FK': PolicyFK,
     'DP': DPWrapper,
+    'DA3D': DA3DWrapper,
 }
 
 
-OBS_FACTORY = {
-    'DA3D': ObsProcessorDA3D,
+OBS_FACTORY: Dict[str, Type[ObsProcessorRLBenchBase]] = {
     'FK': ObsProcessorFK,
     'DP': ObsProcessorDP,
+    'DA3D': ObsProcessorDA3DWrapper,
+
 }
+
+DATASET_FACTORY: Dict[str, Type[Dataset]] = {
+    'FK': DatasetGeneral,
+    'DP': DatasetGeneral,
+    'DA3D': DA3DDatasetWrapper,
+}
+
 
 CONFIG_FACTORY = {
     'FK': '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/FK.yaml',
     'DP': '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/DP.yaml',
+    'DA3D': '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/DA3DWrapper.yaml',
 }
 
-# ---------------------------------------------------------------
-# region 0.Some tools
+OPTIMIZER_FACTORY = {
+    'FK': torch.optim.AdamW,
+    'DP': torch.optim.AdamW,
+    'DA3D': torch.optim.AdamW,
+}
+
 warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
-warnings.filterwarnings("ignore", message="`torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.")
-torch.set_float32_matmul_precision('medium')
+warnings.filterwarnings("ignore", message="FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.")
 
-
-# endregion
-# ---------------------------------------------------------------
 
 # ---------------------------------------------------------------
 # region 1. Trainer
@@ -66,11 +77,12 @@ class Trainer_all(pl.LightningModule):
         self.save_hyperparameters()
         self.config = config
         Policy = POLICY_FACTORY[config['Trainer']['model_name']]
+        print(f"Policy: {Policy}")
         self.policy = Policy(config)
 
     def training_step(self, batch, batch_idx):
         loss = self.policy(batch)
-        self.log('train_loss', loss, prog_bar=True)
+        self.log('train_loss', loss, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -100,18 +112,23 @@ class MyDataModule(pl.LightningDataModule):
         data_dir = self.config['TrainDataset']['data_dir']
         train_data_path = os.path.join(data_dir, 'train')
         val_data_path = os.path.join(data_dir, 'val')
+
         if os.path.exists(val_data_path) is False:
             self.use_val = False
         else:
             self.use_val = True
-        self.obs_processor = OBS_FACTORY[self.config['Trainer']['model_name']]
-        collect_fn = self.obs_processor.collate_fn
-        train_dataset = DatasetAll(self.config, data_dir=train_data_path, ObsProcessor=self.obs_processor)
-        self.train_dataset = train_dataset
 
+        obs_processor = OBS_FACTORY[self.config['Trainer']['model_name']]
+        DatasetClass = DATASET_FACTORY[self.config['Trainer']['model_name']]
+
+        collect_fn = obs_processor.collate_fn
+        train_dataset = DatasetClass(self.config, data_dir=train_data_path, ObsProcessor=obs_processor)
+
+        self.train_dataset = train_dataset
         self.collect_fn = collect_fn
+
         if self.use_val:
-            val_dataset = DatasetAll(self.config, data_dir=val_data_path, ObsProcessor=self.obs_processor)
+            val_dataset = DatasetClass(self.config, data_dir=val_data_path, ObsProcessor=obs_processor)
             self.val_dataset = val_dataset
 
     def train_dataloader(self):
@@ -197,16 +214,22 @@ def train(config: yacs.config.CfgNode):
         name=log_name,
         version=None
     )
+    csvlogger = CSVLogger(
+        save_dir=log_path,
+        name=log_name,
+        version=None
+    )
 
     epoch_callback = EpochCallback()
     trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
                          max_epochs=config['Trainer']['epoches'],
                          devices='auto',
                          strategy='auto',
-                         logger=tflogger,
+                         logger=[tflogger, csvlogger],
                          #  profiler=profiler，
                          #  profiler='simple',
                          use_distributed_sampler=False,
+                         check_val_every_n_epoch=config['Trainer']['check_val_every_n_epoch'],
                          )
     config.freeze()
     trainer_model = Trainer_all(config)
@@ -219,7 +242,7 @@ def train(config: yacs.config.CfgNode):
 # ---------------------------------------------------------------
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description='Train FK')
-    argparser.add_argument('--model', type=str, default='FK', help='model name')
+    argparser.add_argument('--model', type=str, required=True, help='model name')
     args = argparser.parse_args()
 
     config_path = CONFIG_FACTORY[args.model]

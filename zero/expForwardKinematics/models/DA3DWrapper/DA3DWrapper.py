@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import einops
 from diffuser_actor.trajectory_optimization.diffuser_actor import DiffuserActor
+from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 
 
-class Wrapper(nn.Module):
+class DA3DWrapper(BasePolicy):
     def __init__(self, config):
         super().__init__()
         # 从bash /data/zero/wrapper/3d_diffuser_actor/scripts/train_keypose_peract.sh中获得。
@@ -23,6 +24,7 @@ class Wrapper(nn.Module):
         relative = False
         lang_enhanced = False
 
+        self.num_history = nhist
         self.model = DiffuserActor(
             backbone=backbone,
             image_size=image_size,
@@ -40,5 +42,17 @@ class Wrapper(nn.Module):
         )
 
     def forward(self, batch, *args, **kwargs):
+        sample = batch
+        curr_gripper = (
+            sample["curr_gripper"] if self.num_history < 1
+            else sample["curr_gripper_history"][:, -self.num_history:]
+        )
+        return self.model(sample["trajectory"],
+                          sample["trajectory_mask"],
+                          sample["rgbs"],
+                          sample["pcds"],
+                          sample["instr"],
+                          curr_gripper)
 
-        return self.model(*args, **kwargs)
+    def inference_one_sample(self, batch):
+        return super().inference_one_sample(batch)

@@ -27,7 +27,24 @@ from scipy.spatial.transform import Rotation as R
 # region DA3D
 
 
-class ObsProcessorDA3D(ObsProcessorRLBenchBase):
+class ObsProcessorDA3DWrapper(ObsProcessorRLBenchBase):
+    def __init__(self, config, train_flag=True):
+        super().__init__(config)
+        self.config = config
+        self.rotation_transform = RotationMatrixTransform()
+        self.WORKSPACE = get_robot_workspace(real_robot=False, use_vlm=False)
+        self.dataset_init_flag = False
+        self.train_flag = train_flag
+        self.franka = FrankaEmikaPanda()
+
+    def static_process(self, data):
+        pass
+
+    def dynamic_process(self, data):
+        pass
+
+
+class ObsProcessorDA3D_Old(ObsProcessorRLBenchBase):
     def __init__(self, config, train_flag=True):
         super().__init__(config,)
         self.config = config
