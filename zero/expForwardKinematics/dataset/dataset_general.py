@@ -104,7 +104,7 @@ class DatasetGeneral(Dataset):
 
         # 3.container
         self.cache = dict()
-        self.max_cache_length = 300
+        self.max_cache_length = 50
         print(f"max_cache_length: {self.max_cache_length}")
         self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
         self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
