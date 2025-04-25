@@ -26,9 +26,9 @@ from zero.expForwardKinematics.dataset.dataset_general import DatasetGeneral
 from zero.expForwardKinematics.dataset.dataset_DA3DWrapper import DA3DDatasetWrapper
 from zero.expForwardKinematics.models.DA3DWrapper.DA3DWrapper import DA3DWrapper
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ['TORCH_USE_CUDA_DSA'] = "1"
-
+# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+# os.environ['TORCH_USE_CUDA_DSA'] = "1"
+torch.set_float32_matmul_precision('medium')
 
 POLICY_FACTORY = {
     'FK': PolicyFK,
