@@ -181,12 +181,14 @@ class MyDataModule(pl.LightningDataModule):
 class EpochCallback(pl.Callback):
 
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        self.epoch_start_time = time.time()
+        # self.epoch_start_time = time.time()
+        pass
 
     def on_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        epoch_time = time.time() - self.epoch_start_time
-        print(f"Epoch {trainer.current_epoch} took {epoch_time:.2f} seconds")
-        trainer.logger.log_metrics({'epoch_time': epoch_time}, step=trainer.global_step)
+        pass
+        # epoch_time = time.time() - self.epoch_start_time
+        # print(f"Epoch {trainer.current_epoch} took {epoch_time:.2f} seconds")
+        # trainer.logger.log_metrics({'epoch_time': epoch_time}, step=trainer.global_step)
 # endregion
 # ---------------------------------------------------------------
 
@@ -203,10 +205,11 @@ def train(config: yacs.config.CfgNode):
     log_name = ckpt_name
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=config['Trainer']['save_every_n_epochs'],
+        every_n_epochs=1,
         save_top_k=-1,
         save_last=False,
-        filename=f'{ckpt_name}_' + '{epoch:03d}'  # Checkpoint filename
+        filename=f'{ckpt_name}_' + '{epoch:03d}',  # Checkpoint filename
+        save_on_train_epoch_end=True,  # must have it if you config check_val_every_n_epoch on trainer
     )
 
     tflogger = TensorBoardLogger(
@@ -220,12 +223,11 @@ def train(config: yacs.config.CfgNode):
         version=None
     )
 
-    epoch_callback = EpochCallback()
-    trainer = pl.Trainer(callbacks=[checkpoint_callback, epoch_callback],
+    trainer = pl.Trainer(callbacks=[checkpoint_callback, EpochCallback()],
                          max_epochs=config['Trainer']['epoches'],
                          devices='auto',
                          strategy='auto',
-                         logger=[tflogger, csvlogger],
+                         logger=[csvlogger, tflogger],
                          #  profiler=profiler，
                          #  profiler='simple',
                          use_distributed_sampler=False,

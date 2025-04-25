@@ -3,7 +3,7 @@ Trainer:
   lr: 0.001
   weight_decay: 0.0005
   epoches: 2400
-  save_every_n_epochs: 200
+  save_every_n_epochs: 1
   num_gpus: 1
   check_val_every_n_epoch: 25
 
