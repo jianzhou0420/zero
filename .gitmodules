@@ -4,3 +4,9 @@
 [submodule "6_ThirdParty/DA3D"]
 	path = 6_ThirdParty/DA3D
 	url = https://github.com/jianzhou0420/DA3D.git
+[submodule "6_ThirdParty/codebase"]
+	path = 6_ThirdParty/codebase
+	url = https://github.com/jianzhou0420/codebase.git
+[submodule "/data/zero/6_ThirdParty/rlbench"]
+	path = /data/zero/6_ThirdParty/rlbench
+	url = https://github.com/jianzhou0420/rlbench.git
