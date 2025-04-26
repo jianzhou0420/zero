@@ -1,0 +1,6 @@
+[submodule "6_third_party/DA3D"]
+	path = 6_third_party/DA3D
+	url = https://github.com/jianzhou0420/DA3D.git
+[submodule "6_ThirdParty/DA3D"]
+	path = 6_ThirdParty/DA3D
+	url = https://github.com/jianzhou0420/DA3D.git
