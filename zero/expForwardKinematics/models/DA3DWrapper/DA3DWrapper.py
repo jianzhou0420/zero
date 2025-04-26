@@ -54,5 +54,18 @@ class DA3DWrapper(BasePolicy):
                           sample["instr"],
                           curr_gripper)
 
+    @torch.no_grad()
     def inference_one_sample(self, batch):
-        return super().inference_one_sample(batch)
+        output = {"action": None, "trajectory": None}
+        for k in batch.keys():
+            batch[k] = batch[k].to(torch.device('cuda'))
+        output['trajectory'] = self.model(
+            batch["trajectory"],
+            batch["trajectory_mask"],
+            batch["rgbs"],
+            batch["pcds"],
+            batch["instr"],
+            batch["gripper"],
+            run_inference=True,
+        )
+        return output['trajectory']

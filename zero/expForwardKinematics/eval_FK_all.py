@@ -29,7 +29,7 @@ from zero.env.rlbench_lotus.recorder import TaskRecorder, StaticCameraMotion, Ci
 
 # policy & pytorch-lightning
 from zero.expForwardKinematics.config.default import build_args
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import ObsProcessorRLBenchBase
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import *
 from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 from zero.expForwardKinematics.trainer_FK_all import Trainer_all, OBS_FACTORY
 # homemade utils
@@ -37,6 +37,7 @@ from zero.z_utils.utilities_all import denormalize_JP, denormalize_pos, deconver
 
 # ----------------------------------------------
 # region Actioner
+# 12312313
 
 
 class Actioner(object):
@@ -61,8 +62,13 @@ class Actioner(object):
             'JP_hist': [],
             'eePose_hist': [],
         }
+        self.model_name = model_name
 
     def preprocess_obs(self, taskvar, step_id, obs: Observation):
+
+        if self.model_name == 'DA3D':
+            self.obs_processor  # type: ObsProcessorDA3DWrapper
+            return self.obs_processor.eval_process(obs, taskvar)
         obs_raw = self.obs_processor.obs_2_obs_raw(obs)
         # 一点中间处理
 
@@ -85,7 +91,22 @@ class Actioner(object):
                 batch[item] = batch[item].to(self.device)
         return batch
 
-    def predict(self, task_str=None, variation=None, step_id=None, obs_state_dict=None, episode_id=None, instructions=None,):
+    def process_and_save_actions(self):
+        pass
+
+    def update_data_container(self, name, value):
+        length = len(self.data_container[name])
+        H = 8  # TODO:horizon
+
+        if length == H:
+            self.data_container[name].pop(0)
+            self.data_container[name].append(value)
+        elif length == 0:
+            [self.data_container[name].append(value)for _ in range(H)]
+        else:
+            raise ValueError(f"data_container {name} length is {length}, but it should be 0 or {H}.")
+
+    def forward(self, task_str=None, variation=None, step_id=None, obs_state_dict=None, episode_id=None, instructions=None,):
         # print(obs_state_dict)
         taskvar = f'{task_str}+{variation}'
         batch = self.preprocess_obs(taskvar, step_id, obs_state_dict,)
@@ -106,21 +127,6 @@ class Actioner(object):
                 }
             )
         return out
-
-    def process_and_save_actions(self):
-        pass
-
-    def update_data_container(self, name, value):
-        length = len(self.data_container[name])
-        H = 8  # TODO:horizon
-
-        if length == H:
-            self.data_container[name].pop(0)
-            self.data_container[name].append(value)
-        elif length == 0:
-            [self.data_container[name].append(value)for _ in range(H)]
-        else:
-            raise ValueError(f"data_container {name} length is {length}, but it should be 0 or {H}.")
 # endregion
 # ----------------------------------------------
 # region Evaluator
@@ -130,7 +136,6 @@ class Evaluator():
     '''
     this class is just for code organization 
     '''
-
     @staticmethod
     def consumer_fn(args, batch_queue, result_queues):
         print('consumer start')
@@ -146,7 +151,7 @@ class Evaluator():
 
             # run one batch
             k_prod, batch = data
-            out = actioner.predict(**batch)
+            out = actioner.forward(**batch)
             result_queues[k_prod].put(out)
 
     @staticmethod
@@ -170,7 +175,7 @@ class Evaluator():
 
         env = RLBenchEnv(
             data_path=args['microstep_data_dir'],
-            apply_cameras=("left_shoulder", "right_shoulder", "overhead", "front"),
+            apply_cameras=("left_shoulder", "right_shoulder", "overhead", "wrist", "front"),
             apply_rgb=True,
             apply_pc=True,
             apply_mask=True,
@@ -400,6 +405,8 @@ class Evaluator():
         batch_queue.put(None)
         consumer.join()
 
+    def single_process_eval(self):
+        pass
 # endregion
 # ----------------------------------------------
 # region utils

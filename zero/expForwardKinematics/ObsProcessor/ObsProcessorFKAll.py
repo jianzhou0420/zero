@@ -8,10 +8,13 @@ from tqdm import tqdm
 import os
 import pickle
 import json
+import itertools
 import collections
 from numpy import array as npa
+from pathlib import Path
 import random
-
+from typing import Dict, Optional, Sequence
+from collections import defaultdict, Counter
 from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
 from zero.z_utils.utilities_all import *
@@ -21,28 +24,228 @@ from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPan
 import torchvision.transforms as transforms
 from codebase.z_utils.open3d import *
 from codebase.z_utils.idx_mask import *
-from codebase.z_utils.Rotation import quat2euler
+from codebase.z_utils.Rotation import quat2euler, euler2quat
 from scipy.spatial.transform import Rotation as R
-
+from typing_extensions import override
 # --------------------------------------------------------------
 # region DA3D
+DA3D_Instr = Dict[str, Dict[int, torch.Tensor]]
 
 
 class ObsProcessorDA3DWrapper(ObsProcessorRLBenchBase):
     def __init__(self, config, train_flag=True):
         super().__init__(config)
         self.config = config
-        self.rotation_transform = RotationMatrixTransform()
-        self.WORKSPACE = get_robot_workspace(real_robot=False, use_vlm=False)
         self.dataset_init_flag = False
         self.train_flag = train_flag
-        self.franka = FrankaEmikaPanda()
 
-    def static_process(self, data):
-        pass
+    @override
+    def dataset_init(self, **kwargs):
+        instructions = self.load_instructions('/data/zero/wrapper/3d_diffuser_actor/instructions/peract/instructions.pkl')
+        self._instructions = instructions
+        self.apply_cameras = ("left_shoulder", "right_shoulder", "wrist", "front")
+        self.apply_rgb = True
+        self.apply_depth = False
+        self.apply_pc = True
+        self.image_size = (256, 256)
 
-    def dynamic_process(self, data):
-        pass
+        self.data_container = {
+            'gripper': [],
+        }
+
+    @override
+    def denormalize_action(self, action) -> list:
+        '''
+        no change
+        '''
+        action = [action[0, i, :].cpu().detach().numpy() for i in range(action.shape[1])]
+        return action
+
+    @override
+    @staticmethod
+    def collate_fn(batch):
+        collated = {}
+        for key in batch[0]:
+            # Concatenate the tensors from each dict in the batch along dim=0.
+            try:
+                collated[key] = torch.cat([item[key] for item in batch], dim=0)
+            except:
+                continue
+        return collated
+
+    @torch.no_grad()
+    def eval_process(self, obs, taskvar):
+        interpolation_length = 2
+        rgbs, pcds, gripper = self.get_rgb_pcd_gripper_from_obs(obs)
+        task_str, variation = taskvar.split('_peract+')
+        instrs = self._instructions[task_str][int(variation)]
+        instr = random.choice(instrs).unsqueeze(0)
+        fake_traj = torch.full(
+            [1, interpolation_length - 1, gripper.shape[-1]], 0
+        ).to(rgbs.device)
+        traj_mask = torch.full(
+            [1, interpolation_length - 1], False
+        ).to(rgbs.device)
+
+        self.update_data_container('gripper', gripper)
+        gripper = torch.stack(self.data_container['gripper'], dim=1)
+
+        batch = {
+            'trajectory': fake_traj,
+            'trajectory_mask': traj_mask,
+            'rgbs': rgbs[:, :, :3, :, :],
+            'pcds': pcds,
+            'instr': instr,
+            'gripper': gripper[..., :7],
+        }
+        return batch
+
+    # utils
+
+    def get_rgb_pcd_gripper_from_obs(self, obs):
+        """
+        Return rgb, pcd, and gripper from a given observation
+        :param obs: an Observation from the env
+        :return: rgb, pcd, gripper
+        """
+        state_dict, gripper = self.get_obs_action(obs)
+        state = self._transform(state_dict, augmentation=False)
+        state = einops.rearrange(
+            state,
+            "(m n ch) h w -> n m ch h w",
+            ch=3,
+            n=len(self.apply_cameras),
+            m=2
+        )
+        rgb = state[:, 0].unsqueeze(0)  # 1, N, C, H, W
+        pcd = state[:, 1].unsqueeze(0)  # 1, N, C, H, W
+        gripper = gripper.unsqueeze(0)  # 1, D
+
+        attns = torch.Tensor([])
+        for cam in self.apply_cameras:
+            u, v = self._obs_to_attn(obs, cam)
+            attn = torch.zeros(1, 1, 1, self.image_size[0], self.image_size[1])
+            if not (u < 0 or u > self.image_size[1] - 1 or v < 0 or v > self.image_size[0] - 1):
+                attn[0, 0, 0, v, u] = 1
+            attns = torch.cat([attns, attn], 1)
+        rgb = torch.cat([rgb, attns], 2)
+
+        return rgb, pcd, gripper
+
+    def get_obs_action(self, obs):
+        """
+        Fetch the desired state and action based on the provided demo.
+            :param obs: incoming obs
+            :return: required observation and action list
+        """
+
+        # fetch state
+        state_dict = {"rgb": [], "depth": [], "pc": []}
+        for cam in self.apply_cameras:
+            if self.apply_rgb:
+                rgb = getattr(obs, "{}_rgb".format(cam))
+                state_dict["rgb"] += [rgb]
+
+            if self.apply_depth:
+                depth = getattr(obs, "{}_depth".format(cam))
+                state_dict["depth"] += [depth]
+
+            if self.apply_pc:
+                pc = getattr(obs, "{}_point_cloud".format(cam))
+                state_dict["pc"] += [pc]
+
+        # fetch action
+        action = np.concatenate([obs.gripper_pose, [obs.gripper_open]])
+        return state_dict, torch.from_numpy(action).float()
+
+    @staticmethod
+    def _transform(obs_dict, scale_size=(0.75, 1.25), augmentation=False):
+        apply_depth = len(obs_dict.get("depth", [])) > 0
+        apply_pc = len(obs_dict["pc"]) > 0
+        num_cams = len(obs_dict["rgb"])
+
+        obs_rgb = []
+        obs_depth = []
+        obs_pc = []
+        for i in range(num_cams):
+            rgb = torch.tensor(obs_dict["rgb"][i]).float().permute(2, 0, 1)
+            depth = (
+                torch.tensor(obs_dict["depth"][i]).float().permute(2, 0, 1)
+                if apply_depth
+                else None
+            )
+            pc = (
+                torch.tensor(obs_dict["pc"][i]).float().permute(2, 0, 1) if apply_pc else None
+            )
+
+            if augmentation:
+                raise NotImplementedError()  # Deprecated
+
+            # normalise to [-1, 1]
+            rgb = rgb / 255.0
+            rgb = 2 * (rgb - 0.5)
+
+            obs_rgb += [rgb.float()]
+            if depth is not None:
+                obs_depth += [depth.float()]
+            if pc is not None:
+                obs_pc += [pc.float()]
+        obs = obs_rgb + obs_depth + obs_pc
+        return torch.cat(obs, dim=0)
+
+    @staticmethod
+    def _obs_to_attn(obs, camera):
+        extrinsics_44 = torch.from_numpy(
+            obs.misc[f"{camera}_camera_extrinsics"]
+        ).float()
+        extrinsics_44 = torch.linalg.inv(extrinsics_44)
+        intrinsics_33 = torch.from_numpy(
+            obs.misc[f"{camera}_camera_intrinsics"]
+        ).float()
+        intrinsics_34 = F.pad(intrinsics_33, (0, 1, 0, 0))
+        gripper_pos_3 = torch.from_numpy(obs.gripper_pose[:3]).float()
+        gripper_pos_41 = F.pad(gripper_pos_3, (0, 1), value=1).unsqueeze(1)
+        points_cam_41 = extrinsics_44 @ gripper_pos_41
+
+        proj_31 = intrinsics_34 @ points_cam_41
+        proj_3 = proj_31.float().squeeze(1)
+        u = int((proj_3[0] / proj_3[2]).round())
+        v = int((proj_3[1] / proj_3[2]).round())
+
+        return u, v
+
+    @staticmethod
+    def load_instructions(
+        instructions: Optional[Path],
+        tasks: Optional[Sequence[str]] = None,
+        variations: Optional[Sequence[int]] = None,
+    ) -> Optional[DA3D_Instr]:
+        if instructions is not None:
+            with open(instructions, "rb") as fid:
+                data: DA3D_Instr = pickle.load(fid)
+            if tasks is not None:
+                data = {task: var_instr for task, var_instr in data.items() if task in tasks}
+            if variations is not None:
+                data = {
+                    task: {
+                        var: instr for var, instr in var_instr.items() if var in variations
+                    }
+                    for task, var_instr in data.items()
+                }
+            return data
+        return None
+
+    def update_data_container(self, name, value):
+        length = len(self.data_container[name])
+        H = 3  # TODO:horizon
+
+        if length == H:
+            self.data_container[name].pop(0)
+            self.data_container[name].append(value)
+        elif length == 0:
+            [self.data_container[name].append(value)for _ in range(H)]
+        else:
+            raise ValueError(f"data_container {name} length is {length}, but it should be 0 or {H}.")
 
 
 class ObsProcessorDA3D_Old(ObsProcessorRLBenchBase):
@@ -229,6 +432,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         self.config = config
         self.train_flag = train_flag
 
+    @override
     def static_process(self, data):
         out = {
             'xyz': [],
@@ -309,6 +513,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
             out['eePose_hist'].append(eePose_hist)
         return out
 
+    @override
     def dynamic_process(self, data, *args, **kwargs):
         batch = {}
         H = self.config['FK']['ActionHead']['horizon']
@@ -353,12 +558,14 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
 
         return batch
 
+    @override
     def dataset_init(self):
         config = self.config
         self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
         self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
         self._resize = Resize(config['TrainDataset']['image_rescales'])
 
+    @override
     @staticmethod
     def collate_fn(batch):
         collated = {
@@ -381,16 +588,26 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         gt_theta_actions = [theta_actions_path[i] for i in indices]
         return gt_actions, gt_theta_actions
 
+    @override
     def denormalize_action(self, action: dict) -> list:
         '''
         assume action has shape (1, H, D), batch size, horizon, action dim
         '''
         action = action['action_pred']
-        action[..., :3] = denormalize_pos(action[..., :3])
-        action[..., 3:7] = action[..., 3:7]
+        B, H, D = action.shape
+        new_action = np.zeros((B, H, 8), dtype=np.float32)
+        new_action[:, :, :3] = denormalize_pos(action[:, :, :3]).cpu().detach().numpy()
+        angles = action[:, :, 3:6].cpu().detach().numpy() * 3.15
 
-        action = [action[0, i, :].cpu().detach().numpy() for i in range(action.shape[1])]
-        return action
+        angles = einops.rearrange(angles, 'b h d -> (b h) d')
+        angles = euler2quat(angles)
+        angles = einops.rearrange(angles, '(b h) d -> b h d', b=B, h=H)
+        new_action[:, :, 3:7] = angles
+        new_action[:, :, 7:8] = action[:, :, 6:7].cpu().detach().numpy()
+
+        new_action = [new_action[0, i, :] for i in range(H)]
+
+        return new_action
 # endregion
 # --------------------------------------------------------------
 # region FK
@@ -413,6 +630,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
         self.train_flag = train_flag
         self.franka = FrankaEmikaPanda()
 
+    @override
     def static_process(self, obs_raw):
         '''
         obs_raw={
@@ -668,6 +886,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
 
         return obs_static_process
 
+    @override
     def dynamic_process(self, data, taskvar):
         '''
         1. Downsample point cloud
@@ -733,7 +952,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
         #     franka.visualize_pcd(xyz, rgb / 255, JP)
 
         # 暂时只要了 rgb,pcd,joint_position_history,joint_position_future和txt
-
+    @override
     def dataset_init(self):
         self.taskvar_instrs = json.load(open(self.config.TRAIN_DATASET.taskvar_instr_file))
         self.instr_embeds = np.load(self.config.TRAIN_DATASET.instr_embed_file, allow_pickle=True).item()
@@ -765,6 +984,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
         self.rotation_transform = RotationMatrixTransform()
         self.dataset_init_flag = True
 
+    @override
     @staticmethod
     def collate_fn(data):
         batch = {}
@@ -1029,5 +1249,6 @@ def get_robot_workspace(real_robot=False, use_vlm=False):
         'Y_BBOX': Y_BBOX,
         'Z_BBOX': Z_BBOX
     }
+
 
 # endregion

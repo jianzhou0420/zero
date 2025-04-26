@@ -1,0 +1,25 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: linux-64
+@EXPLICIT
+https://repo.anaconda.com/pkgs/main/linux-64/_libgcc_mutex-0.1-main.conda#c3473ff8bdb3d124ed5ff11ec380d6f9
+https://repo.anaconda.com/pkgs/main/linux-64/ca-certificates-2024.11.26-h06a4308_0.conda#cebd61e6520159a1315d679321620f6c
+https://repo.anaconda.com/pkgs/main/linux-64/ld_impl_linux-64-2.40-h12ee557_0.conda#ee672b5f635340734f58d618b7bca024
+https://repo.anaconda.com/pkgs/main/linux-64/libstdcxx-ng-11.2.0-h1234567_1.conda#57623d10a70e09e1d048c2b2b6f4e2dd
+https://repo.anaconda.com/pkgs/main/noarch/tzdata-2024b-h04d1e81_0.conda#9be694715c6a65f9631bb1b242125e9d
+https://repo.anaconda.com/pkgs/main/linux-64/libgomp-11.2.0-h1234567_1.conda#b372c0eea9b60732fdae4b817a63c8cd
+https://repo.anaconda.com/pkgs/main/linux-64/_openmp_mutex-5.1-1_gnu.conda#71d281e9c2192cb3fa425655a8defb85
+https://repo.anaconda.com/pkgs/main/linux-64/libgcc-ng-11.2.0-h1234567_1.conda#a87728dabf3151fb9cfa990bd2eb0464
+https://repo.anaconda.com/pkgs/main/linux-64/bzip2-1.0.8-h5eee18b_6.conda#f21a3ff51c1b271977f53ce956a69297
+https://repo.anaconda.com/pkgs/main/linux-64/libffi-3.4.4-h6a678d5_1.conda#70646cc713f0c43926cfdcfe9b695fe0
+https://repo.anaconda.com/pkgs/main/linux-64/libuuid-1.41.5-h5eee18b_0.conda#4a6a2354414c9080327274aa514e5299
+https://repo.anaconda.com/pkgs/main/linux-64/ncurses-6.4-h6a678d5_0.conda#5558eec6e2191741a92f832ea826251c
+https://repo.anaconda.com/pkgs/main/linux-64/openssl-3.0.15-h5eee18b_0.conda#019e501b69841c6d4aeaef3b8619a678
+https://repo.anaconda.com/pkgs/main/linux-64/xz-5.4.6-h5eee18b_1.conda#1562802f843297ee776a50b9329597ed
+https://repo.anaconda.com/pkgs/main/linux-64/zlib-1.2.13-h5eee18b_1.conda#92e42d8310108b0a440fb2e60b2b2a25
+https://repo.anaconda.com/pkgs/main/linux-64/readline-8.2-h5eee18b_0.conda#be42180685cce6e6b0329201d9f48efb
+https://repo.anaconda.com/pkgs/main/linux-64/tk-8.6.14-h39e8969_0.conda#78dbc5e3c69143ebc037fc5d5b22e597
+https://repo.anaconda.com/pkgs/main/linux-64/sqlite-3.45.3-h5eee18b_0.conda#acf93d6aceb74d6110e20b44cc45939e
+https://repo.anaconda.com/pkgs/main/linux-64/python-3.10.16-he870216_1.conda#2e23313e7401de5e071765ad2fba894e
+https://repo.anaconda.com/pkgs/main/linux-64/wheel-0.44.0-py310h06a4308_0.conda#3fa4f6aaedd291383b608c70d1ea46ae
+https://repo.anaconda.com/pkgs/main/linux-64/pip-24.2-py310h06a4308_0.conda#d79843883fd017af69e0df44ba9d164c

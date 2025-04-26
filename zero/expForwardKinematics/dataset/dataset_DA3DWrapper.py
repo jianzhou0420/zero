@@ -290,6 +290,7 @@ class DA3DDatasetWrapper(DA3DDataset):
 
         )
         taskvar = [('put_groceries_in_cupboard', 0), ('put_groceries_in_cupboard', 1), ('put_groceries_in_cupboard', 2), ('put_groceries_in_cupboard', 3), ('put_groceries_in_cupboard', 4), ('put_groceries_in_cupboard', 5), ('put_groceries_in_cupboard', 6), ('put_groceries_in_cupboard', 7), ('put_groceries_in_cupboard', 8)]
+
         max_episode_length = 5
         cache_size = 600
         max_episodes_per_task = -1

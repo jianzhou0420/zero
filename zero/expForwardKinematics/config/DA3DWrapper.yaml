@@ -1,9 +1,9 @@
 Trainer:
   model_name: DA3D
-  lr: 0.01
+  lr: 0.001
   weight_decay: 0.0005
   epoches: 2400
-  save_every_n_epochs: 1
+  save_every_n_epochs: 200
   num_gpus: 1
   check_val_every_n_epoch: 25
 
