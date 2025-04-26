@@ -10,3 +10,6 @@
 [submodule "/data/zero/6_ThirdParty/rlbench"]
 	path = /data/zero/6_ThirdParty/rlbench
 	url = https://github.com/jianzhou0420/rlbench.git
+[submodule "6_ThirdParty/rlbench"]
+	path = 6_ThirdParty/rlbench
+	url = https://github.com/jianzhou0420/rlbench.git
