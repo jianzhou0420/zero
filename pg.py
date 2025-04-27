@@ -1,4 +1,4 @@
-from codebase.z_utils.Rotation import euler2quat
-import torch
+import rlbench
 
-eulers = torch.randn(1, 4, 4)
+
+print("RLBench version:", rlbench.__version__)
