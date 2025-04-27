@@ -7,6 +7,3 @@
 [submodule "6_ThirdParty/rlbench"]
 	path = 6_ThirdParty/rlbench
 	url = https://github.com/jianzhou0420/rlbench.git
-[submodule "6_ThirdParty/HDP"]
-	path = 6_ThirdParty/HDP
-	url = https://github.com/jianzhou0420/hdp.git
