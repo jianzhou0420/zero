@@ -1,0 +1,875 @@
+{
+  "2504.17784v1": {
+    "title": "Gripper Keypose and Object Pointflow as Interfaces for Bimanual Robotic   Manipulation",
+    "authors": [
+      "Yuyin Yang",
+      "Zetao Cai",
+      "Yang Tian",
+      "Jia Zeng",
+      "Jiangmiao Pang"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-24T17:58:30Z",
+    "link": "http://arxiv.org/abs/2504.17784v1"
+  },
+  "2504.17771v1": {
+    "title": "Integrating Learning-Based Manipulation and Physics-Based Locomotion for   Whole-Body Badminton Robot Control",
+    "authors": [
+      "Haochen Wang",
+      "Zhiwei Shi",
+      "Chengxi Zhu",
+      "Yafei Qiao",
+      "Cheng Zhang",
+      "Fan Yang",
+      "Pengjie Ren",
+      "Lan Lu",
+      "Dong Xuan"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI",
+      "cs.LG"
+    ],
+    "published": "2025-04-24T17:46:29Z",
+    "link": "http://arxiv.org/abs/2504.17771v1"
+  },
+  "2504.17080v1": {
+    "title": "Geometric Formulation of Unified Force-Impedance Control on SE(3) for   Robotic Manipulators",
+    "authors": [
+      "Joohwan Seo",
+      "Nikhil Potu Surya Prakash",
+      "Soomi Lee",
+      "Arvind Kruthiventy",
+      "Megan Teng",
+      "Jongeun Choi",
+      "Roberto Horowitz"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.SY",
+      "eess.SY"
+    ],
+    "published": "2025-04-23T20:06:09Z",
+    "link": "http://arxiv.org/abs/2504.17080v1"
+  },
+  "2504.16925v1": {
+    "title": "Latent Diffusion Planning for Imitation Learning",
+    "authors": [
+      "Amber Xie",
+      "Oleh Rybkin",
+      "Dorsa Sadigh",
+      "Chelsea Finn"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI"
+    ],
+    "published": "2025-04-23T17:53:34Z",
+    "link": "http://arxiv.org/abs/2504.16925v1"
+  },
+  "2504.16916v1": {
+    "title": "Zero-shot Sim-to-Real Transfer for Reinforcement Learning-based Visual   Servoing of Soft Continuum Arms",
+    "authors": [
+      "Hsin-Jung Yang",
+      "Mahsa Khosravi",
+      "Benjamin Walt",
+      "Girish Krishnan",
+      "Soumik Sarkar"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.SY",
+      "eess.SY"
+    ],
+    "published": "2025-04-23T17:41:55Z",
+    "link": "http://arxiv.org/abs/2504.16916v1"
+  },
+  "2504.16843v1": {
+    "title": "Physically Consistent Humanoid Loco-Manipulation using Latent Diffusion   Models",
+    "authors": [
+      "Ilyass Taouil",
+      "Haizhou Zhao",
+      "Angela Dai",
+      "Majid Khadiv"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.GR"
+    ],
+    "published": "2025-04-23T16:07:02Z",
+    "link": "http://arxiv.org/abs/2504.16843v1"
+  },
+  "2504.16738v1": {
+    "title": "MOSAIC: A Skill-Centric Algorithmic Framework for Long-Horizon   Manipulation Planning",
+    "authors": [
+      "Itamar Mishani",
+      "Yorai Shaoul",
+      "Maxim Likhachev"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI"
+    ],
+    "published": "2025-04-23T14:09:42Z",
+    "link": "http://arxiv.org/abs/2504.16738v1"
+  },
+  "2504.16693v1": {
+    "title": "PIN-WM: Learning Physics-INformed World Models for Non-Prehensile   Manipulation",
+    "authors": [
+      "Wenxuan Li",
+      "Hang Zhao",
+      "Zhiyuan Yu",
+      "Yu Du",
+      "Qin Zou",
+      "Ruizhen Hu",
+      "Kai Xu"
+    ],
+    "categories": [
+      "cs.LG",
+      "cs.RO"
+    ],
+    "published": "2025-04-23T13:27:07Z",
+    "link": "http://arxiv.org/abs/2504.16693v1"
+  },
+  "2504.16649v1": {
+    "title": "PP-Tac: Paper Picking Using Tactile Feedback in Dexterous Robotic Hands",
+    "authors": [
+      "Pei Lin",
+      "Yuzhe Huang",
+      "Wanlin Li",
+      "Jianpeng Ma",
+      "Chenxi Xiao",
+      "Ziyuan Jiao"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-23T12:10:11Z",
+    "link": "http://arxiv.org/abs/2504.16649v1"
+  },
+  "2504.16464v1": {
+    "title": "ManipDreamer: Boosting Robotic Manipulation World Model with Action Tree   and Visual Guidance",
+    "authors": [
+      "Ying Li",
+      "Xiaobao Wei",
+      "Xiaowei Chi",
+      "Yuming Li",
+      "Zhongyu Zhao",
+      "Hao Wang",
+      "Ningning Ma",
+      "Ming Lu",
+      "Shanghang Zhang"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI"
+    ],
+    "published": "2025-04-23T07:23:41Z",
+    "link": "http://arxiv.org/abs/2504.16464v1"
+  },
+  "2504.16224v1": {
+    "title": "Mass-Adaptive Admittance Control for Robotic Manipulators",
+    "authors": [
+      "Hossein Gholampour",
+      "Jonathon E. Slightam",
+      "Logan E. Beaver"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.SY",
+      "eess.SY"
+    ],
+    "published": "2025-04-22T19:34:42Z",
+    "link": "http://arxiv.org/abs/2504.16224v1"
+  },
+  "2504.16054v1": {
+    "title": "$π_{0.5}$: a Vision-Language-Action Model with Open-World   Generalization",
+    "authors": [
+      "Physical Intelligence",
+      "Kevin Black",
+      "Noah Brown",
+      "James Darpinian",
+      "Karan Dhabalia",
+      "Danny Driess",
+      "Adnan Esmail",
+      "Michael Equi",
+      "Chelsea Finn",
+      "Niccolo Fusai",
+      "Manuel Y. Galliker",
+      "Dibya Ghosh",
+      "Lachy Groom",
+      "Karol Hausman",
+      "Brian Ichter",
+      "Szymon Jakubczak",
+      "Tim Jones",
+      "Liyiming Ke",
+      "Devin LeBlanc",
+      "Sergey Levine",
+      "Adrian Li-Bell",
+      "Mohith Mothukuri",
+      "Suraj Nair",
+      "Karl Pertsch",
+      "Allen Z. Ren",
+      "Lucy Xiaoyang Shi",
+      "Laura Smith",
+      "Jost Tobias Springenberg",
+      "Kyle Stachowicz",
+      "James Tanner",
+      "Quan Vuong",
+      "Homer Walke",
+      "Anna Walling",
+      "Haohuan Wang",
+      "Lili Yu",
+      "Ury Zhilinsky"
+    ],
+    "categories": [
+      "cs.LG",
+      "cs.RO"
+    ],
+    "published": "2025-04-22T17:31:29Z",
+    "link": "http://arxiv.org/abs/2504.16054v1"
+  },
+  "2504.15740v1": {
+    "title": "CaRoSaC: A Reinforcement Learning-Based Kinematic Control of   Cable-Driven Parallel Robots by Addressing Cable Sag through Simulation",
+    "authors": [
+      "Rohit Dhakate",
+      "Thomas Jantos",
+      "Eren Allak",
+      "Stephan Weiss",
+      "Jan Steinbrener"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-22T09:45:06Z",
+    "link": "http://arxiv.org/abs/2504.15740v1"
+  },
+  "2504.15714v1": {
+    "title": "Autonomous Control of Redundant Hydraulic Manipulator Using   Reinforcement Learning with Action Feedback",
+    "authors": [
+      "Rohit Dhakate",
+      "Christian Brommer",
+      "Christoph Böhm",
+      "Stephan Weiss",
+      "Jan Steinbrener"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-22T08:55:28Z",
+    "link": "http://arxiv.org/abs/2504.15714v1"
+  },
+  "2504.15595v1": {
+    "title": "Grasping Deformable Objects via Reinforcement Learning with Cross-Modal   Attention to Visuo-Tactile Inputs",
+    "authors": [
+      "Yonghyun Lee",
+      "Sungeun Hong",
+      "Min-gu Kim",
+      "Gyeonghwan Kim",
+      "Changjoo Nam"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-22T05:22:31Z",
+    "link": "http://arxiv.org/abs/2504.15595v1"
+  },
+  "2504.15561v1": {
+    "title": "SPECI: Skill Prompts based Hierarchical Continual Imitation Learning for   Robot Manipulation",
+    "authors": [
+      "Jingkai Xu",
+      "Xiangli Nie"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.LG"
+    ],
+    "published": "2025-04-22T03:30:38Z",
+    "link": "http://arxiv.org/abs/2504.15561v1"
+  },
+  "2504.15535v1": {
+    "title": "VibeCheck: Using Active Acoustic Tactile Sensing for Contact-Rich   Manipulation",
+    "authors": [
+      "Kaidi Zhang",
+      "Do-Gon Kim",
+      "Eric T. Chang",
+      "Hua-Hsuan Liang",
+      "Zhanpeng He",
+      "Kathryn Lampo",
+      "Philippe Wu",
+      "Ioannis Kymissis",
+      "Matei Ciocarlie"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-22T02:25:01Z",
+    "link": "http://arxiv.org/abs/2504.15535v1"
+  },
+  "2504.15517v1": {
+    "title": "Few-Shot Vision-Language Action-Incremental Policy Learning",
+    "authors": [
+      "Mingchen Song",
+      "Xiang Deng",
+      "Guoqiang Zhong",
+      "Qi Lv",
+      "Jia Wan",
+      "Yinchuan Li",
+      "Jianye Hao",
+      "Weili Guan"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.LG"
+    ],
+    "published": "2025-04-22T01:30:47Z",
+    "link": "http://arxiv.org/abs/2504.15517v1"
+  },
+  "2504.15472v1": {
+    "title": "LAPP: Large Language Model Feedback for Preference-Driven Reinforcement   Learning",
+    "authors": [
+      "Pingcheng Jian",
+      "Xiao Wei",
+      "Yanbaihui Liu",
+      "Samuel A. Moore",
+      "Michael M. Zavlanos",
+      "Boyuan Chen"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.LG",
+      "cs.SY",
+      "eess.SY"
+    ],
+    "published": "2025-04-21T22:46:29Z",
+    "link": "http://arxiv.org/abs/2504.15472v1"
+  },
+  "2504.15229v1": {
+    "title": "Immersive Teleoperation Framework for Locomanipulation Tasks",
+    "authors": [
+      "Takuya Boehringer",
+      "Jonathan Embley-Riches",
+      "Karim Hammoud",
+      "Valerio Modugno",
+      "Dimitrios Kanoulas"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-21T17:00:31Z",
+    "link": "http://arxiv.org/abs/2504.15229v1"
+  },
+  "2504.15226v1": {
+    "title": "A Genetic Fuzzy-Enabled Framework on Robotic Manipulation for In-Space   Servicing",
+    "authors": [
+      "Nathan Steffen",
+      "Wilhelm Louw",
+      "Nicholas Ernest",
+      "Timothy Arnett",
+      "Kelly Cohen"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI",
+      "cs.SY",
+      "eess.SY"
+    ],
+    "published": "2025-04-21T16:57:56Z",
+    "link": "http://arxiv.org/abs/2504.15226v1"
+  },
+  "2504.15329v1": {
+    "title": "Vision6D: 3D-to-2D Interactive Visualization and Annotation Tool for 6D   Pose Estimation",
+    "authors": [
+      "Yike Zhang",
+      "Eduardo Davalos",
+      "Jack Noble"
+    ],
+    "categories": [
+      "cs.GR",
+      "cs.CV",
+      "cs.HC",
+      "cs.RO"
+    ],
+    "published": "2025-04-21T16:36:52Z",
+    "link": "http://arxiv.org/abs/2504.15329v1"
+  },
+  "2504.14989v1": {
+    "title": "Dynamic Legged Ball Manipulation on Rugged Terrains with Hierarchical   Reinforcement Learning",
+    "authors": [
+      "Dongjie Zhu",
+      "Zhuo Yang",
+      "Tianhang Wu",
+      "Luzhou Ge",
+      "Xuesong Li",
+      "Qi Liu",
+      "Xiang Li"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-21T09:38:38Z",
+    "link": "http://arxiv.org/abs/2504.14989v1"
+  },
+  "2504.14857v1": {
+    "title": "SuFIA-BC: Generating High Quality Demonstration Data for Visuomotor   Policy Learning in Surgical Subtasks",
+    "authors": [
+      "Masoud Moghani",
+      "Nigel Nelson",
+      "Mohamed Ghanem",
+      "Andres Diaz-Pinto",
+      "Kush Hari",
+      "Mahdi Azizian",
+      "Ken Goldberg",
+      "Sean Huver",
+      "Animesh Garg"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-21T04:50:24Z",
+    "link": "http://arxiv.org/abs/2504.14857v1"
+  },
+  "2504.14755v1": {
+    "title": "Safe Autonomous Environmental Contact for Soft Robots using Control   Barrier Functions",
+    "authors": [
+      "Akua K. Dickson",
+      "Juan C. Pacheco Garcia",
+      "Meredith L. Anderson",
+      "Ran Jing",
+      "Sarah Alizadeh-Shabdiz",
+      "Audrey X. Wang",
+      "Charles DeLorey",
+      "Zach J. Patterson",
+      "Andrew P. Sabelhaus"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.SY",
+      "eess.SY"
+    ],
+    "published": "2025-04-20T22:31:55Z",
+    "link": "http://arxiv.org/abs/2504.14755v1"
+  },
+  "2504.14739v1": {
+    "title": "A Modularized Design Approach for GelSight Family of Vision-based   Tactile Sensors",
+    "authors": [
+      "Arpit Agarwal",
+      "Mohammad Amin Mirzaee",
+      "Xiping Sun",
+      "Wenzhen Yuan"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI"
+    ],
+    "published": "2025-04-20T21:07:41Z",
+    "link": "http://arxiv.org/abs/2504.14739v1"
+  },
+  "2504.14712v1": {
+    "title": "BiDexHand: Design and Evaluation of an Open-Source 16-DoF Biomimetic   Dexterous Hand",
+    "authors": [
+      "Zhengyang Kris Weng"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-20T18:56:20Z",
+    "link": "http://arxiv.org/abs/2504.14712v1"
+  },
+  "2504.14634v2": {
+    "title": "Latent Representations for Visual Proprioception in Inexpensive Robots",
+    "authors": [
+      "Sahara Sheikholeslami",
+      "Ladislau Bölöni"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.CV"
+    ],
+    "published": "2025-04-20T14:24:54Z",
+    "link": "http://arxiv.org/abs/2504.14634v2"
+  },
+  "2504.14588v1": {
+    "title": "Phoenix: A Motion-based Self-Reflection Framework for Fine-grained   Robotic Action Correction",
+    "authors": [
+      "Wenke Xia",
+      "Ruoxuan Feng",
+      "Dong Wang",
+      "Di Hu"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI",
+      "cs.CV"
+    ],
+    "published": "2025-04-20T12:30:43Z",
+    "link": "http://arxiv.org/abs/2504.14588v1"
+  },
+  "2504.14573v1": {
+    "title": "Modality Selection and Skill Segmentation via Cross-Modality Attention",
+    "authors": [
+      "Jiawei Jiang",
+      "Kei Ota",
+      "Devesh K. Jha",
+      "Asako Kanezaki"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI"
+    ],
+    "published": "2025-04-20T11:32:43Z",
+    "link": "http://arxiv.org/abs/2504.14573v1"
+  },
+  "2504.14556v1": {
+    "title": "LLM-Enabled In-Context Learning for Data Collection Scheduling in   UAV-assisted Sensor Networks",
+    "authors": [
+      "Yousef Emami",
+      "Hao Gao",
+      "SeyedSina Nabavirazani",
+      "Luis Almeida"
+    ],
+    "categories": [
+      "cs.AI",
+      "cs.ET",
+      "cs.LG",
+      "cs.RO",
+      "53-01",
+      "C.2"
+    ],
+    "published": "2025-04-20T10:05:07Z",
+    "link": "http://arxiv.org/abs/2504.14556v1"
+  },
+  "2504.14305v1": {
+    "title": "Adversarial Locomotion and Motion Imitation for Humanoid Policy Learning",
+    "authors": [
+      "Jiyuan Shi",
+      "Xinzhe Liu",
+      "Dewei Wang",
+      "Ouyang Lu",
+      "Sören Schwertfeger",
+      "Fuchun Sun",
+      "Chenjia Bai",
+      "Xuelong Li"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-19T14:03:57Z",
+    "link": "http://arxiv.org/abs/2504.14305v1"
+  },
+  "2504.14007v1": {
+    "title": "Knitting Robots: A Deep Learning Approach for Reverse-Engineering Fabric   Patterns",
+    "authors": [
+      "Haoliang Sheng",
+      "Songpu Cai",
+      "Xingyu Zheng",
+      "Meng Cheng Lau"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.LG"
+    ],
+    "published": "2025-04-18T18:00:37Z",
+    "link": "http://arxiv.org/abs/2504.14007v1"
+  },
+  "2504.13807v1": {
+    "title": "DiffOG: Differentiable Policy Trajectory Optimization with   Generalizability",
+    "authors": [
+      "Zhengtong Xu",
+      "Zichen Miao",
+      "Qiang Qiu",
+      "Zhe Zhang",
+      "Yu She"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-18T17:20:27Z",
+    "link": "http://arxiv.org/abs/2504.13807v1"
+  },
+  "2504.13800v1": {
+    "title": "Unified Manipulability and Compliance Analysis of Modular Soft-Rigid   Hybrid Fingers",
+    "authors": [
+      "Jianshu Zhou",
+      "Boyuan Liang",
+      "Junda Huang",
+      "Masayoshi Tomizuka"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-18T17:05:54Z",
+    "link": "http://arxiv.org/abs/2504.13800v1"
+  },
+  "2504.13713v2": {
+    "title": "SLAM&Render: A Benchmark for the Intersection Between Neural Rendering,   Gaussian Splatting and SLAM",
+    "authors": [
+      "Samuel Cerezo",
+      "Gaetano Meli",
+      "Tomás Berriel Martins",
+      "Kirill Safronov",
+      "Javier Civera"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.CV"
+    ],
+    "published": "2025-04-18T14:28:34Z",
+    "link": "http://arxiv.org/abs/2504.13713v2"
+  },
+  "2504.13711v1": {
+    "title": "Self-Mixing Laser Interferometry: In Search of an Ambient   Noise-Resilient Alternative to Acoustic Sensing",
+    "authors": [
+      "Remko Proesmans",
+      "Thomas Lips",
+      "Francis wyffels"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-18T14:20:14Z",
+    "link": "http://arxiv.org/abs/2504.13711v1"
+  },
+  "2504.13672v1": {
+    "title": "Magnecko: Design and Control of a Quadrupedal Magnetic Climbing Robot",
+    "authors": [
+      "Stefan Leuthard",
+      "Timo Eugster",
+      "Nicolas Faesch",
+      "Riccardo Feingold",
+      "Connor Flynn",
+      "Michael Fritsche",
+      "Nicolas Hürlimann",
+      "Elena Morbach",
+      "Fabian Tischhauser",
+      "Matthias Müller",
+      "Markus Montenegro",
+      "Valerio Schelbert",
+      "Jia-Ruei Chiu",
+      "Philip Arm",
+      "Marco Hutter"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-18T13:06:09Z",
+    "link": "http://arxiv.org/abs/2504.13672v1"
+  },
+  "2504.13618v1": {
+    "title": "On the Importance of Tactile Sensing for Imitation Learning: A Case   Study on Robotic Match Lighting",
+    "authors": [
+      "Niklas Funk",
+      "Changqi Chen",
+      "Tim Schneider",
+      "Georgia Chalvatzaki",
+      "Roberto Calandra",
+      "Jan Peters"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-18T10:48:46Z",
+    "link": "http://arxiv.org/abs/2504.13618v1"
+  },
+  "2504.13370v1": {
+    "title": "Multi-Sensor Fusion-Based Mobile Manipulator Remote Control for   Intelligent Smart Home Assistance",
+    "authors": [
+      "Xiao Jin",
+      "Bo Xiao",
+      "Huijiang Wang",
+      "Wendong Wang",
+      "Zhenhua Yu"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.HC"
+    ],
+    "published": "2025-04-17T22:33:38Z",
+    "link": "http://arxiv.org/abs/2504.13370v1"
+  },
+  "2504.13351v1": {
+    "title": "Chain-of-Modality: Learning Manipulation Programs from Multimodal Human   Videos with Vision-Language-Models",
+    "authors": [
+      "Chen Wang",
+      "Fei Xia",
+      "Wenhao Yu",
+      "Tingnan Zhang",
+      "Ruohan Zhang",
+      "C. Karen Liu",
+      "Li Fei-Fei",
+      "Jie Tan",
+      "Jacky Liang"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI",
+      "cs.HC",
+      "cs.LG",
+      "cs.MM"
+    ],
+    "published": "2025-04-17T21:31:23Z",
+    "link": "http://arxiv.org/abs/2504.13351v1"
+  },
+  "2504.13179v1": {
+    "title": "ViTa-Zero: Zero-shot Visuotactile Object 6D Pose Estimation",
+    "authors": [
+      "Hongyu Li",
+      "James Akl",
+      "Srinath Sridhar",
+      "Tye Brady",
+      "Taskin Padir"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.CV"
+    ],
+    "published": "2025-04-17T17:59:56Z",
+    "link": "http://arxiv.org/abs/2504.13179v1"
+  },
+  "2504.13175v1": {
+    "title": "Novel Demonstration Generation with Gaussian Splatting Enables Robust   One-Shot Manipulation",
+    "authors": [
+      "Sizhe Yang",
+      "Wenye Yu",
+      "Jia Zeng",
+      "Jun Lv",
+      "Kerui Ren",
+      "Cewu Lu",
+      "Dahua Lin",
+      "Jiangmiao Pang"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-17T17:59:43Z",
+    "link": "http://arxiv.org/abs/2504.13175v1"
+  },
+  "2504.13165v1": {
+    "title": "RUKA: Rethinking the Design of Humanoid Hands with Learning",
+    "authors": [
+      "Anya Zorin",
+      "Irmak Guzey",
+      "Billy Yan",
+      "Aadhithya Iyer",
+      "Lisa Kondrich",
+      "Nikhil X. Bhattasali",
+      "Lerrel Pinto"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI"
+    ],
+    "published": "2025-04-17T17:58:59Z",
+    "link": "http://arxiv.org/abs/2504.13165v1"
+  },
+  "2504.13059v1": {
+    "title": "RoboTwin: Dual-Arm Robot Benchmark with Generative Digital Twins",
+    "authors": [
+      "Yao Mu",
+      "Tianxing Chen",
+      "Zanxin Chen",
+      "Shijia Peng",
+      "Zhiqian Lan",
+      "Zeyu Gao",
+      "Zhixuan Liang",
+      "Qiaojun Yu",
+      "Yude Zou",
+      "Mingkun Xu",
+      "Lunkai Lin",
+      "Zhiqiang Xie",
+      "Mingyu Ding",
+      "Ping Luo"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI",
+      "cs.CL"
+    ],
+    "published": "2025-04-17T16:14:24Z",
+    "link": "http://arxiv.org/abs/2504.13059v1"
+  },
+  "2504.13056v1": {
+    "title": "Adaptive Task Space Non-Singular Terminal Super-Twisting Sliding Mode   Control of a 7-DOF Robotic Manipulator",
+    "authors": [
+      "L. Wan",
+      "S. Smith",
+      "Y. -J. Pan",
+      "E. Witrant"
+    ],
+    "categories": [
+      "eess.SY",
+      "cs.RO",
+      "cs.SY"
+    ],
+    "published": "2025-04-17T16:11:33Z",
+    "link": "http://arxiv.org/abs/2504.13056v1"
+  },
+  "2504.12967v1": {
+    "title": "Krysalis Hand: A Lightweight, High-Payload, 18-DoF Anthropomorphic   End-Effector for Robotic Learning and Dexterous Manipulation",
+    "authors": [
+      "Al Arsh Basheer",
+      "Justin Chang",
+      "Yuyang Chen",
+      "David Kim",
+      "Iman Soltani"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-17T14:19:26Z",
+    "link": "http://arxiv.org/abs/2504.12967v1"
+  },
+  "2504.12908v1": {
+    "title": "Taccel: Scaling Up Vision-based Tactile Robotics via High-performance   GPU Simulation",
+    "authors": [
+      "Yuyang Li",
+      "Wenxin Du",
+      "Chang Yu",
+      "Puhao Li",
+      "Zihang Zhao",
+      "Tengyu Liu",
+      "Chenfanfu Jiang",
+      "Yixin Zhu",
+      "Siyuan Huang"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.CV"
+    ],
+    "published": "2025-04-17T12:57:11Z",
+    "link": "http://arxiv.org/abs/2504.12908v1"
+  },
+  "2504.12755v1": {
+    "title": "Trajectory Adaptation using Large Language Models",
+    "authors": [
+      "Anurag Maurya",
+      "Tashmoy Ghosh",
+      "Ravi Prakash"
+    ],
+    "categories": [
+      "cs.RO",
+      "cs.AI"
+    ],
+    "published": "2025-04-17T08:48:23Z",
+    "link": "http://arxiv.org/abs/2504.12755v1"
+  },
+  "2504.12719v1": {
+    "title": "B*: Efficient and Optimal Base Placement for Fixed-Base Manipulators",
+    "authors": [
+      "Zihang Zhao",
+      "Leiyao Cui",
+      "Sirui Xie",
+      "Saiyao Zhang",
+      "Zhi Han",
+      "Lecheng Ruan",
+      "Yixin Zhu"
+    ],
+    "categories": [
+      "cs.RO"
+    ],
+    "published": "2025-04-17T07:48:50Z",
+    "link": "http://arxiv.org/abs/2504.12719v1"
+  }
+}

@@ -1,0 +1,18 @@
+
+
+save_path: /data/zero/1_Data/A_Selfgen/20demo_put_groceries/train/test
+all_task_file: /data/zero/assets/peract_tasks.json
+image_size:
+  - 256
+  - 256
+renderer: opengl
+processes: 2
+episodes_per_task: 10
+variations: -1
+offset: 0
+state: false
+tasks:
+  - put_groceries_in_cupboard
+
+var: [1]
+num: 100
