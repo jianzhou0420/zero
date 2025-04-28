@@ -203,7 +203,7 @@ class DataGenerator:
         all_tasks = [task_file_to_task_class(t + '_peract') for t in all_tasks]
         print('Tasks:', all_tasks)
         all_tasks = [all_tasks[0]]
-        pbar = tqdm(total=config['episodes_per_task'], desc=f"{all_tasks[0].__name__}")
+        pbar = tqdm(total=len(config['var']) * config['num'], desc=f"{all_tasks[0].__name__}")
         for i, each_task in enumerate(all_tasks):
             test = DataGenerator(config)
             for j, var in enumerate(config['var']):
