@@ -4,12 +4,8 @@ import numpy as np
 import torch
 from copy import deepcopy as copy
 import einops
-from tqdm import tqdm
-import os
 import pickle
 import json
-import itertools
-import collections
 from numpy import array as npa
 from pathlib import Path
 import random
@@ -273,8 +269,8 @@ class ObsProcessorDA3D_Old(ObsProcessorRLBenchBase):
 
         if self.train_flag:
             pass
-            action_all = data['actions_all']
-            joint_position_all = data['joint_position_all']
+            action_all = data['eePose_all']
+            JP_all = data['JP_all']
 
             # save path
             num_frames = len(data['rgb']) - 1
@@ -284,12 +280,12 @@ class ObsProcessorDA3D_Old(ObsProcessorRLBenchBase):
                 rgb = data['rgb'][i]
                 xyz = data['xyz'][i]
 
-                action_curr = copy(np.array(data['action'][i], dtype=np.float64))
-                action_next = copy(np.array(data['action'][i + 1], dtype=np.float64))
+                action_curr = copy(np.array(data['eePose'][i], dtype=np.float64))
+                action_next = copy(np.array(data['eePose'][i + 1], dtype=np.float64))
                 action_path = copy(np.array(action_all[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
                 open_all = np.array([a[7] for a in action_all])
-                JP_all_copy = copy(joint_position_all)
+                JP_all_copy = copy(JP_all)
                 JP_all_copy = np.concatenate([JP_all_copy, open_all[:, None]], axis=1)
 
                 JP_curr = copy(np.array(JP_all_copy[data['key_frameids'][i]], dtype=np.float64))
@@ -445,8 +441,8 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
 
         if self.train_flag:
             pass
-            action_all = data['actions_all']
-            joint_position_all = data['joint_position_all']
+            action_all = data['eePose_all']
+            JP_all = data['JP_all']
 
             # save path
             num_frames = len(data['rgb']) - 1
@@ -456,12 +452,12 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
                 rgb = data['rgb'][i]
                 xyz = data['xyz'][i]
 
-                action_curr = copy(np.array(data['action'][i], dtype=np.float64))
-                action_next = copy(np.array(data['action'][i + 1], dtype=np.float64))
+                action_curr = copy(np.array(data['eePose'][i], dtype=np.float64))
+                action_next = copy(np.array(data['eePose'][i + 1], dtype=np.float64))
                 action_path = copy(np.array(action_all[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
                 open_all = np.array([a[7] for a in action_all])
-                JP_all_copy = copy(joint_position_all)
+                JP_all_copy = copy(JP_all)
                 JP_all_copy = np.concatenate([JP_all_copy, open_all[:, None]], axis=1)
 
                 JP_curr = copy(np.array(JP_all_copy[data['key_frameids'][i]], dtype=np.float64))
@@ -479,7 +475,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
                     eePose_hist = [action_all[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
                     JP_hist = [JP_all_copy[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
                 # eePose_futr
-                eePose_futr, JP_futr = self.find_middle_actions(action_path, JP_path, sub_keyframe_dection_mode='avg')
+                eePose_futr, JP_futr = self.find_middle_actions(action_path, JP_path)
 
                 # concatenate
                 eePose_hist = np.stack(eePose_hist, axis=0)
@@ -554,7 +550,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
             act_rot = tensorfp32([quat2euler(action[i][..., 3:7]) for i in range(action.shape[0])]) / 3.15
             act_open = action[..., 7:8]
             action = torch.cat([act_pos, act_rot, act_open], dim=-1)
-            batch['action'] = action[:, :H, :]
+            batch['eePose'] = action[:, :H, :]
 
         return batch
 
@@ -570,13 +566,13 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
     def collate_fn(batch):
         collated = {
             'obs': {},
-            'action': None,
+            'eePose': None,
         }
         for key in batch[0]['obs'].keys():
             # Concatenate the tensors from each dict in the batch along dim=0.
             collated['obs'][key] = torch.cat([minibatch['obs'][key] for minibatch in batch], dim=0)
         try:
-            collated['action'] = torch.cat([minibatch['action'] for minibatch in batch], dim=0)
+            collated['eePose'] = torch.cat([minibatch['eePose'] for minibatch in batch], dim=0)
         except:
             pass
         return collated
@@ -637,12 +633,12 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
             'key_frameids': [],
             'rgb': [],
             'xyz': [],
-            'action': [],
+            'eePose': [],
             'bbox': [],
             'pose': [],
             'sem': [],# 空的
-            'actions_all': [],
-            'joint_position_all': [],
+            'eePose_all': [],
+            'JP_all': [],
             'JP_curr_no_open':[],
             'JP_hist_eval':[],
         }
@@ -707,7 +703,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
 
             # 3. remove robot get gripper idx
             JP_curr = copy(np.array(obs_raw['JP_curr_no_open'][t], dtype=np.float64))
-            JP_curr = np.concatenate([JP_curr, np.array([obs_raw['action'][t][-1]])], axis=0)
+            JP_curr = np.concatenate([JP_curr, np.array([obs_raw['eePose'][t][-1]])], axis=0)
             mask = self._rm_robot_by_JP(xyz, JP_curr)
             xyz = xyz[~mask]
             rgb = rgb[~mask]
@@ -813,13 +809,13 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
         # only for train
 
         if self.train_flag:
-            action_all = obs_raw['actions_all']
-            JP_all = obs_raw['joint_position_all']
+            action_all = obs_raw['eePose_all']
+            JP_all = obs_raw['JP_all']
             for t in range(num_keyframes_with_end):
                 # copy
                 keyframe_id = copy(np.array(obs_raw['key_frameids'][t], dtype=np.int16))
-                eePose_curr = copy(np.array(obs_raw['action'][t], dtype=np.float64))
-                eePose_next = copy(np.array(obs_raw['action'][t + 1], dtype=np.float64))
+                eePose_curr = copy(np.array(obs_raw['eePose'][t], dtype=np.float64))
+                eePose_next = copy(np.array(obs_raw['eePose'][t + 1], dtype=np.float64))
                 eePose_path = copy(np.array(action_all[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
                 JP_all_copy = np.concatenate([copy(JP_all), np.array([a[7] for a in action_all])[:, None]], axis=1)
@@ -1252,3 +1248,7 @@ def get_robot_workspace(real_robot=False, use_vlm=False):
 
 
 # endregion
+
+
+if __name__ == '__main__':
+    pass

@@ -1,9 +1,15 @@
 # helper package
+try:
+    import warnings
+    warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
+    warnings.filterwarnings("ignore", category=FutureWarning, message=".*torch.cuda.amp.custom_bwd.*")
+    warnings.filterwarnings("ignore", category=FutureWarning, message=".*torch.cuda.amp.custom_fwd.*")
+except:
+    pass
 import time
 from datetime import datetime
 import yacs.config
 import os
-import warnings
 import os
 from typing import Type, Dict
 # framework package
@@ -62,9 +68,6 @@ OPTIMIZER_FACTORY = {
     'DP': torch.optim.AdamW,
     'DA3D': torch.optim.AdamW,
 }
-
-warnings.filterwarnings("ignore", message="Gimbal lock detected. Setting third angle to zero")
-warnings.filterwarnings("ignore", message="FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.")
 
 
 # ---------------------------------------------------------------

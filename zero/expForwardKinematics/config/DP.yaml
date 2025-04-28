@@ -3,7 +3,7 @@ test: 1
 Trainer:
   model_name: DP
   lr: 0.00001
-  weight_decay: 0.001
+  weight_decay: 0.00001
   epoches: 800
   save_every_n_epochs: 100
   num_gpus: 1
@@ -24,7 +24,7 @@ Trainer:
 
 
 TrainDataset:
-  data_dir: /media/jian/ssd4t/zero/1_Data/A_Selfgen/keypose/singleVar/
+  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DP/keypose/singleVar
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
