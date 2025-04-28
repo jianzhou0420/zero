@@ -550,7 +550,7 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
             act_rot = tensorfp32([quat2euler(action[i][..., 3:7]) for i in range(action.shape[0])]) / 3.15
             act_open = action[..., 7:8]
             action = torch.cat([act_pos, act_rot, act_open], dim=-1)
-            batch['eePose'] = action[:, :H, :]
+            batch['action'] = action[:, :H, :]
 
         return batch
 
@@ -566,13 +566,13 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
     def collate_fn(batch):
         collated = {
             'obs': {},
-            'eePose': None,
+            'action': None,
         }
         for key in batch[0]['obs'].keys():
             # Concatenate the tensors from each dict in the batch along dim=0.
             collated['obs'][key] = torch.cat([minibatch['obs'][key] for minibatch in batch], dim=0)
         try:
-            collated['eePose'] = torch.cat([minibatch['eePose'] for minibatch in batch], dim=0)
+            collated['action'] = torch.cat([minibatch['action'] for minibatch in batch], dim=0)
         except:
             pass
         return collated
@@ -1169,8 +1169,10 @@ class Resize:
 def tensorfp32(x):
     if torch.is_tensor(x):
         x = x.float()
-    else:
-        x = torch.tensor(x, dtype=torch.float32)
+    elif isinstance(x, np.ndarray):
+        x = torch.from_numpy(x).float()
+    elif isinstance(x, list):
+        x = torch.from_numpy(np.array(x)).float()
     return x
 
 

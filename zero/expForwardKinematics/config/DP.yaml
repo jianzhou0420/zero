@@ -5,6 +5,7 @@ Trainer:
   lr: 0.00001
   weight_decay: 0.00001
   epoches: 800
+  max_steps: -1
   save_every_n_epochs: 100
   num_gpus: 1
   check_val_every_n_epoch: 25

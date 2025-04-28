@@ -6,6 +6,7 @@ try:
     warnings.filterwarnings("ignore", category=FutureWarning, message=".*torch.cuda.amp.custom_fwd.*")
 except:
     pass
+
 import time
 from datetime import datetime
 import yacs.config
@@ -32,8 +33,8 @@ from zero.expForwardKinematics.dataset.dataset_general import DatasetGeneral
 from zero.expForwardKinematics.dataset.dataset_DA3DWrapper import DA3DDatasetWrapper
 from zero.expForwardKinematics.models.DA3DWrapper.DA3DWrapper import DA3DWrapper
 
-# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-# os.environ['TORCH_USE_CUDA_DSA'] = "1"
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+os.environ['TORCH_USE_CUDA_DSA'] = "1"
 torch.set_float32_matmul_precision('medium')
 
 POLICY_FACTORY = {
@@ -228,6 +229,7 @@ def train(config: yacs.config.CfgNode):
     )
 
     trainer = pl.Trainer(callbacks=[checkpoint_callback, EpochCallback()],
+                         #  max_steps=config['Trainer']['max_steps'],
                          max_epochs=config['Trainer']['epoches'],
                          devices='auto',
                          strategy='auto',
