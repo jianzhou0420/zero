@@ -24,7 +24,7 @@ Trainer:
 
 
 TrainDataset:
-  data_dir: /data/zero/1_Data/B_Preprocess/DA3D/
+  data_dir: /media/jian/ssd4t/zero/1_Data/A_Selfgen/keypose/singleVar/
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
