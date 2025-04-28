@@ -1,23 +1,14 @@
 from diffusion_policy_3d.model.common.normalizer import SingleFieldLinearNormalizer
-from typing import Dict
-import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from einops import rearrange, reduce
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers.schedulers.scheduling_ddim import DDIMScheduler
 from termcolor import cprint
-import copy
-import time
+
 
 from diffusion_policy_3d.model.common.normalizer import LinearNormalizer
-from diffusion_policy_3d.policy.base_policy import BasePolicy
-from diffusion_policy_3d.model.diffusion.conditional_unet1d import ConditionalUnet1D
-from diffusion_policy_3d.model.diffusion.mask_generator import LowdimMaskGenerator
-from diffusion_policy_3d.common.pytorch_util import dict_apply, dict_apply_jian
-from diffusion_policy_3d.common.model_util import print_params
-from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
+
+from diffusion_policy_3d.policy.dp3 import DP3
+
 from omegaconf import OmegaConf, DictConfig
 
 
@@ -79,7 +70,7 @@ class DP3Wrapper(nn.Module):
             down_dims=(512, 1024, 2048),
             crop_shape=(80, 80),
             encoder_output_dim=64,
-            horizon=16,
+            horizon=8,
             kernel_size=5,
             n_action_steps=8,
             n_groups=8,
@@ -105,3 +96,18 @@ class DP3Wrapper(nn.Module):
 
     def inference_one_sample(self, batch):
         self.model.predict_action(batch['obs'])
+
+
+if __name__ == "__main__":
+    dp3 = DP3Wrapper()
+
+    batch = {
+        'obs': {
+            'point_cloud': torch.randn(2, 10, 4096, 3),
+            'agent_pos': torch.randn(2, 10, 8),
+        },
+        'action': torch.randn(2, 8, 8),
+    }
+
+    loss = dp3(batch)
+    print(loss)
