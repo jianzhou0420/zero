@@ -440,6 +440,7 @@ if __name__ == '__main__':
             n_groups=8,
             cond_predict_scale=True
         )
+
         normalizer = LinearNormalizer()
         normalizer['image0'] = get_image_range_normalizer()
         normalizer['image1'] = get_image_range_normalizer()

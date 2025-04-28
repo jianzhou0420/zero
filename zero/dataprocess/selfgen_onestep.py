@@ -8,7 +8,6 @@ import os
 from multiprocessing import Process, Manager, Semaphore
 
 from pyrep.const import RenderMode
-
 from rlbench import ObservationConfig
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity
