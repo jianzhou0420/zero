@@ -37,7 +37,6 @@ from zero.z_utils.utilities_all import denormalize_JP, denormalize_pos, deconver
 
 # ----------------------------------------------
 # region Actioner
-# 12312313
 
 
 class Actioner(object):
@@ -127,6 +126,7 @@ class Actioner(object):
                 }
             )
         return out
+
 # endregion
 # ----------------------------------------------
 # region Evaluator
@@ -464,9 +464,5 @@ def natural_sort_key(s):
 
 
 if __name__ == '__main__':
-    print('mp set start method spawn0101')
     mp.set_start_method('spawn')
     Evaluator.main()
-    # def test_actioner():
-    #     eval_config = get_config('/data/zero/zero/expForwardKinematics/config/eval _fk.yaml')
-    #     actioner = Actioner(eval_config)

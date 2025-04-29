@@ -53,7 +53,7 @@ FK:
     d_ffw: 512
     n_heads: 8
     n_features: 96
-    horizon: 4
+    horizon: 1
     n_cross_attn_layers: 4
     n_self_attn_layers: 4
 
