@@ -1,0 +1,69 @@
+
+test: 1
+Trainer:
+  model_name: DP
+  lr: 0.00001
+  weight_decay: 0.00001
+  epoches: 800
+  max_steps: -1
+  save_every_n_epochs: 100
+  num_gpus: 1
+  check_val_every_n_epoch: 25
+
+
+  train:
+    batch_size: 8
+    n_workers: 4
+    pin_mem: True
+    shuffle: True
+
+  val:
+    batch_size: 8
+    n_workers: 8
+    pin_mem: True
+    shuffle: False
+
+
+TrainDataset:
+  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DP/keypose/singleVar
+  tasks_to_use: null
+  cache_dataset_init_path: null
+  image_rescales: [0.75,1.25]
+  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
+  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
+  taskvar_file: '/data/zero/assets/taskvars_peract.json'
+
+  num_points: 4096
+  augmentation: False
+
+FK:
+  Policy:
+    num_timesteps: 100
+    use_instruction: False
+    DDPM:
+      beta_1: 0.0001
+      beta_T: 0.02
+      T: 100
+    collision_loss: False
+
+
+  ActionHead:
+    d_model: 512
+    d_instr: 512
+    d_ffw: 512
+    n_heads: 8
+    n_features: 96
+    horizon: 4
+    n_cross_attn_layers: 4
+    n_self_attn_layers: 4
+
+
+# region tmp
+Dataset:
+  voxel_size: 0.01
+  txt_ft_size: 512
+  context_channels: 256
+  txt_reduce: 'attn' # mean, attn
+  max_seq_len: 20
+
+

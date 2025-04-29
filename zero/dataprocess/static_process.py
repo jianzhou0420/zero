@@ -28,6 +28,12 @@ class StaticProcess:  # just for code organization
         '''
         TODO
         '''
+        cprint("=" * 20, 'blue')
+        cprint(type(ObsProcessor), 'blue')
+        cprint(f"obs_raw_path:{obs_raw_path} ", 'blue')
+        cprint(f"save_root:{save_root} ", 'blue')
+        cprint("=" * 20, 'blue')
+
         episodes_list = StaticProcess.get_all_episodes(obs_raw_path)
         pbar = tqdm(total=len(episodes_list))
         for i, s_dict in tqdm(enumerate(episodes_list)):
@@ -75,7 +81,7 @@ class StaticProcess:  # just for code organization
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='Train FK')
-    argparser.add_argument('--model', type=str, default='DP')
+    argparser.add_argument('--model', type=str, default='DP3')
     argparser.add_argument('--obs_raw_path', type=str, default='/media/jian/ssd4t/zero/1_Data/A_Selfgen/keypose/singleVar/train')
     args = argparser.parse_args()
 

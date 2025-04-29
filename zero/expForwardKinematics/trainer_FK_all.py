@@ -28,7 +28,9 @@ from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.expForwardKinematics.models.FK.Policy import PolicyFK
 from zero.z_utils import *
 from zero.expForwardKinematics.models.DP.DP import DPWrapper
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import ObsProcessorDA3D_Old, ObsProcessorDP, ObsProcessorFK, ObsProcessorDA3DWrapper, ObsProcessorRLBenchBase
+from zero.expForwardKinematics.models.DP3.DP3Wrapper import DP3Wrapper
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import \
+    (ObsProcessorDA3D_Old, ObsProcessorDP,ObsProcessorDP3, ObsProcessorFK, ObsProcessorDA3DWrapper, ObsProcessorRLBenchBase)
 from zero.expForwardKinematics.dataset.dataset_general import DatasetGeneral
 from zero.expForwardKinematics.dataset.dataset_DA3DWrapper import DA3DDatasetWrapper
 from zero.expForwardKinematics.models.DA3DWrapper.DA3DWrapper import DA3DWrapper
@@ -41,19 +43,21 @@ POLICY_FACTORY = {
     'FK': PolicyFK,
     'DP': DPWrapper,
     'DA3D': DA3DWrapper,
+    'DP3': DP3Wrapper
 }
 
 
 OBS_FACTORY: Dict[str, Type[ObsProcessorRLBenchBase]] = {
     'FK': ObsProcessorFK,
     'DP': ObsProcessorDP,
+    'DP3': ObsProcessorDP3,
     'DA3D': ObsProcessorDA3DWrapper,
-
 }
 
 DATASET_FACTORY: Dict[str, Type[Dataset]] = {
     'FK': DatasetGeneral,
     'DP': DatasetGeneral,
+    'DP3': DatasetGeneral,
     'DA3D': DA3DDatasetWrapper,
 }
 
@@ -61,20 +65,15 @@ DATASET_FACTORY: Dict[str, Type[Dataset]] = {
 CONFIG_FACTORY = {
     'FK': '/data/zero/zero/expForwardKinematics/config/FK.yaml',
     'DP': '/data/zero/zero/expForwardKinematics/config/DP.yaml',
+    'DP3': '/data/zero/zero/expForwardKinematics/config/DP3.yaml',
     'DA3D': '/data/zero/zero/expForwardKinematics/config/DA3DWrapper.yaml',
 }
 
-OPTIMIZER_FACTORY = {
-    'FK': torch.optim.AdamW,
-    'DP': torch.optim.AdamW,
-    'DA3D': torch.optim.AdamW,
-}
+
 
 
 # ---------------------------------------------------------------
 # region 1. Trainer
-
-
 class Trainer_all(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
