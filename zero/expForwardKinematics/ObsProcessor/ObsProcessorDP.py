@@ -139,10 +139,10 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         image2 = torch.from_numpy(image2).float()
         image3 = torch.from_numpy(image3).float()
 
-        batch['obs']['image0'] = image0
-        batch['obs']['image1'] = image1
-        batch['obs']['image2'] = image2
-        batch['obs']['image3'] = image3
+        batch['obs']['image0'] = image0.unsqueeze(1)
+        batch['obs']['image1'] = image1.unsqueeze(1)
+        batch['obs']['image2'] = image2.unsqueeze(1)
+        batch['obs']['image3'] = image3.unsqueeze(1)
 
         # actions
         if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
