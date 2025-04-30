@@ -24,7 +24,7 @@ from codebase.z_utils.idx_mask import *
 from codebase.z_utils.Rotation import quat2euler, euler2quat
 from scipy.spatial.transform import Rotation as R
 from typing_extensions import override
-from zero.z_utils.normalizer_action import normalize_pos, denormalize_pos, quat2ortho6D
+from zero.z_utils.normalizer_action import normalize_pos, denormalize_pos, quat2ortho6D, normalize_JP, denormalize_JP
 
 
 class ObsProcessorDP(ObsProcessorRLBenchBase):
@@ -119,56 +119,69 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         '''
         注意用numpy还是torch
         '''
-        batch = {}
+        batch = {'obs': {}, 'action': None}
         H = self.config['DP']['ActionHead']['horizon']
+        # images
         rgb = np.stack(copy(data['rgb']), axis=0)
         image0 = rgb[:, 0, :, :, :].transpose(0, 3, 1, 2)
         image1 = rgb[:, 1, :, :, :].transpose(0, 3, 1, 2)
         image2 = rgb[:, 2, :, :, :].transpose(0, 3, 1, 2)
         image3 = rgb[:, 3, :, :, :].transpose(0, 3, 1, 2)
-        eePose = np.stack(copy(data['eePose_hist']), axis=0)
-        eePos = eePose[:, :, :3]
-        eeRot = eePose[:, :, 3:7]
-        eeOpen = eePose[:, :, 7:8]
 
-        # normalize
-        image0 = image0 / 255.0
+        # normalize        image0 = image0 / 255.0
         image1 = image1 / 255.0
         image2 = image2 / 255.0
         image3 = image3 / 255.0
 
-        eePos = normalize_pos(eePos)
-        eeRot = self.norm_rot(eeRot)
         # to tensor
         image0 = torch.from_numpy(image0).float()
         image1 = torch.from_numpy(image1).float()
         image2 = torch.from_numpy(image2).float()
         image3 = torch.from_numpy(image3).float()
-        eePos = torch.from_numpy(eePos).float()
-        eeRot = torch.from_numpy(eeRot).float()
-        eeOpen = torch.from_numpy(eeOpen).float()
-        batch = {
-            'obs': {
-                'image0': image0.unsqueeze(1),
-                'image1': image1.unsqueeze(1),
-                'image2': image2.unsqueeze(1),
-                'image3': image3.unsqueeze(1),
-                'eePos': eePos,
-                'eeRot': eeRot,
-                'eeOpen': eeOpen
-            },
-        }
 
-        if self.train_flag:
-            action = np.stack(copy(data['eePose_futr']), axis=0)
-            act_pos = normalize_pos(action[..., :3])
-            act_rot = self.norm_rot(action[..., 3:7])
-            act_open = action[..., 7:8]
-            action = np.concatenate([act_pos, act_rot, act_open], axis=-1)
+        batch['obs']['image0'] = image0
+        batch['obs']['image1'] = image1
+        batch['obs']['image2'] = image2
+        batch['obs']['image3'] = image3
 
-            action = torch.from_numpy(action).float()
-            batch['action'] = action[:, :H, :]
+        # actions
+        if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            eePose = np.stack(copy(data['eePose_hist']), axis=0)
+            eePos = eePose[:, :, :3]
+            eeRot = eePose[:, :, 3:7]
+            eeOpen = eePose[:, :, 7:8]
 
+            eePos = normalize_pos(eePos)
+            eeRot = self.norm_rot(eeRot)
+
+            eePos = torch.from_numpy(eePos).float()
+            eeRot = torch.from_numpy(eeRot).float()
+            eeOpen = torch.from_numpy(eeOpen).float()
+            batch['obs']['eePos'] = eePos
+            batch['obs']['eeRot'] = eeRot
+            batch['obs']['eeOpen'] = eeOpen
+
+            if self.train_flag:
+                action = np.stack(copy(data['eePose_futr']), axis=0)
+                act_pos = normalize_pos(action[..., :3])
+                act_rot = self.norm_rot(action[..., 3:7])
+                act_open = action[..., 7:8]
+                action = np.concatenate([act_pos, act_rot, act_open], axis=-1)
+
+                action = torch.from_numpy(action).float()
+                batch['action'] = action[:, :H, :]
+
+        elif self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            JP_hist = np.stack(copy(data['JP_hist']), axis=0)
+            JP_hist = normalize_JP(JP_hist)
+            JP_hist = torch.from_numpy(JP_hist).float()
+            batch['obs']['JP_hist'] = JP_hist
+
+            if self.train_flag:
+                JP_futr = np.stack(copy(data['JP_futr']), axis=0)
+                JP_futr = normalize_JP(JP_futr)
+                JP_futr = torch.from_numpy(JP_futr).float()
+                batch['action'] = JP_futr[:, :H, :]
         return batch
 
     @override

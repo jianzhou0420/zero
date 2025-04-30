@@ -13,7 +13,7 @@ Trainer:
 
   train:
     batch_size: 8
-    n_workers: 4
+    n_workers: 1
     pin_mem: True
     shuffle: True
 
@@ -55,8 +55,8 @@ DP:
     horizon: 8
     n_cross_attn_layers: 4
     n_self_attn_layers: 4
-    
-    norm_type: 'eePose' # eePose, JP
+
+    action_mode: 'eePose' # eePose, JP
     pos_norm_type: 
     rot_norm_type: ortho6d # ortho6d, euler
 

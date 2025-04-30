@@ -288,48 +288,93 @@ class DPWrapper(BasePolicy):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            if self.config['DP']['ActionHead']['rot_norm_type'] == 'ortho6d':
+                len_rot = 6
+            elif self.config['DP']['ActionHead']['rot_norm_type'] == 'euler':
+                len_rot = 3
+            elif self.config['DP']['ActionHead']['rot_norm_type'] == 'quat':
+                len_rot = 4
 
-        if self.config['DP']['ActionHead']['rot_norm_type'] == 'ortho6d':
-            len_rot = 6
-        elif self.config['DP']['ActionHead']['rot_norm_type'] == 'euler':
-            len_rot = 3
-        elif self.config['DP']['ActionHead']['rot_norm_type'] == 'quat':
-            len_rot = 4
+            len_act = 3 + len_rot + 1
+            shape_meta = {
+                # acceptable types: rgb, low_dim
+                "obs": {
+                    "image0": {
+                        "shape": [3, 256, 256],
+                        "type": "rgb",
+                    },
+                    "image1": {
+                        "shape": [3, 256, 256],
+                        "type": "rgb",
+                    },
+                    "image2": {
+                        "shape": [3, 256, 256],
+                        "type": "rgb",
+                    },
+                    "image3": {
+                        "shape": [3, 256, 256],
+                        "type": "rgb",
+                    },
+                    "eePos": {
+                        "shape": [3],
+                    },
+                    "eeRot": {
+                        "shape": [len_rot],
+                    },
+                    "eeOpen": {
+                        "shape": [1],
+                    },
+                },
+                "action": {
+                    "shape": [len_act],
+                },
+            }
+            normalizer = LinearNormalizer()
+            normalizer['image0'] = get_image_range_normalizer()
+            normalizer['image1'] = get_image_range_normalizer()
+            normalizer['image2'] = get_image_range_normalizer()
+            normalizer['image3'] = get_image_range_normalizer()
+            normalizer['eePos'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['eeRot'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['eeOpen'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['action'] = SingleFieldLinearNormalizer.create_identity()
+        elif self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            shape_meta = {
+                # acceptable types: rgb, low_dim
+                "obs": {
+                    "image0": {
+                        "shape": [3, 256, 256],
+                        "type": "rgb",
+                    },
+                    "image1": {
+                        "shape": [3, 256, 256],
+                        "type": "rgb",
+                    },
+                    "image2": {
+                        "shape": [3, 256, 256],
+                        "type": "rgb",
+                    },
+                    "image3": {
+                        "shape": [3, 256, 256],
+                        "type": "rgb",
+                    },
+                    "JP_hist": {
+                        "shape": [8],
+                    },
 
-        len_act = 3 + len_rot + 1
-        shape_meta = {
-            # acceptable types: rgb, low_dim
-            "obs": {
-                "image0": {
-                    "shape": [3, 256, 256],
-                    "type": "rgb",
                 },
-                "image1": {
-                    "shape": [3, 256, 256],
-                    "type": "rgb",
+                "action": {
+                    "shape": [8],
                 },
-                "image2": {
-                    "shape": [3, 256, 256],
-                    "type": "rgb",
-                },
-                "image3": {
-                    "shape": [3, 256, 256],
-                    "type": "rgb",
-                },
-                "eePos": {
-                    "shape": [3],
-                },
-                "eeRot": {
-                    "shape": [len_rot],
-                },
-                "eeOpen": {
-                    "shape": [1],
-                },
-            },
-            "action": {
-                "shape": [len_act],
-            },
-        }
+            }
+            normalizer = LinearNormalizer()
+            normalizer['image0'] = get_image_range_normalizer()
+            normalizer['image1'] = get_image_range_normalizer()
+            normalizer['image2'] = get_image_range_normalizer()
+            normalizer['image3'] = get_image_range_normalizer()
+            normalizer['JP_hist'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['action'] = SingleFieldLinearNormalizer.create_identity()
 
         noise_scheduler = DDPMScheduler(num_train_timesteps=100,
                                         beta_start=0.0001,
@@ -363,18 +408,8 @@ class DPWrapper(BasePolicy):
             n_groups=8,
             cond_predict_scale=True
         )
-        normalizer = LinearNormalizer()
-        normalizer['image0'] = get_image_range_normalizer()
-        normalizer['image1'] = get_image_range_normalizer()
-        normalizer['image2'] = get_image_range_normalizer()
-        normalizer['image3'] = get_image_range_normalizer()
 
         # normalizer.fit(batch)
-
-        normalizer['eePos'] = SingleFieldLinearNormalizer.create_identity()
-        normalizer['eeRot'] = SingleFieldLinearNormalizer.create_identity()
-        normalizer['eeOpen'] = SingleFieldLinearNormalizer.create_identity()
-        normalizer['action'] = SingleFieldLinearNormalizer.create_identity()
 
         DP.set_normalizer(normalizer)
         self.DP = DP
