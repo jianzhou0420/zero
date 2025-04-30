@@ -188,7 +188,7 @@ class DataGenerator:
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
         seed = random.randint(0, 1000000)
         print('Seed:', seed)
-        config = get_config('/media/jian/ssd4t/zero/zero/expForwardKinematics/config/datagen.yaml')
+        config = get_config('/data/zero/zero/expForwardKinematics/config/datagen.yaml')
         config.defrost()
         config['seed'] = seed
         config['save_path'] = os.path.join(config['save_path'], str(seed))

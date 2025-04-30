@@ -25,7 +25,7 @@ Trainer:
 
 
 TrainDataset:
-  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DP/keypose/singleVar
+  data_dir: /data/zero/1_Data/B_Preprocess/DP/keypose/singleVar
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
@@ -56,8 +56,8 @@ DP:
     n_cross_attn_layers: 4
     n_self_attn_layers: 4
 
-    action_mode: 'eePose' # eePose, JP
-    pos_norm_type: 
+    action_mode: 'JP' # eePose, JP
+    pos_norm_type: null
     rot_norm_type: ortho6d # ortho6d, euler
 
 

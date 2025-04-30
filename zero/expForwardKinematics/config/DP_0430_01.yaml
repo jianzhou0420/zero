@@ -1,7 +1,7 @@
 
 test: 1
 Trainer:
-  model_name: DP3
+  model_name: DP
   lr: 0.00001
   weight_decay: 0.00001
   epoches: 800
@@ -13,7 +13,7 @@ Trainer:
 
   train:
     batch_size: 8
-    n_workers: 4
+    n_workers: 8
     pin_mem: True
     shuffle: True
 
@@ -32,11 +32,10 @@ TrainDataset:
   instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
   taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
   taskvar_file: '/data/zero/assets/taskvars_peract.json'
-
   num_points: 4096
   augmentation: False
 
-FK:
+DP:
   Policy:
     num_timesteps: 100
     use_instruction: False
@@ -53,9 +52,13 @@ FK:
     d_ffw: 512
     n_heads: 8
     n_features: 96
-    horizon: 4
+    horizon: 8
     n_cross_attn_layers: 4
     n_self_attn_layers: 4
+
+    action_mode: 'eePose' # eePose, JP
+    pos_norm_type: null
+    rot_norm_type: ortho6d # ortho6d, euler
 
 
 # region tmp

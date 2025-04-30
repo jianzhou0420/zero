@@ -31,23 +31,7 @@ spec:
                 pip install -e .
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
-                python  -m zero.expForwardKinematics.trainer_expbase \
-                        --exp-config /data/zero/zero/expForwardKinematics/config/expBase_Lotus.yaml \
-                        name EXP03_04_insert_close_jar_0.005\
-                        dataset augment\
-                        num_gpus 4 \
-                        epoches 1800 \
-                        batch_size 4 \
-                        TRAIN_DATASET.num_points 4096 \
-                        TRAIN_DATASET.pos_bins 75 \
-                        TRAIN_DATASET.pos_bin_size 0.001 \
-                        MODEL.action_config.pos_bins 75 \
-                        MODEL.action_config.pos_bin_size 0.001 \
-                        MODEL.action_config.voxel_size 0.005\
-                        tasks_to_use "insert_onto_square_peg,close_jar,put_groceries_in_cupboard,meat_off_grill" \
-                        TRAIN.n_workers 4\
-                        B_Preprocess /data/zero/1_Data/B_Preprocess/0.005all_with_path_voxelcenter   \
-                        des "to see close_jar and insert at 0.005"\
+                python /data/zero/zero/expForwardKinematics/trainer_FK_all.py --model DP
                        
 
 

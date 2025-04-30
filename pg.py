@@ -11,7 +11,7 @@ print(torch.cuda.is_available())  # Should print True if CUDA is available
 #     print('if wxyz:', euler_wxyz)
 
 
-# # data_path = "/media/jian/ssd4t/zero/1_Data/B_Preprocess/DP/keypose/singleVar/train/put_groceries_in_cupboard/variation1/episode46/data.pkl"
+# # data_path = "/data/zero/1_Data/B_Preprocess/DP/keypose/singleVar/train/put_groceries_in_cupboard/variation1/episode46/data.pkl"
 # # with open(data_path, 'rb') as f:
 # #     data = pickle.load(f)
 # # print(data.keys())
@@ -62,6 +62,6 @@ print(torch.cuda.is_available())  # Should print True if CUDA is available
 # print('matrix2:', matrix2)
 
 
-with open("/media/jian/ssd4t/zero/1_Data/A_Selfgen/keypose/singleVar/variation_descriptions.pkl", 'rb') as f:
+with open("/data/zero/1_Data/A_Selfgen/keypose/singleVar/variation_descriptions.pkl", 'rb') as f:
     data = pickle.load(f)
 print(data)
