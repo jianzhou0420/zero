@@ -15,7 +15,7 @@ spec:
             medium: Memory
         - name: dataset-volume
           persistentVolumeClaim:
-            claimName: rlbench-pvc # <------- your PVC name
+            claimName: zero # <------- your PVC name
       containers:
         - name: data-transfer-pvc
           image: ubuntu:latest

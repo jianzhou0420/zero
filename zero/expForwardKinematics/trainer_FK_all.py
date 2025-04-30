@@ -29,8 +29,7 @@ from zero.expForwardKinematics.models.FK.Policy import PolicyFK
 from zero.z_utils import *
 from zero.expForwardKinematics.models.DP.DP import DPWrapper
 from zero.expForwardKinematics.models.DP3.DP3Wrapper import DP3Wrapper
-from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import \
-    (ObsProcessorDA3D_Old, ObsProcessorDP,ObsProcessorDP3, ObsProcessorFK, ObsProcessorDA3DWrapper, ObsProcessorRLBenchBase)
+from zero.expForwardKinematics.ObsProcessor import *
 from zero.expForwardKinematics.dataset.dataset_general import DatasetGeneral
 from zero.expForwardKinematics.dataset.dataset_DA3DWrapper import DA3DDatasetWrapper
 from zero.expForwardKinematics.models.DA3DWrapper.DA3DWrapper import DA3DWrapper
@@ -68,8 +67,6 @@ CONFIG_FACTORY = {
     'DP3': '/data/zero/zero/expForwardKinematics/config/DP3.yaml',
     'DA3D': '/data/zero/zero/expForwardKinematics/config/DA3DWrapper.yaml',
 }
-
-
 
 
 # ---------------------------------------------------------------

@@ -288,6 +288,15 @@ class DPWrapper(BasePolicy):
     def __init__(self, config):
         super().__init__()
         self.config = config
+
+        if self.config['DP']['ActionHead']['rot_norm_type'] == 'ortho6d':
+            len_rot = 6
+        elif self.config['DP']['ActionHead']['rot_norm_type'] == 'euler':
+            len_rot = 3
+        elif self.config['DP']['ActionHead']['rot_norm_type'] == 'quat':
+            len_rot = 4
+
+        len_act = 3 + len_rot + 1
         shape_meta = {
             # acceptable types: rgb, low_dim
             "obs": {
@@ -311,14 +320,14 @@ class DPWrapper(BasePolicy):
                     "shape": [3],
                 },
                 "eeRot": {
-                    "shape": [3],
+                    "shape": [len_rot],
                 },
                 "eeOpen": {
                     "shape": [1],
                 },
             },
             "action": {
-                "shape": [7],
+                "shape": [len_act],
             },
         }
 
@@ -344,7 +353,7 @@ class DPWrapper(BasePolicy):
             shape_meta=shape_meta,
             noise_scheduler=noise_scheduler,
             obs_encoder=encoder,
-            horizon=self.config['FK']['ActionHead']['horizon'],
+            horizon=self.config['DP']['ActionHead']['horizon'],
             n_action_steps=8,
             n_obs_steps=1,
             obs_as_global_cond=True,
