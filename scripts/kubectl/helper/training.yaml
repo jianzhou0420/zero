@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: expvoxelcenter # Your training job name
+  name: default # Your training job name
 spec:
   backoffLimit: 0   # add this line so --> If your pod failed, the training job will stop.
   template:
@@ -31,18 +31,18 @@ spec:
                 pip install -e .
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
-                python /data/zero/zero/expForwardKinematics/trainer_FK_all.py --model DP
+                python /data/zero/zero/expForwardKinematics/trainer_FK_all.py --model DP --config /data/zero/zero/expForwardKinematics/config/DP_0430_01.yaml
                        
 
 
           resources:
             limits:
               cpu: 8
-              nvidia.com/gpu: 4           # <------- If you don't need any of GPUs, Please comment-out this line.
+              nvidia.com/gpu: 1           # <------- If you don't need any of GPUs, Please comment-out this line.
               memory: 60Gi
             requests:
               cpu: 8
-              nvidia.com/gpu: 4           # <------- If you don't need any of GPUs, Please comment-out this line.
+              nvidia.com/gpu: 1           # <------- If you don't need any of GPUs, Please comment-out this line.
               memory: 60Gi
           
             

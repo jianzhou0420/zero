@@ -247,10 +247,14 @@ def train(config: yacs.config.CfgNode):
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description='Train FK')
     argparser.add_argument('--model', type=str, required=True, help='model name')
+    argparser.add_argument('--config', type=str, default=None, help='config file path')
     args = argparser.parse_args()
-
-    config_path = CONFIG_FACTORY[args.model]
     pl.seed_everything(42)
+
+    if args.config is not None:
+        config_path = args.config
+    else:
+        config_path = CONFIG_FACTORY[args.model]
 
     config = get_config(config_path)
     # 1. train
