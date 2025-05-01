@@ -4,9 +4,9 @@ Trainer:
   model_name: DP
   lr: 0.00001
   weight_decay: 0.00001
-  epoches: 2400
+  epoches: 3200
   max_steps: -1
-  save_every_n_epochs: 100
+  save_every_n_epochs: 400
   num_gpus: 1
   check_val_every_n_epoch: 25
 
