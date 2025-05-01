@@ -1,30 +1,21 @@
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
-import re
-import open3d as o3d
 import numpy as np
 import torch
 from copy import deepcopy as copy
-import einops
-import pickle
+
 import json
-from numpy import array as npa
-from pathlib import Path
-import random
-from typing import Dict, Optional, Sequence
-from collections import defaultdict, Counter
-from zero.expForwardKinematics.models.lotus.utils.robot_box import RobotBox
+
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
 from zero.z_utils.utilities_all import *
-import torchvision.transforms.functional as transforms_f
-from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
-import torchvision.transforms as transforms
+
 from codebase.z_utils.open3d import *
 from codebase.z_utils.idx_mask import *
 from codebase.z_utils.Rotation import quat2euler, euler2quat
 from scipy.spatial.transform import Rotation as R
 from typing_extensions import override
-from zero.z_utils.normalizer_action import normalize_pos, denormalize_pos, quat2ortho6D, normalize_JP, denormalize_JP
+from zero.z_utils.normalizer_action import \
+    (normalize_pos, denormalize_pos, quat2ortho6D, normalize_JP, denormalize_JP, ortho6d2quat,
+        normalize_quat2euler, denormalize_quat2euler)
 
 
 class ObsProcessorDP(ObsProcessorRLBenchBase):
@@ -221,25 +212,32 @@ class ObsProcessorDP(ObsProcessorRLBenchBase):
         '''
         action = action['action_pred']
         B, H, D = action.shape
-        new_action = np.zeros((B, H, 8), dtype=np.float32)
-        new_action[:, :, :3] = denormalize_pos(action[:, :, :3]).cpu().detach().numpy()
-        angles = action[:, :, 3:6].cpu().detach().numpy() * 3.15
+        assert B == 1, 'batch size should be 1'
+        action = action.cpu().detach().numpy()
+        if self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            rlbench_action = denormalize_JP(action)
+        elif self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            pos = denormalize_pos(action[:, :, :3])
+            if self.config['DP']['ActionHead']['rot_norm_type'] == 'ortho6d':
+                rot = ortho6d2quat(action[:, :, 3:9])
+            elif self.config['DP']['ActionHead']['rot_norm_type'] == 'quat':
+                rot = action[:, :, 3:7]
+            elif self.config['DP']['ActionHead']['rot_norm_type'] == 'euler':
+                rot = denormalize_quat2euler(action[:, :, 3:6])
+            isopen = action[:, :, -1]
+            rlbench_action = np.concatenate([pos, rot, isopen[..., None]], axis=-1)
 
-        angles = einops.rearrange(angles, 'b h d -> (b h) d')
-        angles = euler2quat(angles)
-        angles = einops.rearrange(angles, '(b h) d -> b h d', b=B, h=H)
-        new_action[:, :, 3:7] = angles
-        new_action[:, :, 7:8] = action[:, :, 6:7].cpu().detach().numpy()
+        rlbench_action = [
+            rlbench_action[0, j, :]for j in range(H)
+        ]
 
-        new_action = [new_action[0, i, :] for i in range(H)]
-
-        return new_action
+        return rlbench_action
 
     def norm_rot(self, eeRot):
         if self.config['DP']['ActionHead']['rot_norm_type'] == 'ortho6d':
             eeRot = quat2ortho6D(eeRot)
         elif self.config['DP']['ActionHead']['rot_norm_type'] == 'euler':
-            raise NotImplementedError('euler norm not implemented')
+            eeRot = normalize_quat2euler(eeRot)
         elif self.config['DP']['ActionHead']['rot_norm_type'] == 'quat':
             raise NotImplementedError('quat norm not implemented')
 

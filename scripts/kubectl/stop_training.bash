@@ -1,1 +1,1 @@
-kubectl create -f /data/zero/scripts/kubectl/helper/training.yaml
+kubectl delete -f /data/zero/scripts/kubectl/helper/training.yaml

@@ -33,7 +33,6 @@ from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import *
 from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 from zero.expForwardKinematics.trainer_FK_all import Trainer_all, OBS_FACTORY
 # homemade utils
-from zero.z_utils.utilities_all import denormalize_JP, denormalize_pos, deconvert_rot
 
 # ----------------------------------------------
 # region Actioner
@@ -330,6 +329,13 @@ class Evaluator():
         exp_dir = eval_config['exp_dir']
         model_config_path = os.path.join(exp_dir, 'hparams.yaml')
         eval_config['model_config_path'] = model_config_path
+
+        # extra code to get action_mode
+        with open(model_config_path, "r") as f:
+            tmp = yaml.load(f, Loader=yaml.UnsafeLoader)
+        action_mode = tmp['config']['DP']['ActionHead']['action_mode']
+        eval_config['action_mode'] = action_mode
+        del tmp, action_mode
 
         # 2. choose ckpt
         ckpt_path_all = sorted(os.listdir(os.path.join(exp_dir, 'checkpoints')), key=natural_sort_key)

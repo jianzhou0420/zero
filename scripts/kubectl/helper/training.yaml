@@ -15,7 +15,7 @@ spec:
             medium: Memory
         - name: dataset-volume
           persistentVolumeClaim:
-            claimName: rlbench-pvc      # <------- your PVC name    kubectl get pvc
+            claimName: zero      # <------- your PVC name    kubectl get pvc
 
       containers:
         - name: zero-container # It is recommended to name your container according to the project

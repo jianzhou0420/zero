@@ -218,6 +218,7 @@ def train(config: yacs.config.CfgNode):
         name=log_name,
         version=None
     )
+
     csvlogger = CSVLogger(
         save_dir=log_path,
         name=log_name,

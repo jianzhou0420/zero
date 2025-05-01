@@ -58,7 +58,7 @@ DP:
 
     action_mode: 'eePose' # eePose, JP
     pos_norm_type: null
-    rot_norm_type: ortho6d # ortho6d, euler
+    rot_norm_type: euler # ortho6d, euler
 
 
 # region tmp
