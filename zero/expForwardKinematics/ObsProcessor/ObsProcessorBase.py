@@ -43,14 +43,17 @@ class ObsProcessorRLBenchBase:
         }
         return obs_raw
 
-    def demo_2_obs_raw(self, demo):  # TODO: refine I/O variables name
+    def demo_2_obs_raw(self, demo, traj_flag=False):  # TODO: refine I/O variables name
         """Fetch the desired state based on the provided demo.
         :param obs: incoming obs
         :return: required observation (rgb, depth, xyz, gripper state)
         """
-
-        key_frames = keypoint_discovery(demo)
-        key_frames.insert(0, 0)
+        if traj_flag:
+            key_frames = [i for i in range(len(demo._observations))]
+            pass
+        else:
+            key_frames = keypoint_discovery(demo)
+            key_frames.insert(0, 0)
 
         state_dict_ls = collections.defaultdict(list)
         for f in key_frames:

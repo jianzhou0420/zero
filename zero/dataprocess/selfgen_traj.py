@@ -45,7 +45,9 @@ class DataGenerator:
     def __init__(self, config):
         self.data_gen_config = config
         yaml_config = None
-        self.ptv3_perceptor = ObsProcessorRLBenchBase(yaml_config)
+        self.obs_processor = ObsProcessorRLBenchBase(yaml_config)
+
+        self.traj_flag = self.data_gen_config['traj_flag']
 
     def _get_obs_config(self):
         img_size = list(map(int, self.data_gen_config['image_size']))
@@ -178,7 +180,7 @@ class DataGenerator:
         '''
         interface between DataGenerator and Ptv3Perceptor
         '''
-        out = self.ptv3_perceptor.demo_2_obs_raw(demo)
+        out = self.obs_processor.demo_2_obs_raw(demo, self.traj_flag)
         check_and_make(example_path)
         with open(os.path.join(example_path, 'data.pkl'), 'wb') as f:
             pickle.dump(out, f)

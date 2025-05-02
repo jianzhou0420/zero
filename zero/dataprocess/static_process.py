@@ -81,8 +81,8 @@ class StaticProcess:  # just for code organization
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='Train FK')
-    argparser.add_argument('--model', type=str, default='DP3')
-    argparser.add_argument('--obs_raw_path', type=str, default='/data/zero/1_Data/A_Selfgen/keypose/singleVar/train')
+    argparser.add_argument('--model', type=str, default='DP_traj')
+    argparser.add_argument('--obs_raw_path', type=str, default='/media/jian/ssd4t/zero/1_Data/A_Selfgen/trajectory/test/42')
     args = argparser.parse_args()
 
     config = get_config(CONFIG_FACTORY[args.model])

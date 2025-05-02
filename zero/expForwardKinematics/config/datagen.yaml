@@ -1,6 +1,6 @@
 
 
-save_path: /data/zero/1_Data/A_Selfgen/20demo_put_groceries/train/test
+save_path: /data/zero/1_Data/A_Selfgen/trajectory/test2
 all_task_file: /data/zero/assets/peract_tasks.json
 image_size:
   - 256
@@ -16,3 +16,5 @@ tasks:
 
 var: [1]
 num: 100
+
+traj_flag: 1

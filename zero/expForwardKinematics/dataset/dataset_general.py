@@ -274,9 +274,11 @@ def natural_sort_key(s):
 if __name__ == '__main__':
     from zero.expForwardKinematics.config.default import get_config
     from torch.utils.data import DataLoader, Dataset
-    config_path = '/data/zero/zero/expForwardKinematics/config/FK.yaml'
+    from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP import ObsProcessorDP
+    config_path = '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/DP_0501_01.yaml'
     config = get_config(config_path)
-    data_dir = '/data/zero/1_Data/B_Preprocess/FK/1000_train_eval/train'
-    dataset = DatasetGeneral(config, data_dir)
+    data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/trajectory/test/42'
+    obs_processor = ObsProcessorDP(config, train_flag=True)
+    dataset = DatasetGeneral(config, data_dir, obs_processor)
     loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collect_fn_fk)
     data1 = next(iter(loader))
