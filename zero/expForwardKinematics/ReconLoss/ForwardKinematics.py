@@ -185,3 +185,9 @@ class FrankaEmikaPanda():
         pcd.colors = o3d.utility.Vector3dVector(rgb)
         bbox, _ = self.theta2obbox(theta)
         o3d.visualization.draw_geometries([pcd, *bbox], window_name="bbox", width=1920, height=1080)
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    import numpy as np
