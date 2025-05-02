@@ -293,7 +293,7 @@ class ObsProcessorDA3D_Old(ObsProcessorRLBenchBase):
                 JP_path = copy(np.array(JP_all_copy[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))
 
                 # eePose_hist
-                if keyframe_id - 8 <= 1:
+                if keyframe_id - 8 < 0:
                     eePose_hist = [action_all[j] for j in range(keyframe_id)]
                     eePose_hist += [action_curr] * (8 - keyframe_id)
 
@@ -639,7 +639,7 @@ class ObsProcessorFK(ObsProcessorRLBenchBase):
                 JP_path = copy(np.array(JP_all_copy[obs_raw['key_frameids'][t]:obs_raw['key_frameids'][t + 1] + 1], dtype=np.float64))
 
                 # action_history
-                if keyframe_id - 8 <= 1:
+                if keyframe_id - 8 < 0:
                     eePose_hist = [action_all[j] for j in range(keyframe_id)]
                     eePose_hist += [eePose_curr] * (8 - keyframe_id)
 

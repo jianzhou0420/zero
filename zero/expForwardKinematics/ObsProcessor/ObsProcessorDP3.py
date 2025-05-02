@@ -75,7 +75,7 @@ class ObsProcessorDP3(ObsProcessorRLBenchBase):
                 JP_path = copy(np.array(JP_all_copy[obs_raw['key_frameids'][i]:obs_raw['key_frameids'][i + 1] + 1], dtype=np.float64))
 
                 # eePose_hist
-                if keyframe_id - 8 <= 1:
+                if keyframe_id - 8 < 0:
                     eePose_hist = [action_all[j] for j in range(keyframe_id)]
                     eePose_hist += [action_curr] * (8 - keyframe_id)
 
