@@ -87,7 +87,7 @@ class DatasetGeneral_traj(Dataset):
     def check_cache_with_path(self, g_episode_path):
         episode_name = g_episode_path.split('/')[-1]
         if self.cache.get(episode_name) is None:
-            print(f'loading data from disk{episode_name}')
+            # print(f'loading data from disk{episode_name}')
             with open(os.path.join(g_episode_path, 'data.pkl'), 'rb') as f:
                 data = pickle.load(f)
             if len(self.cache) >= self.max_cache_length:
