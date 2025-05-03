@@ -153,12 +153,21 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
             JP_hist = normalize_JP(JP_hist)
             JP_hist = torch.from_numpy(JP_hist).float()
 
+            if JP_hist.shape[1] < self.chunk_size:
+                n_pad = self.chunk_size - JP_hist.shape[1]
+                JP_hist = torch.cat([JP_hist[:, 0:1, :].repeat(1, n_pad, 1), JP_hist], dim=1)
+
             batch['obs']['JP_hist'] = JP_hist
 
             if self.train_flag:
                 JP_futr = np.stack(copy(data['JP'][(start_frame + 1):(index_futr + 1)]), axis=0)[None, ...]
                 JP_futr = normalize_JP(JP_futr)
                 JP_futr = torch.from_numpy(JP_futr).float()
+
+                if JP_futr.shape[1] < self.chunk_size:
+                    n_pad = self.chunk_size - JP_futr.shape[1]
+                    JP_futr = torch.cat([JP_futr, JP_futr[:, -1:, :].repeat(1, n_pad, 1)], dim=1)
+
                 batch['action'] = JP_futr
         return batch
 
