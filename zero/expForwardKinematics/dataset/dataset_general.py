@@ -15,6 +15,7 @@ import json
 import random
 from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
+from zero.z_utils.utilities_all import natural_sort_key
 # --------------------------------------------------------------
 # region Dataset
 
@@ -112,7 +113,7 @@ class DatasetGeneral(Dataset):
         # 4.franka
         # self.franka = FrankaEmikaPanda()
         # 5. obs_processor
-        self.obs_processor = ObsProcessor(config, train_flag=True)
+        self.obs_processor = ObsProcessor(config, train_flag=True)  # type: ObsProcessorRLBenchBase
         self.obs_processor.dataset_init()
 
     def check_cache(self, g_episode):
@@ -182,94 +183,7 @@ def collect_fn_fk(data):
 # region utils
 
 
-def tensorfp32(x):
-    x = torch.tensor(x, dtype=torch.float32)
-    return x
-
-
-def pad_clip_features(features, target_length=77):
-    """
-    Pads a list of CLIP feature arrays (each of shape (L, 512)) to a fixed target length.
-
-    Args:
-        features (list of np.array): List of feature arrays with shape (L, 512), where L can vary.
-        target_length (int): The target sequence length (default is 77).
-
-    Returns:
-        np.array: A numpy array of shape (batch_size, target_length, 512) where each feature array
-                  has been padded with zeros if necessary.
-    """
-    padded_features = []
-    mask = []
-    for feat in features:
-        current_length, dim = feat.shape
-
-        padded = np.zeros((target_length, dim), dtype=feat.dtype)
-        mask_s = np.zeros((target_length,), dtype=bool)
-
-        padded[:current_length, :] = feat
-        mask_s[:current_length] = True
-
-        padded_features.append(padded)
-        mask.append(mask_s)
-
-    # Stack the padded features into a single numpy array.
-    padded_features = np.stack(padded_features, axis=0)
-    mask = np.stack(mask, axis=0, dtype=bool)
-    return padded_features, mask
-
-
-def random_rotate_z(pc, angle=None):
-    # Randomly rotate around z-axis
-    if angle is None:
-        angle = np.random.uniform() * 2 * np.pi
-    cosval, sinval = np.cos(angle), np.sin(angle)
-    R = np.array([[cosval, -sinval, 0], [sinval, cosval, 0], [0, 0, 1]])
-    return np.dot(pc, np.transpose(R))
-
-
-def pad_tensors(tensors, lens=None, pad=0, max_len=None):
-    """B x [T, ...] torch tensors"""
-    if lens is None:
-        lens = [t.size(0) for t in tensors]
-    max_len = max(lens) if max_len is None else max_len
-    bs = len(tensors)
-    hid = list(tensors[0].size()[1:])
-    size = [bs, max_len] + hid
-
-    dtype = tensors[0].dtype
-    output = torch.zeros(*size, dtype=dtype)
-    if pad:
-        output.data.fill_(pad)
-    for i, (t, l) in enumerate(zip(tensors, lens)):
-        output.data[i, :l, ...] = t.data
-    return output
-
-
-def gen_seq_masks(seq_lens, max_len=None):
-    """
-    Args:
-        seq_lens: list or nparray int, shape=(N, )
-    Returns:
-        masks: nparray, shape=(N, L), padded=0
-    """
-    seq_lens = np.array(seq_lens)
-    if max_len is None:
-        max_len = max(seq_lens)
-    if max_len == 0:
-        return np.zeros((len(seq_lens), 0), dtype=bool)
-    batch_size = len(seq_lens)
-    masks = np.arange(max_len).reshape(-1, max_len).repeat(batch_size, 0)
-    masks = masks < seq_lens.reshape(-1, 1)
-    return masks
-
-
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
-
-
 # endregion
-
 
 if __name__ == '__main__':
     from zero.expForwardKinematics.config.default import get_config
@@ -277,8 +191,7 @@ if __name__ == '__main__':
     from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP import ObsProcessorDP
     config_path = '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/DP_0501_01.yaml'
     config = get_config(config_path)
-    data_dir = '/media/jian/ssd4t/zero/1_Data/A_Selfgen/trajectory/test/42'
-    obs_processor = ObsProcessorDP(config, train_flag=True)
-    dataset = DatasetGeneral(config, data_dir, obs_processor)
-    loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collect_fn_fk)
+    data_dir = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/DP/keypose/singleVar/train'
+    dataset = DatasetGeneral(config, data_dir, ObsProcessorDP)
+    loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=dataset.obs_processor.collect_fn)
     data1 = next(iter(loader))

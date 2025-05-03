@@ -29,10 +29,8 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
         out = {
             'xyz': [],
             'rgb': [],
-            'eePose_hist': [],
-            'eePose_futr': [],
-            'JP_hist': [],
-            'JP_futr': []
+            'eePose': [],
+            'JP': [],
         }
 
         if self.train_flag:
@@ -49,52 +47,19 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
                 xyz = data['xyz'][i]
 
                 action_curr = copy(np.array(data['eePose'][i], dtype=np.float64))
-                action_next = copy(np.array(data['eePose'][i + 1], dtype=np.float64))
-                action_path = copy(np.array(action_all[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))  # 这里加一是为了包含下一个关键帧
 
                 open_all = np.array([a[7] for a in action_all])
                 JP_all_copy = copy(JP_all)
                 JP_all_copy = np.concatenate([JP_all_copy, open_all[:, None]], axis=1)
 
                 JP_curr = copy(np.array(JP_all_copy[data['key_frameids'][i]], dtype=np.float64))
-                JP_next = copy(np.array(JP_all_copy[data['key_frameids'][i + 1]], dtype=np.float64))
-                JP_path = copy(np.array(JP_all_copy[data['key_frameids'][i]:data['key_frameids'][i + 1] + 1], dtype=np.float64))
-
-                # eePose_hist
-                if keyframe_id - 8 < 0:
-                    eePose_hist = [action_all[j] for j in range(keyframe_id)]
-                    eePose_hist += [action_curr] * (8 - keyframe_id)
-
-                    JP_hist = [JP_all_copy[j] for j in range(keyframe_id)]
-                    JP_hist += [JP_curr] * (8 - keyframe_id)
-                else:
-                    eePose_hist = [action_all[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
-                    JP_hist = [JP_all_copy[j] for j in range(keyframe_id - 7, keyframe_id + 1)]
-
-                # eePose_futr
-                eePose_futr, JP_futr = self.find_middle_actions(action_path, JP_path)
-
-                # concatenate
-                eePose_hist = np.stack(eePose_hist, axis=0)
-                eePose_futr = np.stack(eePose_futr, axis=0)
-                JP_hist = np.stack(JP_hist, axis=0)
-                JP_futr = np.stack(JP_futr, axis=0)
-                # check & save
-                assert np.allclose(action_curr, eePose_hist[-1])
-                assert np.allclose(action_next, eePose_futr[-1])
-                assert np.allclose(action_curr, eePose_hist[-1])
-
-                assert np.allclose(JP_curr, JP_all_copy[keyframe_id])
-                assert np.allclose(JP_next, JP_futr[-1])
-                assert np.allclose(JP_curr, JP_hist[-1])
 
                 out['rgb'].append(rgb)
                 out['xyz'].append(xyz)
-                out['eePose_hist'].append(eePose_hist)
-                out['eePose_futr'].append(eePose_futr)
-                out['JP_hist'].append(JP_hist)
-                out['JP_futr'].append(JP_futr)
-        else:
+                out['eePose'].append(action_curr)
+                out['JP'].append(JP_curr)
+
+        else:  # TODO:
             rgb = copy(data['rgb'])
             xyz = copy(data['xyz'])
             eePose_hist = copy(data['eePose_hist_eval'])
@@ -109,36 +74,41 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
     @override
     def dynamic_process(self, data, *args, **kwargs):
         '''
-        注意用numpy还是torch
+        从数据中sample一个batch出来
         '''
         batch = {'obs': {}, 'action': None}
-        H = self.config['DP']['ActionHead']['horizon']
-        # images
-        rgb = np.stack(copy(data['rgb']), axis=0)
-        image0 = rgb[:, 0, :, :, :].transpose(0, 3, 1, 2)
-        image1 = rgb[:, 1, :, :, :].transpose(0, 3, 1, 2)
-        image2 = rgb[:, 2, :, :, :].transpose(0, 3, 1, 2)
-        image3 = rgb[:, 3, :, :, :].transpose(0, 3, 1, 2)
+        episode_length = len(data['rgb'])
+        start_frame = np.random.randint(0, episode_length - 1)  # 最后一个不选，此时，没有下一个动作
 
-        # normalize        image0 = image0 / 255.0
-        image1 = image1 / 255.0
-        image2 = image2 / 255.0
-        image3 = image3 / 255.0
+        index_hist = max(0, start_frame - (self.chunk_size - 1))  # 历史长度包括了现在
+        index_futr = min(episode_length, start_frame + self.chunk_size)
+
+        rgb = np.stack(copy(data['rgb']), axis=0)
+        image0 = rgb[index_hist:(start_frame + 1), 0, :, :, :].transpose(0, 3, 1, 2) / 255.0
+        image1 = rgb[index_hist:(start_frame + 1), 1, :, :, :].transpose(0, 3, 1, 2) / 255.0
+        image2 = rgb[index_hist:(start_frame + 1), 2, :, :, :].transpose(0, 3, 1, 2) / 255.0
+        image3 = rgb[index_hist:(start_frame + 1), 3, :, :, :].transpose(0, 3, 1, 2) / 255.0
 
         # to tensor
-        image0 = torch.from_numpy(image0).float()
-        image1 = torch.from_numpy(image1).float()
-        image2 = torch.from_numpy(image2).float()
-        image3 = torch.from_numpy(image3).float()
+        image0 = torch.from_numpy(image0).float().unsqueeze(0)
+        image1 = torch.from_numpy(image1).float().unsqueeze(0)
+        image2 = torch.from_numpy(image2).float().unsqueeze(0)
+        image3 = torch.from_numpy(image3).float().unsqueeze(0)
 
-        batch['obs']['image0'] = image0.unsqueeze(1)
-        batch['obs']['image1'] = image1.unsqueeze(1)
-        batch['obs']['image2'] = image2.unsqueeze(1)
-        batch['obs']['image3'] = image3.unsqueeze(1)
+        if image0.shape[1] < self.chunk_size:
+            n_pad = self.chunk_size - image0.shape[1]
+            image0 = torch.cat([image0[:, 0:1, :, :, :].repeat(1, n_pad, 1, 1, 1), image0], dim=1)
+            image1 = torch.cat([image1[:, 0:1, :, :, :].repeat(1, n_pad, 1, 1, 1), image1], dim=1)
+            image2 = torch.cat([image2[:, 0:1, :, :, :].repeat(1, n_pad, 1, 1, 1), image2], dim=1)
+            image3 = torch.cat([image3[:, 0:1, :, :, :].repeat(1, n_pad, 1, 1, 1), image3], dim=1)
 
+        batch['obs']['image0'] = image0
+        batch['obs']['image1'] = image1
+        batch['obs']['image2'] = image2
+        batch['obs']['image3'] = image3
         # actions
         if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
-            eePose = np.stack(copy(data['eePose_hist']), axis=0)
+            eePose = np.stack(copy(data['eePose'][index_hist:(start_frame + 1)]), axis=0)[None, ...]
             eePos = eePose[:, :, :3]
             eeRot = eePose[:, :, 3:7]
             eeOpen = eePose[:, :, 7:8]
@@ -149,39 +119,55 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
             eePos = torch.from_numpy(eePos).float()
             eeRot = torch.from_numpy(eeRot).float()
             eeOpen = torch.from_numpy(eeOpen).float()
+
+            # check need padding or not, padding them to the same length with nearest neighbor
+            if eePos.shape[1] < self.chunk_size:
+                n_pad = self.chunk_size - eePos.shape[1]
+                eePos = torch.cat([eePos[:, 0:1, :].repeat(1, n_pad, 1), eePos], dim=1)
+                eeRot = torch.cat([eeRot[:, 0:1, :].repeat(1, n_pad, 1), eeRot], dim=1)
+                eeOpen = torch.cat([eeOpen[:, 0:1, :].repeat(1, n_pad, 1), eeOpen], dim=1)
+
             batch['obs']['eePos'] = eePos
             batch['obs']['eeRot'] = eeRot
             batch['obs']['eeOpen'] = eeOpen
 
             if self.train_flag:
-                action = np.stack(copy(data['eePose_futr']), axis=0)
-                act_pos = normalize_pos(action[..., :3])
-                act_rot = self.norm_rot(action[..., 3:7])
-                act_open = action[..., 7:8]
+                try:
+                    action = np.stack(copy(data['eePose'][(start_frame + 1):(index_futr + 1)]), axis=0)[None, ...]
+                except:
+                    pass
+                act_pos = normalize_pos(action[:, :, :3])
+                act_rot = self.norm_rot(action[:, :, 3:7])
+                act_open = action[:, :, 7:8]
                 action = np.concatenate([act_pos, act_rot, act_open], axis=-1)
 
                 action = torch.from_numpy(action).float()
-                batch['action'] = action[:, :H, :]
+                if action.shape[1] < self.chunk_size:
+                    n_pad = self.chunk_size - action.shape[1]
+                    action = torch.cat([action, action[:, -1:, :].repeat(1, n_pad, 1)], dim=1)
+
+                batch['action'] = action
 
         elif self.config['DP']['ActionHead']['action_mode'] == 'JP':
-            JP_hist = np.stack(copy(data['JP_hist']), axis=0)
+            JP_hist = np.stack(copy(data['JP'][index_hist:(start_frame + 1)]), axis=0)[None, ...]
             JP_hist = normalize_JP(JP_hist)
             JP_hist = torch.from_numpy(JP_hist).float()
+
             batch['obs']['JP_hist'] = JP_hist
 
             if self.train_flag:
-                JP_futr = np.stack(copy(data['JP_futr']), axis=0)
+                JP_futr = np.stack(copy(data['JP'][(start_frame + 1):(index_futr + 1)]), axis=0)[None, ...]
                 JP_futr = normalize_JP(JP_futr)
                 JP_futr = torch.from_numpy(JP_futr).float()
-                batch['action'] = JP_futr[:, :H, :]
+                batch['action'] = JP_futr
         return batch
 
     @override
     def dataset_init(self):
         config = self.config
-        self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
-        self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
-        self._resize = Resize(config['TrainDataset']['image_rescales'])
+        # self.taskvar_instrs = json.load(open(config['TrainDataset']['taskvar_instr_file']))
+        # self.instr_embeds = np.load(config['TrainDataset']['instr_embed_file'], allow_pickle=True).item()
+        self.chunk_size = config['DP']['ActionHead']['horizon']
 
     @override
     @staticmethod

@@ -56,7 +56,6 @@ class StaticProcess:  # just for code organization
         episodes_dict_list = []
 
         for i, task in enumerate(tasks_list):
-
             this_task_path = os.path.join(obs_raw_path, task)
             variations_list = sorted(os.listdir(this_task_path), key=natural_sort_key)
             for j, variation in enumerate(variations_list):
@@ -82,7 +81,7 @@ class StaticProcess:  # just for code organization
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='Train FK')
     argparser.add_argument('--model', type=str, default='DP_traj')
-    argparser.add_argument('--obs_raw_path', type=str, default='/media/jian/ssd4t/zero/1_Data/A_Selfgen/trajectory/test/42')
+    argparser.add_argument('--obs_raw_path', type=str, default='/media/jian/ssd4t/zero/1_Data/A_Selfgen/trajectory/test2/42')
     args = argparser.parse_args()
 
     config = get_config(CONFIG_FACTORY[args.model])

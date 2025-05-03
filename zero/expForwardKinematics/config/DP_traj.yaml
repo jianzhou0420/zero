@@ -1,31 +1,31 @@
 
 test: 1
 Trainer:
-  model_name: DP
+  model_name: DP_traj
   lr: 0.00001
   weight_decay: 0.00001
-  epoches: 3200
+  epoches: 50
   max_steps: -1
-  save_every_n_epochs: 400
+  save_every_n_epochs: 2
   num_gpus: 1
   check_val_every_n_epoch: 25
 
 
   train:
-    batch_size: 8
-    n_workers: 8
+    batch_size: 4
+    n_workers: 4
     pin_mem: True
-    shuffle: True
+    shuffle: False
 
   val:
-    batch_size: 8
-    n_workers: 8
+    batch_size: 4
+    n_workers: 4
     pin_mem: True
     shuffle: False
 
 
 TrainDataset:
-  data_dir: /data/zero/1_Data/B_Preprocess/DP/keypose/singleVar
+  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/DP_traj/trajectory/test2/42
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
@@ -56,9 +56,11 @@ DP:
     n_cross_attn_layers: 4
     n_self_attn_layers: 4
 
-    action_mode: 'JP' # eePose, JP
+    action_mode: 'eePose' # eePose, JP
     pos_norm_type: null
     rot_norm_type: ortho6d # ortho6d, euler
+
+    
 
 
 # region tmp
