@@ -1,9 +1,9 @@
-exp_dir: /media/jian/ssd4t/zero/2_Train/saved/0429_02_DP_eePose/version_0
+exp_dir: /media/jian/ssd4t/zero/2_Train/DP_traj/0503_01_DP_traj_eePose/version_0
 epoch: null
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]
 max_tries:  3
-max_steps:  10
+max_steps:  300
 
 microstep_data_dir: ''
 queue_size: 20
@@ -11,22 +11,23 @@ taskvar_file: '/data/zero/assets/taskvars_peract.json'
 num_ensembles:  1
 save_obs_outs_dir:  None
 best_disc_pos: 'max'  # max, ens1
+ckpt_step: 2200
+# record video
 video_dir: null
 not_include_robot_cameras: False
 video_rotate_cam:  False
 video_resolution:  480
 real_robot: False
 
-############################
-# sbatch
-############################
-ckpt_step: 220000
-seed: 2025
+
+seed: 500
 num_workers : 1
-num_demos : 20
+num_demos : 5 # 每个var eval多少次
 config: null
 name: null
 checkpoint: null
 tasks_to_use: put_groceries_in_cupboard
+variations_to_use: [0]
+
 headless: 1
 record_video: 1

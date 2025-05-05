@@ -4,16 +4,16 @@ Trainer:
   model_name: DP_traj
   lr: 0.00001
   weight_decay: 0.00001
-  epoches: 50
+  epoches: 30
   max_steps: -1
-  save_every_n_epochs: 2
+  save_every_n_epochs: 5
   num_gpus: 1
   check_val_every_n_epoch: 25
 
 
   train:
     batch_size: 4
-    n_workers: 4
+    n_workers: 1
     pin_mem: True
     shuffle: False
 

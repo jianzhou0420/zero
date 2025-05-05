@@ -17,12 +17,49 @@ from zero.z_utils.normalizer_action import \
     (normalize_pos, denormalize_pos, quat2ortho6D, normalize_JP, denormalize_JP, ortho6d2quat,
         normalize_quat2euler, denormalize_quat2euler)
 
+from rlbench.backend.observation import Observation
+
 
 class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
     def __init__(self, config, train_flag=True):
         super().__init__(config,)
         self.config = config
         self.train_flag = train_flag
+
+    @override
+    def obs_2_obs_raw(self, obs):
+        if isinstance(obs, Observation):
+            obs = [obs]
+
+        obs_raw = {
+            'key_frameids': [],
+            'rgb': [],  # (T, N, H, W, 3)
+            'xyz': [],  # (T, N, H, W, 3)
+            'eePose': [],  # (T, A)
+            'bbox': [],  # [T of dict]
+            'pose': [],  # [T of dict]
+            'JP': [],
+        }
+        for s_obs in obs:
+            key_frames = [0]
+            state_dict = self.obs2dict(s_obs)
+
+            action = np.concatenate([s_obs.gripper_pose, [s_obs.gripper_open]]).astype(np.float32)
+            position = np.concatenate([s_obs.joint_positions, [s_obs.gripper_open]]).astype(np.float32)
+
+            obs_raw['key_frameids'].append(key_frames)
+            obs_raw['rgb'].append(state_dict['rgb'])  # (T, N, H, W, 3)
+            obs_raw['xyz'].append(state_dict['xyz'])  # (T, N, H, W, 3)
+            obs_raw['eePose'].append(state_dict['gripper'])  # (T, A)
+            obs_raw['JP'].append(position)  # [T of dict]
+
+        obs_raw['key_frameids'] = np.array(obs_raw['key_frameids'], dtype=np.int16)
+        obs_raw['rgb'] = np.array(obs_raw['rgb'], dtype=np.float32)
+        obs_raw['xyz'] = np.array(obs_raw['xyz'], dtype=np.float32)
+        obs_raw['eePose'] = np.array(obs_raw['eePose'], dtype=np.float32)
+        obs_raw['JP'] = np.array(obs_raw['JP'], dtype=np.float32)
+
+        return obs_raw
 
     @override
     def static_process(self, data):
@@ -40,9 +77,7 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
 
             # save path
             num_frames = len(data['rgb']) - 1
-
             for i in range(num_frames):
-                keyframe_id = copy(np.array(data['key_frameids'][i], dtype=np.int16))
                 rgb = data['rgb'][i]
                 xyz = data['xyz'][i]
 
@@ -59,41 +94,116 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
                 out['eePose'].append(action_curr)
                 out['JP'].append(JP_curr)
 
-        else:  # TODO:
+            out['rgb'] = np.stack(out['rgb'], axis=0)  # (T, N, H, W, 3)
+            out['xyz'] = np.stack(out['xyz'], axis=0)  # (T, N, H, W, 3)
+            out['eePose'] = np.stack(out['eePose'], axis=0)  # (T, A)
+            out['JP'] = np.stack(out['JP'], axis=0)  # (T, A)
+
+        else:
+            '''
+            data = obs_raw = {
+            'key_frameids': [],
+            'rgb': [],  # (T, N, H, W, 3)
+            'xyz': [],  # (T, N, H, W, 3)
+            'eePose': [],  # (T, A)
+            'bbox': [],  # [T of dict]
+            'pose': [],  # [T of dict]
+            'JP': [],
+             }
+             '''
+
             rgb = copy(data['rgb'])
             xyz = copy(data['xyz'])
-            eePose_hist = copy(data['eePose_hist_eval'])
-            JP_hist = copy(data['JP_hist_eval'])
+            JP_hist = copy(data['JP'])
+            eePose_hist = copy(data['eePose'])
 
-            out['rgb'].append(rgb[0])
-            out['xyz'].append(xyz[0])
-            out['JP_hist'].append(JP_hist)
-            out['eePose_hist'].append(eePose_hist)
+            out['rgb'] = rgb
+            out['xyz'] = xyz
+            out['eePose'] = eePose_hist
+            out['JP'] = JP_hist
+
         return out
 
     @override
     def dynamic_process(self, data, *args, **kwargs):
+        if self.train_flag:
+            return self.dynamic_process_train(data, *args, **kwargs)
+        else:
+            return self.dynamic_process_eval(data, *args, **kwargs)
+
+    def dynamic_process_train(self, data, *args, **kwargs):
         '''
-        从数据中sample一个batch出来
+        从数据中sample一个batch出来,先sample,后处理,这样,train,eval共用代码了。
+        默认data中的数据都是numpy stack好的
         '''
         batch = {'obs': {}, 'action': None}
         episode_length = len(data['rgb'])
-        start_frame = np.random.randint(0, episode_length - 1)  # 最后一个不选，此时，没有下一个动作
+        start_frame = np.random.randint(0, episode_length - 1)  # 最后一个不选,此时,没有下一个动作
 
         index_hist = max(0, start_frame - (self.chunk_size - 1))  # 历史长度包括了现在
         index_futr = min(episode_length, start_frame + self.chunk_size)
 
-        rgb = np.stack(copy(data['rgb']), axis=0)
-        image0 = rgb[index_hist:(start_frame + 1), 0, :, :, :].transpose(0, 3, 1, 2) / 255.0
-        image1 = rgb[index_hist:(start_frame + 1), 1, :, :, :].transpose(0, 3, 1, 2) / 255.0
-        image2 = rgb[index_hist:(start_frame + 1), 2, :, :, :].transpose(0, 3, 1, 2) / 255.0
-        image3 = rgb[index_hist:(start_frame + 1), 3, :, :, :].transpose(0, 3, 1, 2) / 255.0
+        rgb_hist = copy(data['rgb'][index_hist:(start_frame + 1)][None, ...])  # (B,T,ncam,H,W,C)
+
+        eePose_hist = copy(data['eePose'][index_hist:(start_frame + 1)][None, ...])  # (B,H,D)
+        eePose_futr = copy(data['eePose'][(start_frame + 1):(index_futr + 1)][None, ...])
+
+        JP_hist = copy(data['JP'][index_hist:(start_frame + 1)][None, ...])
+        JP_futr = copy(data['JP'][(start_frame + 1):(index_futr + 1)][None, ...])
+
+        if self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            obs_action = JP_hist
+            gt_action = JP_futr
+        elif self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            obs_action = eePose_hist
+            gt_action = eePose_futr
+        else:
+            raise NotImplementedError('action mode not supported: {}'.format(self.config['DP']['ActionHead']['action_mode']))
+
+        batch['obs'].update(self._dynamic_process_image(rgb_hist))
+        batch['obs'].update(self._dynamic_process_obs_action(obs_action))
+        batch['action'] = self._dynamic_process_gt_action(gt_action)
+
+        return batch
+
+    def dynamic_process_eval(self, data, *args, **kwargs):
+        '''
+        从数据中sample一个batch出来
+        '''
+        batch = {'obs': {}, 'action': None}
+        rgb_hist = copy(data['rgb'][None, ...])  # (B, T, N, H, W, C)
+        eePose_hist = copy(data['eePose'][None, ...])  # (B, T, A)
+        JP_hist = copy(data['JP'][None, ...])  # (B, T, A)
+        if self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            obs_action = JP_hist
+        elif self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            obs_action = eePose_hist
+
+        batch['obs'].update(self._dynamic_process_image(rgb_hist))
+        batch['obs'].update(self._dynamic_process_obs_action(obs_action))
+        return batch
+
+    def _dynamic_process_image(self, rgb):
+        '''
+        rgb: (T, N, H, W, 3)
+
+        outs:{
+            'image0': (1, T, N, H, W, 3),
+            'image1': (1, T, N, H, W, 3),
+            'image2': (1, T, N, H, W, 3),
+            'image3': (1, T, N, H, W, 3),
+        }
+        '''
+        image0 = rgb[:, :, 0, :, :, :].transpose(0, 1, 4, 2, 3) / 255.0
+        image1 = rgb[:, :, 1, :, :, :].transpose(0, 1, 4, 2, 3) / 255.0
+        image2 = rgb[:, :, 2, :, :, :].transpose(0, 1, 4, 2, 3) / 255.0
+        image3 = rgb[:, :, 3, :, :, :].transpose(0, 1, 4, 2, 3) / 255.0
 
         # to tensor
-        image0 = torch.from_numpy(image0).float().unsqueeze(0)
-        image1 = torch.from_numpy(image1).float().unsqueeze(0)
-        image2 = torch.from_numpy(image2).float().unsqueeze(0)
-        image3 = torch.from_numpy(image3).float().unsqueeze(0)
+        image0 = torch.from_numpy(image0).float()
+        image1 = torch.from_numpy(image1).float()
+        image2 = torch.from_numpy(image2).float()
+        image3 = torch.from_numpy(image3).float()
 
         if image0.shape[1] < self.chunk_size:
             n_pad = self.chunk_size - image0.shape[1]
@@ -102,16 +212,20 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
             image2 = torch.cat([image2[:, 0:1, :, :, :].repeat(1, n_pad, 1, 1, 1), image2], dim=1)
             image3 = torch.cat([image3[:, 0:1, :, :, :].repeat(1, n_pad, 1, 1, 1), image3], dim=1)
 
-        batch['obs']['image0'] = image0
-        batch['obs']['image1'] = image1
-        batch['obs']['image2'] = image2
-        batch['obs']['image3'] = image3
-        # actions
+        return {
+            'image0': image0,
+            'image1': image1,
+            'image2': image2,
+            'image3': image3, }
+
+    def _dynamic_process_obs_action(self, obs_action):
+        '''
+        obs action
+        '''
         if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
-            eePose = np.stack(copy(data['eePose'][index_hist:(start_frame + 1)]), axis=0)[None, ...]
-            eePos = eePose[:, :, :3]
-            eeRot = eePose[:, :, 3:7]
-            eeOpen = eePose[:, :, 7:8]
+            eePos = obs_action[:, :, :3]
+            eeRot = obs_action[:, :, 3:7]
+            eeOpen = obs_action[:, :, 7:8]
 
             eePos = normalize_pos(eePos)
             eeRot = self.norm_rot(eeRot)
@@ -127,49 +241,50 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
                 eeRot = torch.cat([eeRot[:, 0:1, :].repeat(1, n_pad, 1), eeRot], dim=1)
                 eeOpen = torch.cat([eeOpen[:, 0:1, :].repeat(1, n_pad, 1), eeOpen], dim=1)
 
-            batch['obs']['eePos'] = eePos
-            batch['obs']['eeRot'] = eeRot
-            batch['obs']['eeOpen'] = eeOpen
+            return {
+                'eePos': eePos,
+                'eeRot': eeRot,
+                'eeOpen': eeOpen,
+            }
+        elif self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            JP = obs_action
+            JP = normalize_JP(JP)
+            JP = torch.from_numpy(JP).float()
 
-            if self.train_flag:
-                try:
-                    action = np.stack(copy(data['eePose'][(start_frame + 1):(index_futr + 1)]), axis=0)[None, ...]
-                except:
-                    pass
-                act_pos = normalize_pos(action[:, :, :3])
-                act_rot = self.norm_rot(action[:, :, 3:7])
-                act_open = action[:, :, 7:8]
-                action = np.concatenate([act_pos, act_rot, act_open], axis=-1)
+            if JP.shape[1] < self.chunk_size:
+                n_pad = self.chunk_size - JP.shape[1]
+                JP = torch.cat([JP[:, 0:1, :].repeat(1, n_pad, 1), JP], dim=1)
 
-                action = torch.from_numpy(action).float()
-                if action.shape[1] < self.chunk_size:
-                    n_pad = self.chunk_size - action.shape[1]
-                    action = torch.cat([action, action[:, -1:, :].repeat(1, n_pad, 1)], dim=1)
+            return {
+                'JP_hist': JP,
+            }
+        else:
+            raise NotImplementedError('action mode not supported: {}'.format(self.config['DP']['ActionHead']['action_mode']))
 
-                batch['action'] = action
+    def _dynamic_process_gt_action(self, action):
+
+        if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            act_pos = normalize_pos(action[:, :, :3])
+            act_rot = self.norm_rot(action[:, :, 3:7])
+            act_open = eePose[:, :, 7:8]
+            eePose = np.concatenate([act_pos, act_rot, act_open], axis=-1)
+
+            eePose = torch.from_numpy(eePose).float()
+            if eePose.shape[1] < self.chunk_size:
+                n_pad = self.chunk_size - eePose.shape[1]
+                eePose = torch.cat([eePose, eePose[:, -1:, :].repeat(1, n_pad, 1)], dim=1)
+            return eePose
 
         elif self.config['DP']['ActionHead']['action_mode'] == 'JP':
-            JP_hist = np.stack(copy(data['JP'][index_hist:(start_frame + 1)]), axis=0)[None, ...]
-            JP_hist = normalize_JP(JP_hist)
-            JP_hist = torch.from_numpy(JP_hist).float()
 
-            if JP_hist.shape[1] < self.chunk_size:
-                n_pad = self.chunk_size - JP_hist.shape[1]
-                JP_hist = torch.cat([JP_hist[:, 0:1, :].repeat(1, n_pad, 1), JP_hist], dim=1)
+            JP_futr = normalize_JP(action)
+            JP_futr = torch.from_numpy(JP_futr).float()
 
-            batch['obs']['JP_hist'] = JP_hist
+            if JP_futr.shape[1] < self.chunk_size:
+                n_pad = self.chunk_size - JP_futr.shape[1]
+                JP_futr = torch.cat([JP_futr, JP_futr[:, -1:, :].repeat(1, n_pad, 1)], dim=1)
 
-            if self.train_flag:
-                JP_futr = np.stack(copy(data['JP'][(start_frame + 1):(index_futr + 1)]), axis=0)[None, ...]
-                JP_futr = normalize_JP(JP_futr)
-                JP_futr = torch.from_numpy(JP_futr).float()
-
-                if JP_futr.shape[1] < self.chunk_size:
-                    n_pad = self.chunk_size - JP_futr.shape[1]
-                    JP_futr = torch.cat([JP_futr, JP_futr[:, -1:, :].repeat(1, n_pad, 1)], dim=1)
-
-                batch['action'] = JP_futr
-        return batch
+            return JP_futr
 
     @override
     def dataset_init(self):
