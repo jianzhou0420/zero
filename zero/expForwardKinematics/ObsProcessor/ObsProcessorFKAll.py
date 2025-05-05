@@ -23,6 +23,7 @@ from codebase.z_utils.idx_mask import *
 from codebase.z_utils.Rotation import quat2euler, euler2quat
 from scipy.spatial.transform import Rotation as R
 from typing_extensions import override
+from zero.z_utils.constants import get_robot_workspace
 # --------------------------------------------------------------
 # region DA3D
 DA3D_Instr = Dict[str, Dict[int, torch.Tensor]]

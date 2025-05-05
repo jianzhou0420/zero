@@ -6,7 +6,7 @@ from ..models.lotus.utils.rotation_transform import (
     RotationMatrixTransform, quaternion_to_discrete_euler
 )
 
-from ..config.constants import (
+from ...z_utils.constants import (
     get_rlbench_labels, get_robot_workspace
 )
 
