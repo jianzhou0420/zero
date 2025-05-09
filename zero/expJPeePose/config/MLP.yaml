@@ -20,7 +20,7 @@ Trainer:
 Model:
   FK: 0
   input_dim:
-  middle_dims: [9,16,32,64,128,256,256,128,64,32,16,7]
+  middle_dims: [16,32,64,128,256,256,128,64,32,16]
   activate_last: False
   activation: 'relu'
   

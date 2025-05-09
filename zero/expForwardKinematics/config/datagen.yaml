@@ -12,7 +12,11 @@ variations: -1
 offset: 0
 state: false
 tasks:
-  - put_groceries_in_cupboard
+  - place_shape_in_shape_sorter_peract
+  - close_jar_peract
+  - meet_off_grill_peract
+  - push_buttons_peract
+  - reach_target
 
 var: [1]
 num: 100
