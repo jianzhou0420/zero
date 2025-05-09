@@ -1,0 +1,30 @@
+Trainer:
+  model_name: MLP
+  lr: 0.001
+  weight_decay: 0
+  epoches: 1000
+  max_steps: -1
+  save_every_n_epochs: 10
+  num_gpus: 1
+  check_val_every_n_epoch: 25
+
+
+  train:  
+    batch_size: 256
+    n_workers: 15
+    pin_mem: True
+    shuffle: True
+
+
+
+Model:
+  FK: 0
+  input_dim:
+  middle_dims: [9,16,32,64,128,256,256,128,64,32,16,7]
+  activate_last: False
+  activation: 'relu'
+  
+Dataset:
+  length: 100000
+
+

@@ -1,6 +1,7 @@
 
 import os
 import re
+from numpy import array as npa
 
 
 def check_and_make(dir):

@@ -9,12 +9,15 @@ class FrankaEmikaPanda():
     '''
 
     def __init__(self):
+        '''
+        PoseEuler: [x, y, z, Rx, Ry, Rz]
+        '''
         self.d = [0.333, 0, 0.316, 0, 0.384, 0, 0, ]
         self.a = [0, 0, 0, 0.0825, -0.0825, 0, 0.088, ]
         self.alpha = [0, -math.pi / 2, math.pi / 2, math.pi / 2,
                       -math.pi / 2, math.pi / 2, math.pi / 2, ]
 
-        self.JPose_ik = np.array([
+        self.PosEuler_ik = np.array([
             [-0.0001, -0.0347, -0.0752, -162.8693, 0.0033, 0.2122],
             [0.0, -0.0766, 0.0344, -72.9831, 0.2349, -178.696],
             [0.0333, 0.0266, -0.0412, -23.1133, 36.1784, -73.6655],
@@ -41,13 +44,13 @@ class FrankaEmikaPanda():
             [-0.0120, 0.0120, -0.0105, 0.0105, -0.0277, 0.0277],  # right finger
         ])
 
-        self.JPose_ik_gripper_close = npa([
+        self.PosEuler_ik_gripper_close = npa([
             [0.0000, 0.0000, 0.1261, -89.9259, 45.0282, -179.1246],
             [0.0106, 0.0100, 0.1913, 3.4935, -3.589, 45.154],
             [-0.0076, -0.0084, 0.1913, 177.056, -2.8024, 134.9147]
         ])
 
-        self.JPose_ik_gripper_open = npa([
+        self.PosEuler_ik_gripper_open = npa([
             [0.0042, -0.0003, 0.1230, -89.9259, 45.0282, -179.1246],
             [0.044, 0.0380, 0.1913, 3.4935, -3.589, 45.154],
             [-0.03, -0.036, 0.1913, 177.056, -2.8024, 134.9147]
@@ -62,7 +65,13 @@ class FrankaEmikaPanda():
         self.JP_offset = np.array([0, 0, 0, radians(-4), 0, 0, 0, 0])  # link7 open1
 
         self.bbox_link_half = self.bbox_link[:, 1::2]
-        print("bbox_link_half", self.bbox_link_half)
+
+        self.T_last2eePose = np.array([
+            [-0.7073, -0.7069, -0.0006, 0.0005],
+            [0.7069, -0.7073, -0.0001, 0.0008],
+            [-0.0004, -0.0005, 1.0000, 0.2174],
+            [0.0000, 0.0000, 0.0000, 1.0000]
+        ], dtype=float)  # TODO: refine this
 
     def get_T_oi(self, theta):
         def dh_modified_transform(alpha, a, theta, d):
@@ -126,7 +135,7 @@ class FrankaEmikaPanda():
         assert len(theta) == 8
         open_gripper = theta[-1]
         theta = theta[:-1]
-        T_ik = npa([RT2HT(euler2mat(np.radians(self.JPose_ik[i, 3:])), self.JPose_ik[i, :3])for i in range(7)])
+        T_ik = npa([RT2HT(euler2mat(np.radians(self.PosEuler_ik[i, 3:])), self.PosEuler_ik[i, :3])for i in range(7)])
         _, T_oi = self.get_T_oi(theta)
         T_ok = npa([T_oi[i] @ T_ik[i]for i in range(7)])
 
@@ -135,9 +144,9 @@ class FrankaEmikaPanda():
 
         # gripper
         if open_gripper:
-            T_ok_gripper = [T_oi[-1] @ JPose2HT(self.JPose_ik_gripper_close[i])for i in range(3)]
+            T_ok_gripper = [T_oi[-1] @ PosEuler2HT(self.PosEuler_ik_gripper_close[i])for i in range(3)]
         else:
-            T_ok_gripper = [T_oi[-1] @ JPose2HT(self.JPose_ik_gripper_open[i])for i in range(3)]
+            T_ok_gripper = [T_oi[-1] @ PosEuler2HT(self.PosEuler_ik_gripper_open[i])for i in range(3)]
 
         T_ok_others = np.stack([T_ok_base, *T_ok_gripper])
         return T_ok, T_ok_others
@@ -175,6 +184,8 @@ class FrankaEmikaPanda():
         return link_obbox, other_obbox
 
     def theta2obbox(self, theta):
+        if len(theta) == 7:
+            theta = np.hstack([theta, 1])
         T_ok, T_ok_others = self.get_T_ok(theta)
         obbox, other_bbox = self.get_obbox(T_ok, T_ok_others=T_ok_others, tolerance=0.005)
         return obbox, other_bbox
@@ -185,6 +196,13 @@ class FrankaEmikaPanda():
         pcd.colors = o3d.utility.Vector3dVector(rgb)
         bbox, _ = self.theta2obbox(theta)
         o3d.visualization.draw_geometries([pcd, *bbox], window_name="bbox", width=1920, height=1080)
+
+    def theta2eePose(self, theta):  # assume no open
+        _, T_oi = self.get_T_oi(theta)
+        T_oi_last = T_oi[-1]
+        T_eePose = T_oi_last @ self.T_last2eePose
+        eePose = HT2eePose(T_eePose)
+        return eePose
 
 
 if __name__ == '__main__':

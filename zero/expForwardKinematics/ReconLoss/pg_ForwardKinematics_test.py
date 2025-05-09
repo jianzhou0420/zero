@@ -34,7 +34,7 @@ joint7: -166,166
 # np.set_printoptions(precision=4, suppress=True)
 
 
-def HT2Pose(T):
+def HT2PosEuler(T):
     out = np.hstack((T[:3, 3], mat2euler(T[:3, :3])))
     # radian to degree
     out[3:] = np.degrees(out[3:])
@@ -48,7 +48,7 @@ def HT2Pose(T):
 
 def printT(name, T):
     print("====================================")
-    out = np.array([HT2Pose(T[i]) for i in range(T.shape[0])])
+    out = np.array([HT2PosEuler(T[i]) for i in range(T.shape[0])])
     # out = np.around(out, 2)
     print(f'{name}\n', out)
 
@@ -219,9 +219,9 @@ def script(Joint_Position_Sim, Joint_Pose_Sim, Link_Pose_Sim, arm_links_info_Sim
     T_ik_left_finger_link = matinv(T_oi_theory[-1]) @ T_ok_left_finger_link
     T_ik_right_finger_link = matinv(T_oi_theory[-1]) @ T_ok_right_finger_link
 
-    JPose_gripper_link = HT2Pose(T_ik_gripper_link)
-    JPose_left = HT2Pose(T_ik_left_finger_link)
-    JPose_right = HT2Pose(T_ik_right_finger_link)
+    JPose_gripper_link = HT2PosEuler(T_ik_gripper_link)
+    JPose_left = HT2PosEuler(T_ik_left_finger_link)
+    JPose_right = HT2PosEuler(T_ik_right_finger_link)
     print('JPose\n', JPose_gripper_link)
     print('JPose\n', JPose_left)
     print('JPose\n', JPose_right)
@@ -238,7 +238,7 @@ def script(Joint_Position_Sim, Joint_Pose_Sim, Link_Pose_Sim, arm_links_info_Sim
     print(bbox)
     T_ip_theory_sim = npa([matinv(T_oi_theory[i]) @ T_op_sim[i] for i in range(7)])
     printT('T_ip_theory_sim', T_ip_theory_sim)
-    T_ip_theory_sim_pose = np.array([HT2Pose(T_ip_theory_sim[i]) for i in range(7)])
+    T_ip_theory_sim_pose = np.array([HT2PosEuler(T_ip_theory_sim[i]) for i in range(7)])
     np.save(f'T_ip_theory_sim_{theta_deg}.npy', T_ip_theory_sim_pose)
     print('T_ip_theory_sim_pose\n', T_ip_theory_sim_pose)
 

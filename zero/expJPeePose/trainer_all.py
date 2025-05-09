@@ -26,11 +26,32 @@ from torch.utils.data import Dataset
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.z_utils import *
-
+from zero.expForwardKinematics.ObsProcessor import *
+from zero.expJPeePose.dataset.dataset_math import DatasetGeneral
+from zero.expJPeePose.model.vae import VAE
+from zero.expJPeePose.model.mlp import MLP
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
+
 torch.set_float32_matmul_precision('medium')
+
+POLICY_FACTORY = {
+    'VAE': VAE,
+    'MLP': MLP,
+}
+
+
+DATASET_FACTORY: Dict[str, Type[Dataset]] = {
+    'VAE': DatasetGeneral,
+    'MLP': DatasetGeneral,
+}
+
+
+CONFIG_FACTORY = {
+    'VAE': '/media/jian/ssd4t/zero/zero/expJPeePose/config/VAE.yaml',
+    'MLP': '/media/jian/ssd4t/zero/zero/expJPeePose/config/MLP.yaml'
+}
 
 
 # ---------------------------------------------------------------
@@ -46,8 +67,9 @@ class Trainer_all(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.policy(batch)
-        self.log('train_loss', loss, on_epoch=True, prog_bar=True)
-        return loss
+        for k, v in loss.items():
+            self.log(f'train/{k}', v, prog_bar=True)
+        return loss['total_loss']
 
     def validation_step(self, batch, batch_idx):
         if batch is None:
@@ -73,26 +95,9 @@ class MyDataModule(pl.LightningDataModule):
         self.config = config
 
     def setup(self, stage=None):
-        data_dir = self.config['TrainDataset']['data_dir']
-        train_data_path = os.path.join(data_dir, 'train')
-        val_data_path = os.path.join(data_dir, 'val')
-
-        if os.path.exists(val_data_path) is False:
-            self.use_val = False
-        else:
-            self.use_val = True
-
         DatasetClass = DATASET_FACTORY[self.config['Trainer']['model_name']]
-
-        collect_fn = obs_processor.collate_fn
-        train_dataset = DatasetClass(self.config, data_dir=train_data_path, ObsProcessor=obs_processor)
-
+        train_dataset = DatasetClass(self.config)
         self.train_dataset = train_dataset
-        self.collect_fn = collect_fn
-
-        if self.use_val:
-            val_dataset = DatasetClass(self.config, data_dir=val_data_path, ObsProcessor=obs_processor)
-            self.val_dataset = val_dataset
 
     def train_dataloader(self):
         batch_size = self.config['Trainer']['train']['batch_size']
@@ -104,7 +109,6 @@ class MyDataModule(pl.LightningDataModule):
             batch_size=batch_size,
             num_workers=self.config['Trainer']['train']['n_workers'],
             pin_memory=self.config['Trainer']['train']['pin_mem'],
-            collate_fn=self.collect_fn,
             sampler=sampler,
             drop_last=False,
             # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
@@ -113,26 +117,6 @@ class MyDataModule(pl.LightningDataModule):
         )
         return loader
 
-    def val_dataloader(self):
-        if self.use_val is False:
-            return []
-        batch_size = self.config['Trainer']['val']['batch_size']
-        sampler = DistributedSampler(self.train_dataset, shuffle=self.config['Trainer']['val']['shuffle'],) if self.config['Trainer']['num_gpus'] > 1 else None
-
-        print(f"batch_size: {batch_size}")
-        loader = DataLoader(
-            self.val_dataset,
-            batch_size=batch_size,
-            num_workers=self.config['Trainer']['val']['n_workers'],
-            pin_memory=self.config['Trainer']['val']['pin_mem'],
-            collate_fn=self.collect_fn,
-            sampler=sampler,
-            drop_last=False,
-            # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
-            shuffle=self.config['Trainer']['val']['shuffle'],
-            persistent_workers=True
-        )
-        return loader
 
 # endregion
 # ---------------------------------------------------------------
@@ -209,10 +193,17 @@ def train(config: yacs.config.CfgNode):
 # endregion
 # ---------------------------------------------------------------
 if __name__ == '__main__':
-    # argparser = argparse.ArgumentParser(description='Train FK')
-    # argparser.add_argument('--model', type=str, required=True, help='model name')
-    # argparser.add_argument('--config', type=str, default=None, help='config file path')
-    # args = argparser.parse_args()
+    argparser = argparse.ArgumentParser(description='Train FK')
+    argparser.add_argument('--model', type=str, default='MLP', help='model name')
+    argparser.add_argument('--config', type=str, default=None, help='config file path')
+    args = argparser.parse_args()
     pl.seed_everything(42)
-    config = get_config('/media/jian/ssd4t/zero/zero/expJPeePose/config/JPeePose.yaml')
+
+    if args.config is not None:
+        config_path = args.config
+    else:
+        config_path = CONFIG_FACTORY[args.model]
+
+    config = get_config(config_path)
+    # 1. train
     train(config)
