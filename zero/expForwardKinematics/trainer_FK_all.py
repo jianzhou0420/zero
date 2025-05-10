@@ -35,8 +35,8 @@ from zero.expForwardKinematics.dataset.dataset_DA3DWrapper import DA3DDatasetWra
 from zero.expForwardKinematics.models.DA3DWrapper.DA3DWrapper import DA3DWrapper
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj import ObsProcessorDP_traj
 from zero.expForwardKinematics.dataset.dataset_general_traj import DatasetGeneral_traj
-
-
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj_zarr import ObsProcessorDP_traj_zarr
+from zero.expForwardKinematics.dataset.dataset_zarr import DatasetTmp
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
 torch.set_float32_matmul_precision('medium')
@@ -47,6 +47,7 @@ POLICY_FACTORY = {
     'DA3D': DA3DWrapper,
     'DP3': DP3Wrapper,
     'DP_traj': DPWrapper,
+    'DP_traj_zarr': DPWrapper,
 }
 
 
@@ -56,6 +57,7 @@ OBS_FACTORY: Dict[str, Type[ObsProcessorRLBenchBase]] = {
     'DP3': ObsProcessorDP3,
     'DA3D': ObsProcessorDA3DWrapper,
     'DP_traj': ObsProcessorDP_traj,
+    'DP_traj_zarr': ObsProcessorDP_traj_zarr,
 }
 
 DATASET_FACTORY: Dict[str, Type[Dataset]] = {
@@ -64,6 +66,7 @@ DATASET_FACTORY: Dict[str, Type[Dataset]] = {
     'DP3': DatasetGeneral,
     'DA3D': DA3DDatasetWrapper,
     'DP_traj': DatasetGeneral_traj,
+    'DP_traj_zarr': DatasetTmp,
 }
 
 
@@ -73,6 +76,7 @@ CONFIG_FACTORY = {
     'DP3': '/data/zero/zero/expForwardKinematics/config/DP3.yaml',
     'DA3D': '/data/zero/zero/expForwardKinematics/config/DA3DWrapper.yaml',
     'DP_traj': '/data/zero/zero/expForwardKinematics/config/DP_traj.yaml',
+    'DP_traj_zarr': '/data/zero/zero/expForwardKinematics/config/DP_traj_zarr.yaml',
 }
 
 

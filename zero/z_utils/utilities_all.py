@@ -1,4 +1,5 @@
 
+from typing import Callable
 import open3d as o3d
 import einops
 import torch.nn.functional as F
@@ -140,3 +141,16 @@ def get_robot_pcd_idx(xyz, obbox):
     mask = np.zeros(len(xyz), dtype=bool)
     mask[robot_point_idx] = True
     return mask
+
+
+def dict_apply(
+        x: Dict[str, torch.Tensor],
+        func: Callable[[torch.Tensor], torch.Tensor]
+) -> Dict[str, torch.Tensor]:
+    result = dict()
+    for key, value in x.items():
+        if isinstance(value, dict):
+            result[key] = dict_apply(value, func)
+        else:
+            result[key] = func(value)
+    return result

@@ -340,6 +340,14 @@ class DPWrapper(BasePolicy):
             normalizer['eeOpen'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['action'] = SingleFieldLinearNormalizer.create_identity()
         elif self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            if self.config['DP']['ActionHead']['rot_norm_type'] == 'ortho6d':
+                len_rot = 6
+            elif self.config['DP']['ActionHead']['rot_norm_type'] == 'euler':
+                len_rot = 3
+            elif self.config['DP']['ActionHead']['rot_norm_type'] == 'quat':
+                len_rot = 4
+
+            len_act = 3 + len_rot + 1
             shape_meta = {
                 # acceptable types: rgb, low_dim
                 "obs": {
@@ -359,6 +367,15 @@ class DPWrapper(BasePolicy):
                         "shape": [3, 256, 256],
                         "type": "rgb",
                     },
+                    "eePos": {
+                        "shape": [3],
+                    },
+                    "eeRot": {
+                        "shape": [len_rot],
+                    },
+                    "eeOpen": {
+                        "shape": [1],
+                    },
                     "JP_hist": {
                         "shape": [8],
                     },
@@ -373,6 +390,9 @@ class DPWrapper(BasePolicy):
             normalizer['image1'] = get_image_range_normalizer()
             normalizer['image2'] = get_image_range_normalizer()
             normalizer['image3'] = get_image_range_normalizer()
+            normalizer['eePos'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['eeRot'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['eeOpen'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['JP_hist'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['action'] = SingleFieldLinearNormalizer.create_identity()
 

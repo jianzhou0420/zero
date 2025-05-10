@@ -29,8 +29,6 @@ from codebase.z_model.positional_encoding import PositionalEncoding1D
 # Trainer
 from zero.expForwardKinematics.config.default import get_config
 # Utils
-from zero.z_utils.joint_position import normaliza_JP, denormalize_JP
-import pdb
 '''
 Policy
 ActionHead, Feature Extractor
