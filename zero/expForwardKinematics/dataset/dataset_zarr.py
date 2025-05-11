@@ -25,6 +25,8 @@ class DatasetTmp(torch.utils.data.Dataset):
             replay_buffer=self.replay_buffer,
             To=8,
             Ta=8,
+            # o_keys=['test'],
+            # a_keys=['action'],
             o_keys=['image0', 'image1', 'image2', 'image3', 'eePose', 'JP'],
             a_keys=['eePose', 'JP'],
         )
@@ -79,10 +81,15 @@ class DatasetTmp(torch.utils.data.Dataset):
         return batch
 
 
-if __name__ == '__main__':
-    zarr_path = "/media/jian/ssd4t/zero/1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/test2/42"
-    dataset = DatasetTmp(zarr_path, horizon=16)
-    for i in range(200):
+def test():
+    zarr_path = "/media/jian/ssd4t/zero/1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/test2/train"
+    test_data = "/media/jian/ssd4t/zero/1_Data/test"
+    dataset = DatasetTmp(None, data_dir=zarr_path)
+    from tqdm import tqdm
+    for i in tqdm(range(len(dataset))):
         data = dataset[i]
+        pass
 
-    pass
+
+if __name__ == '__main__':
+    test()

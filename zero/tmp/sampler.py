@@ -238,7 +238,7 @@ class JianSampler:
             if i == 0:
                 start_idx = 0
             else:
-                start_idx = episode_ends[i - 1]
+                start_idx = int(episode_ends[i - 1])
 
             end_idx = episode_ends[i]
             episode_length = end_idx - start_idx
@@ -256,14 +256,18 @@ class JianSampler:
                 if To_idx_start < 0:
                     To_idx_start = 0
 
-                if To_idx_end > end_idx:
-                    To_idx_end = int(end_idx)
+                if To_idx_end > episode_length:
+                    To_idx_end = int(episode_length)
 
-                if Ta_idx_start > end_idx - 1:
-                    Ta_idx_start = int(end_idx - 1)
+                if Ta_idx_start > episode_length - 1:
+                    Ta_idx_start = int(episode_length - 1)
 
-                if Ta_idx_end > end_idx:
-                    Ta_idx_end = int(end_idx)
+                if Ta_idx_end > episode_length:
+                    Ta_idx_end = int(episode_length)
+
+                debug = Ta_idx_start + start_idx
+                if debug == 21311:
+                    pass
                 indices.append([
                     start_idx + To_idx_start,
                     start_idx + To_idx_end,
