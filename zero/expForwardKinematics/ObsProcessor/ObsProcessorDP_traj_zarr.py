@@ -83,10 +83,10 @@ class ObsProcessorDP_traj_zarr(ObsProcessorRLBenchBase):
         out['image1'] = einops.rearrange(data['rgb'][:, 1, :, :, :], 'T H W C -> T C H W')
         out['image2'] = einops.rearrange(data['rgb'][:, 2, :, :, :], 'T H W C -> T C H W')
         out['image3'] = einops.rearrange(data['rgb'][:, 3, :, :, :], 'T H W C -> T C H W')
-        out['eePose'] = np.array(data['eePose_all'])  # (T, A)
+        out['eePose'] = np.array(data['eePose_all']) if self.train_flag else np.array(data['eePose'])  # (T, A)
 
         isopen = out['eePose'][:, -1]
-        JP = np.array(data['JP_all'])  # (T, A)
+        JP = np.array(data['JP_all']) if self.train_flag else np.array(data['JP'])  # (T, A)
         JP = np.concatenate([JP, isopen[:, None]], axis=-1)
         out['JP'] = JP
 
@@ -99,53 +99,124 @@ class ObsProcessorDP_traj_zarr(ObsProcessorRLBenchBase):
         else:
             return self.dynamic_process_eval(data, *args, **kwargs)
 
+    def dynamic_process_image(self, sample, *args, **kwargs):
+        image0 = deepcopy(sample['obs']['image0'])[None, ...]
+        image1 = deepcopy(sample['obs']['image1'])[None, ...]
+        image2 = deepcopy(sample['obs']['image2'])[None, ...]
+        image3 = deepcopy(sample['obs']['image3'])[None, ...]
+        image0 = torch.from_numpy(image0).float() / 255 * 2 - 1
+        image1 = torch.from_numpy(image1).float() / 255 * 2 - 1
+        image2 = torch.from_numpy(image2).float() / 255 * 2 - 1
+        image3 = torch.from_numpy(image3).float() / 255 * 2 - 1
+        return image0, image1, image2, image3
+
+    def dynamic_process_obs_action(self, sample, *args, **kwargs):
+        eePose = deepcopy(sample['obs']['eePose'])[None, ...]
+        JP_hist = deepcopy(sample['obs']['JP'])[None, ...]
+        eePos = eePose[:, :, :3]
+        eeRot = eePose[:, :, 3:7]
+        eeOpen = eePose[:, :, -1:]
+        eePos = normalize_pos(eePos)
+        eeRot = quat2ortho6D(eeRot)
+        JP_hist = normalize_JP(JP_hist)
+        eePos = torch.from_numpy(eePos).float()
+        eeRot = torch.from_numpy(eeRot).float()
+        eeOpen = torch.from_numpy(eeOpen).float()
+        JP_hist = torch.from_numpy(JP_hist).float()
+
+        return eePos, eeRot, eeOpen, JP_hist
+
+    def _dynamic_process_gt_action(self, sample):
+        if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            action = deepcopy(sample['action']['eePose'])[None, ...]
+            act_pos = normalize_pos(action[:, :, :3])
+            act_rot = self.norm_rot(action[:, :, 3:7])
+            act_open = action[:, :, 7:8]
+            eePose = np.concatenate([act_pos, act_rot, act_open], axis=-1)
+            eePose = torch.from_numpy(eePose).float()
+            return eePose
+        elif self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            action = deepcopy(sample['action']['JP'])[None, ...]
+            JP_futr = normalize_JP(action)
+            JP_futr = torch.from_numpy(JP_futr).float()
+            return JP_futr
+
     def dynamic_process_train(self, sample, *args, **kwargs):
-        '''
 
-        '''
-
-        image0 = deepcopy(sample['obs']['image0'])
-        image1 = deepcopy(sample['obs']['image1'])
-        image2 = deepcopy(sample['obs']['image2'])
-        image3 = deepcopy(sample['obs']['image3'])
-
-        eePose = deepcopy(sample['obs']['eePose'])
-
-        eePos = eePose[:, :3]
-        eeRot = eePose[:, 3:7]
+        image0, image1, image2, image3 = self.dynamic_process_image(sample, *args, **kwargs)
+        # 数据集里面是PosQuat
+        eePos, eeRot, eeOpen, JP_hist = self.dynamic_process_obs_action(sample, *args, **kwargs)
+        action = self._dynamic_process_gt_action(sample)  # (1, H, D)
+        # normalize
+        # apply torch
         batch = {
             'obs': {
                 'image0': image0,
                 'image1': image1,
                 'image2': image2,
                 'image3': image3,
-                'eePos': None,
+                'eePos': eePos,
+                'eeRot': eeRot,
+                'eeOpen': eeOpen,
+                'JP_hist': JP_hist,
             },
-            'action': {
-                'eePose': sample['action']['eePose'],
-                'JP': sample['action']['JP'],
+            'action': action
+        }
+        if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            batch['obs'].pop('JP_hist')
+
+        return batch
+
+    def dynamic_process_eval(self, static_data, *args, **kwargs):
+        '''
+        data 是singleFrame static_data
+        static_data = {
+            'image0': None,
+            'image1': None,
+            'image2': None,
+            'image3': None,
+            'eePose': None,
+            'JP': None,
+        }
+        '''
+        image0 = deepcopy(static_data['image0'])[None, ...]
+        image1 = deepcopy(static_data['image1'])[None, ...]
+        image2 = deepcopy(static_data['image2'])[None, ...]
+        image3 = deepcopy(static_data['image3'])[None, ...]
+        eePose = deepcopy(static_data['eePose'])[None, ...]
+        JP_hist = deepcopy(static_data['JP'])[None, ...][..., :-1]  # TODO:fix it
+        eePos = eePose[:, :, :3]
+        eeRot = eePose[:, :, 3:7]
+        eeOpen = eePose[:, :, -1:]
+        eePos = normalize_pos(eePos)
+        eeRot = quat2ortho6D(eeRot)
+        JP_hist = normalize_JP(JP_hist)
+        image0 = torch.from_numpy(image0).float()
+        image1 = torch.from_numpy(image1).float()
+        image2 = torch.from_numpy(image2).float()
+        image3 = torch.from_numpy(image3).float()
+        eePos = torch.from_numpy(eePos).float()
+        eeRot = torch.from_numpy(eeRot).float()
+        eeOpen = torch.from_numpy(eeOpen).float()
+        JP_hist = torch.from_numpy(JP_hist).float()
+        batch = {
+            'obs': {
+                'image0': image0,
+                'image1': image1,
+                'image2': image2,
+                'image3': image3,
+                'eePos': eePos,
+                'eeRot': eeRot,
+                'eeOpen': eeOpen,
+                'JP_hist': JP_hist,
             },
+            'action': None
         }
         return batch
 
-        return batch
-
-    def dynamic_process_eval(self, data, *args, **kwargs):
-        '''
-        从数据中sample一个batch出来
-        '''
-        batch = {'obs': {}, 'action': None}
-        rgb_hist = copy(data['rgb'][None, ...])  # (B, T, N, H, W, C)
-        eePose_hist = copy(data['eePose'][None, ...])  # (B, T, A)
-        JP_hist = copy(data['JP'][None, ...])  # (B, T, A)
-        if self.config['DP']['ActionHead']['action_mode'] == 'JP':
-            obs_action = JP_hist
-        elif self.config['DP']['ActionHead']['action_mode'] == 'eePose':
-            obs_action = eePose_hist
-
-        batch['obs'].update(self._dynamic_process_image(rgb_hist))
-        batch['obs'].update(self._dynamic_process_obs_action(obs_action))
-        return batch
+    @override
+    def dataset_init(self, **kwargs):
+        self.data_container = []
 
     @override
     @staticmethod
@@ -162,3 +233,41 @@ class ObsProcessorDP_traj_zarr(ObsProcessorRLBenchBase):
         except:
             pass
         return collated
+
+    @override
+    def denormalize_action(self, action: dict) -> list:
+        '''
+        assume action has shape (1, H, D), batch size, horizon, action dim
+        '''
+        action = action['action_pred']
+        B, H, D = action.shape
+        assert B == 1, 'batch size should be 1'
+        action = action.cpu().detach().numpy()
+        if self.config['DP']['ActionHead']['action_mode'] == 'JP':
+            rlbench_action = denormalize_JP(action)
+        elif self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            pos = denormalize_pos(action[:, :, :3])
+            if self.config['DP']['ActionHead']['rot_norm_type'] == 'ortho6d':
+                rot = ortho6d2quat(action[:, :, 3:9])
+            elif self.config['DP']['ActionHead']['rot_norm_type'] == 'quat':
+                rot = action[:, :, 3:7]
+            elif self.config['DP']['ActionHead']['rot_norm_type'] == 'euler':
+                rot = denormalize_quat2euler(action[:, :, 3:6])
+            isopen = action[:, :, -1]
+            rlbench_action = np.concatenate([pos, rot, isopen[..., None]], axis=-1)
+
+        rlbench_action = [
+            rlbench_action[0, j, :]for j in range(H)
+        ]
+
+        return rlbench_action
+
+    def norm_rot(self, eeRot):
+        if self.config['DP']['ActionHead']['rot_norm_type'] == 'ortho6d':
+            eeRot = quat2ortho6D(eeRot)
+        elif self.config['DP']['ActionHead']['rot_norm_type'] == 'euler':
+            eeRot = normalize_quat2euler(eeRot)
+        elif self.config['DP']['ActionHead']['rot_norm_type'] == 'quat':
+            raise NotImplementedError('quat norm not implemented')
+
+        return eeRot

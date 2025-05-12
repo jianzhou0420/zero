@@ -37,15 +37,9 @@ class StaticProcess:  # just for code organization
         episodes_list = StaticProcess.get_all_episodes(obs_raw_path)
         pbar = tqdm(total=len(episodes_list))
         for i, s_dict in tqdm(enumerate(episodes_list)):
-            relative_path = os.path.join(str(s_dict['task']), str(s_dict['variation']), str(s_dict['episode']))
-            abs_path = os.path.join(save_root, relative_path)
-
             with open(os.path.join(s_dict['path'], 'data.pkl'), 'rb') as f:
                 obs_raw = pickle.load(f)
             static_data = ObsProcessor.static_process(obs_raw)
-
-            save_path = os.path.join(abs_path, 'data.pkl')
-            check_and_make(os.path.dirname(save_path))
             replay_buffer.add_episode(static_data)
             pbar.update(1)
 
@@ -80,7 +74,7 @@ class StaticProcess:  # just for code organization
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='Train FK')
     argparser.add_argument('--model', type=str, default='DP_traj_zarr')
-    argparser.add_argument('--obs_raw_path', type=str, default='/media/jian/ssd4t/zero/1_Data/A_Selfgen/trajectory/test2/42')
+    argparser.add_argument('--obs_raw_path', type=str, default='/data/zero/1_Data/A_Selfgen/trajectory/reach_target')
     args = argparser.parse_args()
 
     config = get_config(CONFIG_FACTORY[args.model])

@@ -13,7 +13,7 @@ Trainer:
 
   train:
     batch_size: 8
-    n_workers: 8
+    n_workers: 1
     pin_mem: True
     shuffle: False
 
@@ -25,7 +25,7 @@ Trainer:
 
 
 TrainDataset:
-  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/test2
+  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/push_buttons
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
@@ -56,7 +56,7 @@ DP:
     n_cross_attn_layers: 4
     n_self_attn_layers: 4
 
-    action_mode: 'JP' # eePose, JP
+    action_mode: 'eePose' # eePose, JP
     pos_norm_type: null
     rot_norm_type: ortho6d # ortho6d, euler
 

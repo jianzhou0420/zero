@@ -194,14 +194,9 @@ class DataGenerator:
         config['save_path'] = os.path.join(config['save_path'], str(seed))
         check_and_make(config['save_path'])
 
-        with open(config['all_task_file'], 'r') as f:
-            all_tasks = json.load(f)
-            if config['tasks']:
-                all_tasks = [t for t in all_tasks if t in config['tasks']]
-
+        all_tasks = config['task']
         all_tasks = [task_file_to_task_class(t) for t in all_tasks]
         print('Tasks:', all_tasks)
-        all_tasks = [all_tasks[0]]
         pbar = tqdm(total=len(config['var']) * config['num'], desc=f"{all_tasks[0].__name__}")
         for i, each_task in enumerate(all_tasks):
             test = DataGenerator(config)

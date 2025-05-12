@@ -1,3 +1,5 @@
+from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.z_utils.coding import extract
 from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 from typing import Dict
 import torch
@@ -104,7 +106,10 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
             num_inference_steps = noise_scheduler.config.num_train_timesteps
         self.num_inference_steps = num_inference_steps
 
+        # X0LossPlugin
+        self.loss_plugin = X0LossPlugin(scheduler=noise_scheduler)
     # ========= inference  ============
+
     def conditional_sample(self,
                            condition_data, condition_mask,
                            local_cond=None, global_cond=None,
@@ -277,11 +282,71 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         else:
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
+        # X0LossPlugin
+        x_0 = self.loss_plugin.inverse_q_sample()
+        #
+
         loss = F.mse_loss(pred, target, reduction='none')
         loss = loss * loss_mask.type(loss.dtype)
         loss = reduce(loss, 'b ... -> b (...)', 'mean')
         loss = loss.mean()
         return loss
+
+
+class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Module just for coding
+
+    def __init__(self, scheduler: DDPMScheduler):
+        super().__init__()
+        self.scheduler = scheduler
+
+        # diffusion model
+        def rb(name, val): return self.register_buffer(name, val)  # 这一步太天才了
+        max_t = len(scheduler.timesteps)
+        betas = scheduler.betas
+        alphas = scheduler.alphas
+        alphas_bar = scheduler.alphas_cumprod
+        alphas_bar_prev = F.pad(alphas_bar, [1, 0], value=1)[:max_t]
+
+        rb('sqrt_alphas_bar', torch.sqrt(alphas_bar))
+        rb('sqrt_one_minus_alphas_bar', torch.sqrt(1. - alphas_bar))
+
+        # denoising coeffs
+        rb('coeff1', torch.sqrt(1. / alphas))
+        rb('coeff2', self.coeff1 * (1. - alphas) / torch.sqrt(1. - alphas_bar))
+
+        # D-H Parameters
+        self.franka = FrankaEmikaPanda()
+        lower = [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973, 0],
+        upper = [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973, 1]
+
+        self.lower_t = torch.tensor(lower)
+        self.upper_t = torch.tensor(upper)
+
+    def inverse_q_sample(self, x_t, t, noise):
+        '''
+        inverse diffusion process, it is not denoising! Just for apply pysical rules
+        '''
+        sqrt_alphas_bar = extract(self.sqrt_alphas_bar, t, x_t.shape)
+        sqrt_one_minus_alphas_bar = extract(self.sqrt_one_minus_alphas_bar, t, x_t.shape)
+        x_0 = (x_t - sqrt_one_minus_alphas_bar * noise) / sqrt_alphas_bar
+        return x_0
+
+    def eePoseMseLoss(self, x_t, t, noise, eePose, rot_type='ortho6d'):
+        '''
+        x: JP
+        eePose:[B,8,]
+        '''
+        gt_pos = eePose[..., :3]
+        gt_rot = eePose[..., 3:-1]
+        gt_open = eePose[..., -1:]
+
+        x_0_pred = self.inverse_q_sample(x_t, t, noise)
+        theta_pred = self.denormalize_JP(x_0_pred)
+        eePose_pred = self.franka.theta2PosQuat(x_0_pred)
+
+    def denormalize_JP(self, norm_JP):
+        JP = self.lower_t + (norm_JP + 1) / 2 * (self.upper_t - self.lower_t)
+        return JP
 
 
 class DPWithLossWrapper(BasePolicy):

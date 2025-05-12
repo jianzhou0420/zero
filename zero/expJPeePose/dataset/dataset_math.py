@@ -77,7 +77,7 @@ class DatasetGeneral(Dataset):
 
     def __getitem__(self, idx):
         JP = npa(np.random.uniform(self.low, self.high, size=(1, self.low.shape[0])))
-        eePose = npa([self.franka.theta2eePose(JP[i]) for i in range(JP.shape[0])]).reshape(1, 1, -1)
+        eePose = npa([self.franka.theta2PosQuat(JP[i]) for i in range(JP.shape[0])]).reshape(1, 1, -1)
         PosOrtho6D = np.zeros((9))
         JP = normalize_JP(JP)
 

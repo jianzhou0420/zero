@@ -144,6 +144,7 @@ class ReplayBuffer:
         Slower.
         """
         group = zarr.open(os.path.expanduser(zarr_path), mode)
+        # group = zarr.open(zarr_path, mode=mode)
         return cls.create_from_group(group, **kwargs)
 
     # ============= copy constructors ===============

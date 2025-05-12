@@ -61,10 +61,6 @@ class Actioner(object):
         self.obs_processor = OBS_FACTORY[model_name](self.config, train_flag=False)  # type: ObsProcessorRLBenchBase
         self.obs_processor.dataset_init()
 
-        self.data_container = {
-            'JP_hist': [],
-            'eePose_hist': [],
-        }
         self.model_name = model_name
 
     def preprocess_obs(self, taskvar, step_id, obs: list[Observation]):
@@ -77,26 +73,10 @@ class Actioner(object):
         for item in batch:
             if isinstance(batch[item], torch.Tensor):
                 batch[item] = batch[item].to(self.device)
-
-        for item in batch:
-            if isinstance(batch[item], torch.Tensor):
-                batch[item] = batch[item].to(self.device)
         return batch
 
     def process_and_save_actions(self):
         pass
-
-    def update_data_container(self, name, value):
-        length = len(self.data_container[name])
-        H = 8  # TODO:horizon
-
-        if length == H:
-            self.data_container[name].pop(0)
-            self.data_container[name].append(value)
-        elif length == 0:
-            [self.data_container[name].append(value)for _ in range(H)]
-        else:
-            raise ValueError(f"data_container {name} length is {length}, but it should be 0 or {H}.")
 
     def forward(self, task_str=None, variation=None, step_id=None, obs=None, episode_id=None, instructions=None,):
         # print(obs_state_dict)
@@ -106,7 +86,7 @@ class Actioner(object):
         new_actions = self.obs_processor.denormalize_action(actions)
 
         out = {
-            'actions': new_actions[0:1],
+            'actions': new_actions[1:2],
         }
 
         if self.args.save_obs_outs_dir is not None:
