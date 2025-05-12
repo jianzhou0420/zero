@@ -13,7 +13,7 @@ Trainer:
 
   train:
     batch_size: 8
-    n_workers: 1
+    n_workers: 8
     pin_mem: True
     shuffle: False
 
