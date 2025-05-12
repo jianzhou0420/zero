@@ -129,7 +129,7 @@ class SequenceSampler:
 
 
 # Zarr 存储路径
-zarr_path = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/DP_traj/trajectory/put_groceries_100_zarr'
+zarr_path = '/data/zero/1_Data/B_Preprocess/DP_traj/trajectory/put_groceries_100_zarr'
 
 # 创建 ReplayBuffer (如果不存在则会创建)
 replay_buffer = ReplayBuffer.create_from_path(zarr_path, mode='a')  # 'a' 模式表示追加数据

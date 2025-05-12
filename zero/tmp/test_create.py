@@ -6,7 +6,7 @@ from zero.tmp.replay_buffer import ReplayBuffer
 import pickle
 
 import numpy as np
-data_path = "/media/jian/ssd4t/zero/1_Data/A_Selfgen/trajectory/test2/42"
+data_path = "/data/zero/1_Data/A_Selfgen/trajectory/test2/42"
 zarr_path = './my_replay_buffer.zarr'
 
 replay_buffer = ReplayBuffer.create_from_path(zarr_path, mode='a')

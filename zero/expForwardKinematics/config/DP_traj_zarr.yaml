@@ -25,7 +25,7 @@ Trainer:
 
 
 TrainDataset:
-  data_dir: /media/jian/ssd4t/zero/1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/push_buttons
+  data_dir: /data/zero/1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/push_buttons
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]

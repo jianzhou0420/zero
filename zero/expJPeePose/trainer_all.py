@@ -49,8 +49,8 @@ DATASET_FACTORY: Dict[str, Type[Dataset]] = {
 
 
 CONFIG_FACTORY = {
-    'VAE': '/media/jian/ssd4t/zero/zero/expJPeePose/config/VAE.yaml',
-    'MLP': '/media/jian/ssd4t/zero/zero/expJPeePose/config/MLP.yaml'
+    'VAE': '/data/zero/zero/expJPeePose/config/VAE.yaml',
+    'MLP': '/data/zero/zero/expJPeePose/config/MLP.yaml'
 }
 
 

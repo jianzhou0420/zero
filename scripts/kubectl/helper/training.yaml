@@ -31,7 +31,7 @@ spec:
                 pip install -e .
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
-                python /data/zero/zero/expForwardKinematics/trainer_FK_all.py --model DP --config /data/zero/zero/expForwardKinematics/config/DP_0430_01.yaml
+                python /data/zero/zero/expForwardKinematics/trainer_FK_all.py --model DP --config /data/zero/zero/expForwardKinematics/config/DP_traj_zarr.yaml
                        
 
 

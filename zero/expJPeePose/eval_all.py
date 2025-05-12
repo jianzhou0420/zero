@@ -19,7 +19,7 @@ class Evaluator:
     '''
 
     def __init__(self):
-        eval_config = get_config('/media/jian/ssd4t/zero/zero/expJPeePose/config/eval.yaml')
+        eval_config = get_config('/data/zero/zero/expJPeePose/config/eval.yaml')
         exp_dir = eval_config['exp_dir']
         ckpt_path_all = sorted(os.listdir(os.path.join(exp_dir, 'checkpoints')), key=natural_sort_key)
         if eval_config['epoch'] is not None:
@@ -36,7 +36,7 @@ class Evaluator:
         self.model = Trainer_all.load_from_checkpoint(ckpt_path, config=model_config)
 
     def inference_JP2eePose(self):
-        test_data_path = "/media/jian/ssd4t/zero/1_Data/B_Preprocess/eePoseJP/data.pkl"
+        test_data_path = "/data/zero/1_Data/B_Preprocess/eePoseJP/data.pkl"
         with open(test_data_path, 'rb') as f:
             test_data = pickle.load(f)
         for i in tqdm(range(len(test_data))):
@@ -59,7 +59,7 @@ class Evaluator:
             # break
 
     def inference_eePose2JP(self):
-        test_data_path = "/media/jian/ssd4t/zero/1_Data/B_Preprocess/eePoseJP/data.pkl"
+        test_data_path = "/data/zero/1_Data/B_Preprocess/eePoseJP/data.pkl"
         with open(test_data_path, 'rb') as f:
             test_data = pickle.load(f)
         for i in tqdm(range(len(test_data))):

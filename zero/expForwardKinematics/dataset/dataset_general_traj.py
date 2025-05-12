@@ -153,9 +153,9 @@ if __name__ == '__main__':
     from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP import ObsProcessorDP
     from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj import ObsProcessorDP_traj
 
-    config_path = '/media/jian/ssd4t/zero/zero/expForwardKinematics/config/DP_0501_01.yaml'
+    config_path = '/data/zero/zero/expForwardKinematics/config/DP_0501_01.yaml'
     config = get_config(config_path)
-    data_dir = '/media/jian/ssd4t/zero/1_Data/B_Preprocess/DP_traj/trajectory/test2/42'
+    data_dir = '/data/zero/1_Data/B_Preprocess/DP_traj/trajectory/test2/42'
     dataset = DatasetGeneral_traj(config, data_dir, ObsProcessor=ObsProcessorDP_traj)
     loader = DataLoader(dataset, batch_size=4, shuffle=False, num_workers=4, pin_memory=True, persistent_workers=True,)
     for i in range(len(loader)):
