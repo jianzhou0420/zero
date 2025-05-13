@@ -1,4 +1,4 @@
-exp_dir: /media/jian/ssd4t/zero/2_Train/DP_traj_zarr/0512_01_DP_zarr_eePose/version_0
+exp_dir: /media/jian/ssd4t/zero/2_Train/DP_traj_zarr/0512_02_DP_zarr_JP/version_0
 epoch: 049
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]

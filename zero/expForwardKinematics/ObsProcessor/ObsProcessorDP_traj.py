@@ -12,8 +12,6 @@ from zero.z_utils.normalizer_action import \
     (normalize_pos, denormalize_pos, quat2ortho6D, normalize_JP, denormalize_JP, ortho6d2quat,
         normalize_quat2euler, denormalize_quat2euler)
 
-from rlbench.backend.observation import Observation
-
 
 class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
     def __init__(self, config, train_flag=True):
@@ -23,7 +21,7 @@ class ObsProcessorDP_traj(ObsProcessorRLBenchBase):
 
     @override
     def obs_2_obs_raw(self, obs):
-        if isinstance(obs, Observation):
+        if not isinstance(obs, list):
             obs = [obs]
 
         obs_raw = {
