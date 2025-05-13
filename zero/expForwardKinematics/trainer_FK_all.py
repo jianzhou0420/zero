@@ -37,6 +37,8 @@ from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj import ObsProces
 from zero.expForwardKinematics.dataset.dataset_general_traj import DatasetGeneral_traj
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj_zarr import ObsProcessorDP_traj_zarr
 from zero.expForwardKinematics.dataset.dataset_zarr import DatasetTmp
+from zero.expForwardKinematics.models.DP.DP_newloss import DPWithLossWrapper
+from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj_zarr_x0loss import ObsProcessorDP_traj_zarr_x0loss
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
 torch.set_float32_matmul_precision('medium')
@@ -48,6 +50,7 @@ POLICY_FACTORY = {
     'DP3': DP3Wrapper,
     'DP_traj': DPWrapper,
     'DP_traj_zarr': DPWrapper,
+    'DP_traj_x0loss': DPWithLossWrapper
 }
 
 
@@ -58,6 +61,7 @@ OBS_FACTORY: Dict[str, Type[ObsProcessorRLBenchBase]] = {
     'DA3D': ObsProcessorDA3DWrapper,
     'DP_traj': ObsProcessorDP_traj,
     'DP_traj_zarr': ObsProcessorDP_traj_zarr,
+    'DP_traj_x0loss': ObsProcessorDP_traj_zarr_x0loss,
 }
 
 DATASET_FACTORY: Dict[str, Type[Dataset]] = {
@@ -67,6 +71,7 @@ DATASET_FACTORY: Dict[str, Type[Dataset]] = {
     'DA3D': DA3DDatasetWrapper,
     'DP_traj': DatasetGeneral_traj,
     'DP_traj_zarr': DatasetTmp,
+    'DP_traj_x0loss': DatasetTmp,
 }
 
 
@@ -77,6 +82,7 @@ CONFIG_FACTORY = {
     'DA3D': './zero/expForwardKinematics/config/DA3DWrapper.yaml',
     'DP_traj': './zero/expForwardKinematics/config/DP_traj.yaml',
     'DP_traj_zarr': './zero/expForwardKinematics/config/DP_traj_zarr.yaml',
+    'DP_traj_x0loss': './zero/expForwardKinematics/config/DP_traj_x0loss.yaml',
 }
 
 
@@ -94,7 +100,7 @@ class Trainer_all(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         loss = self.policy(batch)
         self.log('train_loss', loss, on_epoch=True, prog_bar=True)
-        print(f"train_loss: {loss}")
+        # print(f"train_loss: {loss}")
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -255,7 +261,6 @@ def train(config: yacs.config.CfgNode):
     trainer_model = Trainer_all(config)
     data_module = MyDataModule(config)
     trainer.fit(trainer_model, datamodule=data_module)
-    # print(profiler.key_averages().table(max_len=200))
 
 
 # endregion

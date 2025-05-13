@@ -5,11 +5,11 @@ import math
 from torch import cos, sin
 from torch import deg2rad as radians
 from zero.z_utils.coding import tensorfp32
-
+import torch.nn as nn
 from codebase.z_utils.Rotation_torch import euler2mat, RT2HT, HT2eePose, PosEuler2HT
 
 
-class FrankaEmikaPanda_torch():
+class FrankaEmikaPanda_torch(nn.Module):
     '''
     TODO: support batch process
     '''
@@ -18,12 +18,15 @@ class FrankaEmikaPanda_torch():
         '''
         PoseEuler: [x, y, z, Rx, Ry, Rz]
         '''
-        self.d = tensorfp32([0.333, 0, 0.316, 0, 0.384, 0, 0, ])
-        self.a = tensorfp32([0, 0, 0, 0.0825, -0.0825, 0, 0.088, ])
-        self.alpha = tensorfp32([0, -math.pi / 2, math.pi / 2, math.pi / 2,
-                                 -math.pi / 2, math.pi / 2, math.pi / 2, ])
+        super().__init__()
+        def rb(name, val): return self.register_buffer(name, val)  # 这一步太天才了
 
-        self.PosEuler_ik = tensorfp32([
+        d = tensorfp32([0.333, 0, 0.316, 0, 0.384, 0, 0, ])
+        a = tensorfp32([0, 0, 0, 0.0825, -0.0825, 0, 0.088, ])
+        alpha = tensorfp32([0, -math.pi / 2, math.pi / 2, math.pi / 2,
+                            -math.pi / 2, math.pi / 2, math.pi / 2, ])
+
+        PosEuler_ik = tensorfp32([
             [-0.0001, -0.0347, -0.0752, -162.8693, 0.0033, 0.2122],
             [0.0, -0.0766, 0.0344, -72.9831, 0.2349, -178.696],
             [0.0333, 0.0266, -0.0412, -23.1133, 36.1784, -73.6655],
@@ -33,7 +36,7 @@ class FrankaEmikaPanda_torch():
             [0.0136, 0.0117, 0.0787, 89.277, -45.0221, 88.992]
         ])  # frame to link, constant
 
-        self.bbox_link = tensorfp32([
+        bbox_link = tensorfp32([
             [-0.05506498, 0.05506498, -0.07104017, 0.07104017, -0.13778356, 0.13778356],
             [-0.05553254, 0.05553254, -0.07103211, 0.07103211, -0.13867143, 0.13867143],
             [-0.06274896, 0.06274896, -0.06585597, 0.06585597, -0.12418943, 0.12418943],
@@ -43,46 +46,54 @@ class FrankaEmikaPanda_torch():
             [-0.02742341, 0.02742341, -0.04388235, 0.04388235, -0.07091156, 0.07091156]
         ])
 
-        self.bbox_other = tensorfp32([
+        bbox_other = tensorfp32([
             [-0.0700, 0.0700, -0.0936, 0.0936, -0.1128, 0.1128],  # link base
             [-0.0314, 0.0314, -0.0459, 0.0459, -0.1023, 0.1023],  # gripper
             [-0.0121, 0.0121, -0.0105, 0.0105, -0.0278, 0.0278],  # left finger
             [-0.0120, 0.0120, -0.0105, 0.0105, -0.0277, 0.0277],  # right finger
         ])
 
-        self.PosEuler_ik_gripper_close = tensorfp32([
+        PosEuler_ik_gripper_close = tensorfp32([
             [0.0000, 0.0000, 0.1261, -89.9259, 45.0282, -179.1246],
             [0.0106, 0.0100, 0.1913, 3.4935, -3.589, 45.154],
             [-0.0076, -0.0084, 0.1913, 177.056, -2.8024, 134.9147]
         ])
 
-        self.PosEuler_ik_gripper_open = tensorfp32([
+        PosEuler_ik_gripper_open = tensorfp32([
             [0.0042, -0.0003, 0.1230, -89.9259, 45.0282, -179.1246],
             [0.044, 0.0380, 0.1913, 3.4935, -3.589, 45.154],
             [-0.03, -0.036, 0.1913, 177.056, -2.8024, 134.9147]
         ])
 
-        self.T_base = tensorfp32([
+        T_base = tensorfp32([
             [1, 0, 0, -0.2677189],
             [0, 1, 0, -0.00628856],
             [0, 0, 1, 0.74968816],
             [0, 0, 0, 1]])
 
-        self.JP_offset = tensorfp32([0, 0, 0, radians(torch.tensor(-4)), 0, 0, 0, 0])  # link7 open1
+        JP_offset = tensorfp32([0, 0, 0, radians(torch.tensor(-4)), 0, 0, 0, 0])  # link7 open1
 
-        self.bbox_link_half = self.bbox_link[:, 1::2]
+        bbox_link_half = bbox_link[:, 1::2]
 
-        self.T_last2eePose = tensorfp32([
+        T_last2eePose = tensorfp32([
             [-0.7073, -0.7069, -0.0006, 0.0005],
             [0.7069, -0.7073, -0.0001, 0.0008],
             [-0.0004, -0.0005, 1.0000, 0.2174],
             [0.0000, 0.0000, 0.0000, 1.0000]
         ])  # TODO: refine this
-        self.T_base = tensorfp32([
-            [1, 0, 0, -0.2677189],
-            [0, 1, 0, -0.00628856],
-            [0, 0, 1, 0.74968816],
-            [0, 0, 0, 1]])
+
+        rb('d', d)
+        rb('a', a)
+        rb('alpha', alpha)
+        rb('PosEuler_ik', PosEuler_ik)
+        rb('bbox_link', bbox_link)
+        rb('bbox_other', bbox_other)
+        rb('PosEuler_ik_gripper_close', PosEuler_ik_gripper_close)
+        rb('PosEuler_ik_gripper_open', PosEuler_ik_gripper_open)
+        rb('T_base', T_base)
+        rb('JP_offset', JP_offset)
+        rb('bbox_link_half', bbox_link_half)
+        rb('T_last2eePose', T_last2eePose)
 
     @staticmethod
     def dh_modified_transform(DH):
@@ -146,7 +157,7 @@ class FrankaEmikaPanda_torch():
         T_oi = torch.stack(T_oi, dim=-3)
         return T_i1_i, T_oi
 
-    def theta2eePose(self, theta):  # assume no open
+    def theta2PosQuat(self, theta):  # assume no open
         _, T_oi = self.get_T_oi(theta)
         other_shape = theta.shape[:-1]
         T_oi_last = T_oi[..., -1, :, :]
@@ -154,6 +165,14 @@ class FrankaEmikaPanda_torch():
         T_eePose = T_oi_last @ T_last2eePose
         eePose = HT2eePose(T_eePose)
         return eePose
+
+    def theta2HT(self, theta):
+        _, T_oi = self.get_T_oi(theta)
+        other_shape = theta.shape[:-1]
+        T_oi_last = T_oi[..., -1, :, :]
+        T_last2eePose = self.T_last2eePose.repeat(other_shape + (1, 1))
+        T_eePose = T_oi_last @ T_last2eePose
+        return T_eePose
 
 
 if __name__ == "__main__":
@@ -166,10 +185,10 @@ if __name__ == "__main__":
         for i in range(8):
             eePose_np = franka_np.theta2eePose(theta[i, :])
             print(eePose_np)
-        eePose_torch = franka_torch.theta2eePose(theta)
+        eePose_torch = franka_torch.theta2PosQuat(theta)
         print(eePose_torch)
         theta_1 = theta.repeat(8, 1, 1)
-        eePose_torch_1 = franka_torch.theta2eePose(theta_1)
+        eePose_torch_1 = franka_torch.theta2PosQuat(theta_1)
         print(eePose_torch_1[-1])
         print(eePose_torch_1[5])
     test()

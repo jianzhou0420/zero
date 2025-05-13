@@ -1,4 +1,5 @@
-from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
+import einops
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK_torch import FrankaEmikaPanda_torch
 from zero.z_utils.coding import extract
 from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 from typing import Dict
@@ -16,6 +17,9 @@ from zero.expForwardKinematics.models.DP.model.common.module_attr_mixin import M
 from zero.expForwardKinematics.models.DP.model.common.normalizer import LinearNormalizer, SingleFieldLinearNormalizer
 from zero.expForwardKinematics.models.DP.model.common.pytorch_util import dict_apply
 from zero.expForwardKinematics.models.DP.model.common.normalize_util import get_image_range_normalizer
+
+
+from zero.z_utils.normalizer_action import Ortho6D_torch
 
 
 class BaseImagePolicy(ModuleAttrMixin):
@@ -283,14 +287,21 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
             raise ValueError(f"Unsupported prediction type {pred_type}")
 
         # X0LossPlugin
-        x_0 = self.loss_plugin.inverse_q_sample()
-        #
+        x0Loss = self.loss_plugin.eePoseMseLoss(x_t=noisy_trajectory,
+                                                t=timesteps,
+                                                noise=pred,
+                                                eePose=batch['eePose'])
+        x0Loss = reduce(x0Loss, 'b ... -> b (...)', 'mean')
+        x0Loss = x0Loss.mean()
+        # /X0LossPlugin
 
         loss = F.mse_loss(pred, target, reduction='none')
         loss = loss * loss_mask.type(loss.dtype)
         loss = reduce(loss, 'b ... -> b (...)', 'mean')
         loss = loss.mean()
-        return loss
+
+        total_loss = loss + x0Loss
+        return total_loss
 
 
 class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Module just for coding
@@ -315,12 +326,12 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
         rb('coeff2', self.coeff1 * (1. - alphas) / torch.sqrt(1. - alphas_bar))
 
         # D-H Parameters
-        self.franka = FrankaEmikaPanda()
+        self.franka = FrankaEmikaPanda_torch()
         lower = [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973, 0],
         upper = [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973, 1]
 
-        self.lower_t = torch.tensor(lower)
-        self.upper_t = torch.tensor(upper)
+        self.lower_t = torch.tensor(lower, device='cuda')
+        self.upper_t = torch.tensor(upper, device='cuda')
 
     def inverse_q_sample(self, x_t, t, noise):
         '''
@@ -333,16 +344,29 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
 
     def eePoseMseLoss(self, x_t, t, noise, eePose, rot_type='ortho6d'):
         '''
-        x: JP: [B,8,8]
-        eePose:[B,8, 3+x+1]
+        x: JP: [B,H,8]
+        eePose:[B,H, 3+x+1], 默认没有被normalize过
         '''
-        gt_pos = eePose[..., :3]
-        gt_rot = eePose[..., 3:-1]
-        gt_open = eePose[..., -1:]
 
         x_0_pred = self.inverse_q_sample(x_t, t, noise)
-        theta_pred = self.denormalize_JP(x_0_pred)
-        eePose_pred = self.franka.theta2eePose(theta_pred)
+        JP_with_open_pred = self.denormalize_JP(x_0_pred)
+        JP_pred = JP_with_open_pred[..., :-1]
+        isopen_pred = JP_with_open_pred[..., -1:]
+        eeHT_pred = self.franka.theta2HT(JP_pred)
+        pos_pred = eeHT_pred[..., :3, 3]
+        rot_pred = eeHT_pred[..., :3, :3]
+        if rot_type == 'ortho6d':
+            B, H, r, c = rot_pred.shape
+            rot_pred = einops.rearrange(rot_pred, 'B H r c -> (B H) r c')
+            rot_pred = Ortho6D_torch.get_ortho6d_from_rotation_matrix(rot_pred)
+            rot_pred = einops.rearrange(rot_pred, '(B H) r -> B H r', B=B, H=H)
+        else:
+            NotImplementedError()
+
+        eePose_pred = torch.cat([pos_pred, rot_pred, isopen_pred], dim=-1)
+
+        loss = F.mse_loss(eePose_pred, eePose, reduction='none')
+        return loss
 
     def denormalize_JP(self, norm_JP):
         JP = self.lower_t + (norm_JP + 1) / 2 * (self.upper_t - self.lower_t)
