@@ -1,12 +1,15 @@
 
+import torch
 import open3d as o3d
 import math
 from torch import cos, sin
 from torch import deg2rad as radians
 from zero.z_utils.coding import tensorfp32
 
+from codebase.z_utils.Rotation_torch import euler2mat, RT2HT, HT2eePose, PosEuler2HT
 
-class FrankaEmikaPanda():
+
+class FrankaEmikaPanda_torch():
     '''
     TODO: support batch process
     '''
@@ -65,7 +68,7 @@ class FrankaEmikaPanda():
             [0, 0, 1, 0.74968816],
             [0, 0, 0, 1]])
 
-        self.JP_offset = tensorfp32([0, 0, 0, radians(-4), 0, 0, 0, 0])  # link7 open1
+        self.JP_offset = tensorfp32([0, 0, 0, radians(torch.tensor(-4)), 0, 0, 0, 0])  # link7 open1
 
         self.bbox_link_half = self.bbox_link[:, 1::2]
 
@@ -75,140 +78,99 @@ class FrankaEmikaPanda():
             [-0.0004, -0.0005, 1.0000, 0.2174],
             [0.0000, 0.0000, 0.0000, 1.0000]
         ])  # TODO: refine this
+        self.T_base = tensorfp32([
+            [1, 0, 0, -0.2677189],
+            [0, 1, 0, -0.00628856],
+            [0, 0, 1, 0.74968816],
+            [0, 0, 0, 1]])
+
+    @staticmethod
+    def dh_modified_transform(DH):
+        alpha, a, theta, d = DH[..., 0, :], DH[..., 1, :], DH[..., 2, :], DH[..., 3, :]
+        ct = cos(theta)
+        st = sin(theta)
+
+        ca = cos(alpha)
+        sa = sin(alpha)
+
+        t11 = ct
+        t12 = -st
+        t13 = torch.zeros_like(t11)
+        t14 = a
+
+        t21 = st * ca
+        t22 = ct * ca
+        t23 = -sa
+        t24 = -d * sa
+
+        t31 = st * sa
+        t32 = ct * sa
+        t33 = ca
+        t34 = d * ca
+
+        t41 = torch.zeros_like(t11)
+        t42 = torch.zeros_like(t11)
+        t43 = torch.zeros_like(t11)
+        t44 = torch.ones_like(t11)
+
+        row1 = torch.stack([t11, t12, t13, t14], dim=-1)
+        row2 = torch.stack([t21, t22, t23, t24], dim=-1)
+        row3 = torch.stack([t31, t32, t33, t34], dim=-1)
+        row4 = torch.stack([t41, t42, t43, t44], dim=-1)
+        T = torch.stack([row1, row2, row3, row4], dim=-2)
+
+        return T
 
     def get_T_oi(self, theta):
-        def dh_modified_transform(alpha, a, theta, d):
-            ct = cos(theta)
-            st = sin(theta)
-
-            ca = cos(alpha)
-            sa = sin(alpha)
-
-            t11 = ct
-            t12 = -st
-            t13 = 0
-            t14 = a
-
-            t21 = st * ca
-            t22 = ct * ca
-            t23 = -sa
-            t24 = -d * sa
-
-            t31 = st * sa
-            t32 = ct * sa
-            t33 = ca
-            t34 = d * ca
-
-            t41 = 0
-            t42 = 0
-            t43 = 0
-            t44 = 1
-
-            T = np.array([[t11, t12, t13, t14],
-                          [t21, t22, t23, t24],
-                          [t31, t32, t33, t34],
-                          [t41, t42, t43, t44]])
-            return T
 
         d = self.d
         a = self.a
         alpha = self.alpha
 
-        T_i1i = []
-        for i in range(7):
-            T = dh_modified_transform(alpha[i], a[i], theta[i], d[i])
-            T_i1i.append(T)
+        other_shape = theta.shape[:-1]
+        num_frame = theta.shape[-1]
+        d = d.repeat(other_shape + (1,))
+        a = a.repeat(other_shape + (1,))
+        alpha = alpha.repeat(other_shape + (1,))
+        DH = torch.stack([alpha, a, theta, d], dim=-2)
 
-        T_base = np.array([
-            [1, 0, 0, -0.2677189],
-            [0, 1, 0, -0.00628856],
-            [0, 0, 1, 0.74968816],
-            [0, 0, 0, 1]])
-        T_cumulative = T_base
+        T_i1_i = self.dh_modified_transform(DH)
+
+        T_base = self.T_base.repeat(other_shape + (1, 1))
+
+        T_cumulative = T_base.clone()
         T_oi = []
-        for T in T_i1i:
-            T_cumulative = T_cumulative @ T
-            T_oi.append(copy(T_cumulative))
-
-        T_i1i = np.array(T_i1i)
-        T_oi = np.array(T_oi)
-        return T_i1i, T_oi
-
-    def get_T_ok(self, theta):
-        assert len(theta) == 8
-        open_gripper = theta[-1]
-        theta = theta[:-1]
-        T_ik = npa([RT2HT(euler2mat(np.radians(self.PosEuler_ik[i, 3:])), self.PosEuler_ik[i, :3])for i in range(7)])
-        _, T_oi = self.get_T_oi(theta)
-        T_ok = npa([T_oi[i] @ T_ik[i]for i in range(7)])
-
-        # base
-        T_ok_base = copy(self.T_base)
-
-        # gripper
-        if open_gripper:
-            T_ok_gripper = [T_oi[-1] @ PosEuler2HT(self.PosEuler_ik_gripper_close[i])for i in range(3)]
-        else:
-            T_ok_gripper = [T_oi[-1] @ PosEuler2HT(self.PosEuler_ik_gripper_open[i])for i in range(3)]
-
-        T_ok_others = np.stack([T_ok_base, *T_ok_gripper])
-        return T_ok, T_ok_others
-
-    def get_obbox(self, T_ok, T_ok_others, color=[1, 0, 0], tolerance=0.01):
-        if tolerance is not None:
-            bbox = self.bbox_link + np.array([[-tolerance, tolerance] * 3])
-            bbox_other = self.bbox_other + np.array([[-tolerance, tolerance] * 3])
-        else:
-            bbox = self.bbox_link
-            bbox_other = self.bbox_other
-
-        # link_bbox
-        assert T_ok.shape[0] == bbox.shape[0]
-        translation = T_ok[:, :3, 3]
-        rotation = T_ok[:, :3, :3]
-        link_obbox = []
-        for i in range(bbox.shape[0]):
-            s_obbox = o3d.geometry.OrientedBoundingBox(
-                translation[i], rotation[i], bbox[i, 1::2] - bbox[i, ::2]
-            )
-            s_obbox.color = color
-            link_obbox.append(s_obbox)
-
-        # other bbox
-
-        other_obbox = []
-        for i in range(4):
-            s_obbox = o3d.geometry.OrientedBoundingBox(
-                T_ok_others[i][:3, 3], T_ok_others[i][:3, :3], bbox_other[i][1::2] - bbox_other[i][::2]
-            )
-            s_obbox.color = color
-            other_obbox.append(s_obbox)
-
-        return link_obbox, other_obbox
-
-    def theta2obbox(self, theta):
-        if len(theta) == 7:
-            theta = np.hstack([theta, 1])
-        T_ok, T_ok_others = self.get_T_ok(theta)
-        obbox, other_bbox = self.get_obbox(T_ok, T_ok_others=T_ok_others, tolerance=0.005)
-        return obbox, other_bbox
-
-    def visualize_pcd(self, xyz, rgb, theta):
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
-        pcd.colors = o3d.utility.Vector3dVector(rgb)
-        bbox, _ = self.theta2obbox(theta)
-        o3d.visualization.draw_geometries([pcd, *bbox], window_name="bbox", width=1920, height=1080)
+        for i in range(num_frame):
+            T_cumulative = T_cumulative @ T_i1_i[..., i, :, :]
+            T_oi.append(T_cumulative)
+        T_oi = torch.stack(T_oi, dim=-3)
+        return T_i1_i, T_oi
 
     def theta2eePose(self, theta):  # assume no open
         _, T_oi = self.get_T_oi(theta)
-        T_oi_last = T_oi[-1]
-        T_eePose = T_oi_last @ self.T_last2eePose
+        other_shape = theta.shape[:-1]
+        T_oi_last = T_oi[..., -1, :, :]
+        T_last2eePose = self.T_last2eePose.repeat(other_shape + (1, 1))
+        T_eePose = T_oi_last @ T_last2eePose
         eePose = HT2eePose(T_eePose)
         return eePose
 
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
-    import numpy as np
+if __name__ == "__main__":
+    def test():
+        from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
+
+        franka_np = FrankaEmikaPanda()
+        franka_torch = FrankaEmikaPanda_torch()
+        theta = torch.randn(8, 7)
+        for i in range(8):
+            eePose_np = franka_np.theta2eePose(theta[i, :])
+            print(eePose_np)
+        eePose_torch = franka_torch.theta2eePose(theta)
+        print(eePose_torch)
+        theta_1 = theta.repeat(8, 1, 1)
+        eePose_torch_1 = franka_torch.theta2eePose(theta_1)
+        print(eePose_torch_1[-1])
+        print(eePose_torch_1[5])
+    test()
+    # theta = np.array([-

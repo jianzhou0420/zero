@@ -73,39 +73,41 @@ class FrankaEmikaPanda():
             [0.0000, 0.0000, 0.0000, 1.0000]
         ], dtype=float)  # TODO: refine this
 
+    @staticmethod
+    def dh_modified_transform(alpha, a, theta, d):
+        ct = cos(theta)
+        st = sin(theta)
+
+        ca = cos(alpha)
+        sa = sin(alpha)
+
+        t11 = ct
+        t12 = -st
+        t13 = 0
+        t14 = a
+
+        t21 = st * ca
+        t22 = ct * ca
+        t23 = -sa
+        t24 = -d * sa
+
+        t31 = st * sa
+        t32 = ct * sa
+        t33 = ca
+        t34 = d * ca
+
+        t41 = 0
+        t42 = 0
+        t43 = 0
+        t44 = 1
+
+        T = np.array([[t11, t12, t13, t14],
+                      [t21, t22, t23, t24],
+                      [t31, t32, t33, t34],
+                      [t41, t42, t43, t44]])
+        return T
+
     def get_T_oi(self, theta):
-        def dh_modified_transform(alpha, a, theta, d):
-            ct = cos(theta)
-            st = sin(theta)
-
-            ca = cos(alpha)
-            sa = sin(alpha)
-
-            t11 = ct
-            t12 = -st
-            t13 = 0
-            t14 = a
-
-            t21 = st * ca
-            t22 = ct * ca
-            t23 = -sa
-            t24 = -d * sa
-
-            t31 = st * sa
-            t32 = ct * sa
-            t33 = ca
-            t34 = d * ca
-
-            t41 = 0
-            t42 = 0
-            t43 = 0
-            t44 = 1
-
-            T = np.array([[t11, t12, t13, t14],
-                          [t21, t22, t23, t24],
-                          [t31, t32, t33, t34],
-                          [t41, t42, t43, t44]])
-            return T
 
         d = self.d
         a = self.a
@@ -113,7 +115,7 @@ class FrankaEmikaPanda():
 
         T_i1i = []
         for i in range(7):
-            T = dh_modified_transform(alpha[i], a[i], theta[i], d[i])
+            T = self.dh_modified_transform(alpha[i], a[i], theta[i], d[i])
             T_i1i.append(T)
 
         T_base = np.array([
