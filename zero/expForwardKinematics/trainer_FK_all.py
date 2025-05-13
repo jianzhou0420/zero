@@ -94,6 +94,7 @@ class Trainer_all(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         loss = self.policy(batch)
         self.log('train_loss', loss, on_epoch=True, prog_bar=True)
+        print(f"train_loss: {loss}")
         return loss
 
     def validation_step(self, batch, batch_idx):
