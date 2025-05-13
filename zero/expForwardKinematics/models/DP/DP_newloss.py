@@ -1,4 +1,4 @@
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 from zero.z_utils.coding import extract
 from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 from typing import Dict
@@ -333,8 +333,8 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
 
     def eePoseMseLoss(self, x_t, t, noise, eePose, rot_type='ortho6d'):
         '''
-        x: JP
-        eePose:[B,8,]
+        x: JP: [B,8,8]
+        eePose:[B,8, 3+x+1]
         '''
         gt_pos = eePose[..., :3]
         gt_rot = eePose[..., 3:-1]
@@ -342,11 +342,15 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
 
         x_0_pred = self.inverse_q_sample(x_t, t, noise)
         theta_pred = self.denormalize_JP(x_0_pred)
-        eePose_pred = self.franka.theta2PosQuat(x_0_pred)
+        eePose_pred = self.franka.theta2eePose(theta_pred)
 
     def denormalize_JP(self, norm_JP):
         JP = self.lower_t + (norm_JP + 1) / 2 * (self.upper_t - self.lower_t)
         return JP
+
+    def denormalize_eePose(self, norm_eePose):
+        eePose = self.lower_t + (norm_eePose + 1) / 2 * (self.upper_t - self.lower_t)
+        return eePose
 
 
 class DPWithLossWrapper(BasePolicy):

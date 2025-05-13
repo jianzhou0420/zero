@@ -4,6 +4,16 @@ import re
 from numpy import array as npa
 from typing import Dict, Callable
 import torch
+import numpy as np
+
+
+def tensorfp32(x):
+    if isinstance(x, list):
+        return torch.tensor(x, dtype=torch.float32)
+    elif isinstance(x, np.ndarray):
+        return torch.from_numpy(x, dtype=torch.float32)
+    else:
+        raise TypeError("Input must be a list or numpy array")
 
 
 def check_and_make(dir):

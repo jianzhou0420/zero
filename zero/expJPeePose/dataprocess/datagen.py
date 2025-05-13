@@ -3,7 +3,7 @@ Generate the eePose and JP pairs
 """
 from codebase.z_utils.Rotation import *
 import math
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 from zero.z_utils.coding import npa
 
 

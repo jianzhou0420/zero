@@ -16,7 +16,7 @@ import json
 
 import sys
 import random
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
 from zero.z_utils.utilities_all import natural_sort_key
 # --------------------------------------------------------------

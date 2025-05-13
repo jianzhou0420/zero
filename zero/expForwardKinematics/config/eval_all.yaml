@@ -1,5 +1,5 @@
-exp_dir: /data/zero/2_Train/DP_traj_zarr/May11_15-16-43DP_traj_zarr/version_0
-epoch: null
+exp_dir: /media/jian/ssd4t/zero/2_Train/DP_traj_zarr/0512_01_DP_zarr_eePose/version_0
+epoch: 049
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]
 max_tries:  3
@@ -26,8 +26,8 @@ num_demos : 5 # 每个var eval多少次
 config: null
 name: null
 checkpoint: null
-tasks_to_use: put_groceries_in_cupboard
+tasks_to_use: push_buttons
 variations_to_use: [0]
 
-headless: 1
-record_video: 1
+headless: 0
+record_video: 0

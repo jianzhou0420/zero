@@ -4,7 +4,7 @@ from codebase.z_utils.Rotation import *
 from codebase.z_utils.rotation_import import *
 import pickle
 import open3d as o3d
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorFKAll import ObsProcessorFK
 from numpy.linalg import inv as matinv
 """

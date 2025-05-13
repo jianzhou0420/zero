@@ -13,7 +13,7 @@ import torchvision.transforms.functional as transforms_f
 from zero.z_utils.utilities_all import natural_sort_key
 from codebase.z_utils.Rotation import *
 import math
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 from zero.z_utils.coding import npa
 
 from zero.z_utils.normalizer_action import normalize_pos, quat2ortho6D

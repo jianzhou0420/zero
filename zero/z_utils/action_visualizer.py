@@ -1,4 +1,4 @@
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 import open3d as o3d
 import numpy as np
 from scipy.spatial.transform import Rotation as R

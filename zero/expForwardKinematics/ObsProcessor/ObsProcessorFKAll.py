@@ -16,7 +16,7 @@ from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessor
 from zero.z_utils.utilities_all import *
 import torchvision.transforms.functional as transforms_f
 from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 import torchvision.transforms as transforms
 from codebase.z_utils.open3d import *
 from codebase.z_utils.idx_mask import *

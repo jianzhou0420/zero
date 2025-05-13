@@ -1,7 +1,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: default # Your training job name
+  name: test # Your training job name
+  
 spec:
   backoffLimit: 0   # add this line so --> If your pod failed, the training job will stop.
   template:

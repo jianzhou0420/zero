@@ -24,7 +24,7 @@ from pyrep.objects.vision_sensor import VisionSensor
 from pyrep.errors import IKError, ConfigurationPathError
 from rlbench.backend.exceptions import InvalidActionError
 from rlbench.backend.observation import Observation
-
+from termcolor import cprint
 # homemade rlbench
 from zero.env.rlbench_lotus.environments import RLBenchEnv, Mover
 from zero.env.rlbench_lotus.recorder import TaskRecorder, StaticCameraMotion, CircleCameraMotion, AttachedCameraMotion
@@ -86,7 +86,7 @@ class Actioner(object):
         new_actions = self.obs_processor.denormalize_action(actions)
 
         out = {
-            'actions': new_actions[1:2],
+            'actions': new_actions[1:],
         }
 
         if self.args.save_obs_outs_dir is not None:
@@ -128,6 +128,7 @@ class Evaluator(object):
         else:
             ckpt_path = os.path.join(exp_dir, 'checkpoints', ckpt_path_all[-1])
         ckpt_name = ckpt_path.split('/')[-1].split('.')[0]
+        cprint(f'ckpt_path: {ckpt_path}', 'blue')
 
         # 3. define path
         eval_config['expr_dir'] = f'/data/zero/3_Eval/eval_log/{ckpt_name}/preds'

@@ -23,7 +23,7 @@ from zero.expForwardKinematics.models.FK.component.DA3D_position_encodings impor
     RotaryPositionEncoding3D,)
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from codebase.z_model.attentionlayer import SelfAttnFFW, CrossAttnFFW, PositionalEncoding
-from zero.expForwardKinematics.ReconLoss.ForwardKinematics import FrankaEmikaPanda
+from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 from zero.expForwardKinematics.models.Base.BaseAll import BaseActionHead, BaseFeatureExtractor, BasePolicy
 from codebase.z_model.positional_encoding import PositionalEncoding1D
 # Trainer

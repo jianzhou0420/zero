@@ -212,6 +212,8 @@ class ObsProcessorDP_traj_zarr(ObsProcessorRLBenchBase):
             },
             'action': None
         }
+        if self.config['DP']['ActionHead']['action_mode'] == 'eePose':
+            batch['obs'].pop('JP_hist')
         return batch
 
     @override
