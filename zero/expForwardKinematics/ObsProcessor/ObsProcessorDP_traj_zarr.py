@@ -2,25 +2,15 @@ from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessor
 import numpy as np
 import torch
 from copy import deepcopy
-
-import json
-
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
 from zero.z_utils.utilities_all import *
-
 from codebase.z_utils.open3d import *
 from codebase.z_utils.idx_mask import *
-from codebase.z_utils.Rotation import quat2euler, euler2quat
-from scipy.spatial.transform import Rotation as R
 from typing_extensions import override
 from zero.z_utils.normalizer_action import \
     (normalize_pos, denormalize_pos, quat2ortho6D, normalize_JP, denormalize_JP, ortho6d2quat,
         normalize_quat2euler, denormalize_quat2euler)
 
-from rlbench.backend.observation import Observation
-
-from zero.tmp.replay_buffer import ReplayBuffer
-from zero.tmp.sampler import SequenceSampler
 import einops
 
 
@@ -32,7 +22,7 @@ class ObsProcessorDP_traj_zarr(ObsProcessorRLBenchBase):
 
     @override
     def obs_2_obs_raw(self, obs):
-        if isinstance(obs, Observation):
+        if type(obs) is not list:
             obs = [obs]
 
         obs_raw = {
