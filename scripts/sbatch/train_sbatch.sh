@@ -14,18 +14,6 @@ conda activate zero
 
 echo "Running task $SLURM_ARRAY_TASK_ID"
 
-exp_name=$1
-# 中等
-if [ "$2" == "medium" ]; then
-    tasks_to_use="insert_onto_square_peg,close_jar"
-elif [ "$2" == "small" ]; then
-    tasks_to_use="insert_onto_square_peg,close_jar,light_bulb_in,put_groceries_in_cupboard"
-elif [ "$2" == "large" ]; then
-    tasks_to_use="" # Empty array for "large"
-elif [ "$2" == "single" ]; then
-    tasks_to_use="insert_onto_square_peg"
-fi
-
 # tasks_to_use=("meat_off_grill" "sweep_to_dustpan_of_size" "close_jar" "push_buttons" "light_bulb_in" "insert_onto_square_peg" "put_groceries_in_cupboard" "place_shape_in_shape_sorter" "stack_blocks")
 
 python -m zero.expBaseV5.trainer_expbase \
