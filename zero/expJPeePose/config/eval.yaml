@@ -1,2 +1,2 @@
-exp_dir: /data/zero/2_Train/MLP/May07_14-40-48MLP/version_0
+exp_dir: ./2_Train/MLP/May07_14-40-48MLP/version_0
 epoch: null

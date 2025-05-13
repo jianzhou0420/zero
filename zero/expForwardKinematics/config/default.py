@@ -66,7 +66,7 @@ def build_args(path=None):
         type=str,
         required=False,
         help="path to config yaml containing info about experiment",
-        default='/data/zero/zero/expForwardKinematics/config/expBase_Lotus.yaml',
+        default='./zero/expForwardKinematics/config/expBase_Lotus.yaml',
     )
 
     parser.add_argument(

@@ -156,7 +156,7 @@ class DataGenerator:
                     demo, = task_env.get_demos(
                         amount=1,
                         live_demos=True)
-                    # with open('/data/zero/5_templates/demo.pkl', 'wb') as f:
+                    # with open('./5_templates/demo.pkl', 'wb') as f:
                     #     pickle.dump(demo, f)
                     self.demo2data(demo, episode_path)
                     pbar.update(1)
@@ -188,7 +188,7 @@ class DataGenerator:
     @staticmethod
     def generate_data_single_process():
         seed = 42
-        config = get_config('/data/zero/zero/expForwardKinematics/config/datagen.yaml')
+        config = get_config('./zero/expForwardKinematics/config/datagen.yaml')
         config.defrost()
         config['seed'] = seed
         config['save_path'] = os.path.join(config['save_path'], str(seed))

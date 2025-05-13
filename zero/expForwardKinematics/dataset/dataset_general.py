@@ -97,7 +97,7 @@ class DatasetGeneral(Dataset):
                           self.g_frame_to_l_episode)
 
             current_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-            save_root = '/data/zero/1_Data/D_Cache_init'
+            save_root = './1_Data/D_Cache_init'
             save_path = os.path.join(save_root, current_time + 'cache_dataset_init_path.pkl')
             with open(save_path, 'wb') as f:
                 pickle.dump(cache_init, f)
@@ -189,9 +189,9 @@ if __name__ == '__main__':
     from zero.expForwardKinematics.config.default import get_config
     from torch.utils.data import DataLoader, Dataset
     from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP import ObsProcessorDP
-    config_path = '/data/zero/zero/expForwardKinematics/config/DP_0501_01.yaml'
+    config_path = './zero/expForwardKinematics/config/DP_0501_01.yaml'
     config = get_config(config_path)
-    data_dir = '/data/zero/1_Data/B_Preprocess/DP/keypose/singleVar/train'
+    data_dir = './1_Data/B_Preprocess/DP/keypose/singleVar/train'
     dataset = DatasetGeneral(config, data_dir, ObsProcessorDP)
     loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=dataset.obs_processor.collect_fn)
     data1 = next(iter(loader))

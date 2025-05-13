@@ -1,4 +1,4 @@
-exp_dir: /media/jian/ssd4t/zero/2_Train/DP_traj_zarr/0512_02_DP_zarr_JP/version_0
+exp_dir: ./2_Train/DP_traj_zarr/0512_02_DP_zarr_JP/version_0
 epoch: 049
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]
@@ -7,7 +7,7 @@ max_steps:  300
 
 microstep_data_dir: ''
 queue_size: 20
-taskvar_file: '/data/zero/assets/taskvars_peract.json'
+taskvar_file: './assets/taskvars_peract.json'
 num_ensembles:  1
 save_obs_outs_dir:  None
 best_disc_pos: 'max'  # max, ens1

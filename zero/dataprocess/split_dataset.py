@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 import shutil
 
-train_root = '/data/zero/1_Data/B_Preprocess/FK/1000_train_eval/train/'
+train_root = './1_Data/B_Preprocess/FK/1000_train_eval/train/'
 tasks = os.listdir(train_root)
 counter = 0
 episode_list = []

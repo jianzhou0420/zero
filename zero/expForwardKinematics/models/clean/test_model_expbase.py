@@ -263,7 +263,7 @@ class SimplePolicyPTV3CA(BaseModel):
 
 if __name__ == '__main__':
     from zero.expForwardKinematics.config.default import get_config
-    config_path = '/data/zero/zero/expLongHorizon/config/expBase_Lotus.yaml'
+    config_path = './zero/expLongHorizon/config/expBase_Lotus.yaml'
 
     parameters = [
         "name", "EXP03_02_rollback",

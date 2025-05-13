@@ -45,8 +45,8 @@ class DatasetTmp(torch.utils.data.Dataset):
 
 
 def test():
-    zarr_path = "/data/zero/1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/test2/train"
-    test_data = "/data/zero/1_Data/test"
+    zarr_path = "./1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/test2/train"
+    test_data = "./1_Data/test"
     dataset = DatasetTmp(None, data_dir=zarr_path)
     from tqdm import tqdm
     for i in tqdm(range(len(dataset))):

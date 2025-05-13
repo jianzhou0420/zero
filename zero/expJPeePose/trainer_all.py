@@ -49,8 +49,8 @@ DATASET_FACTORY: Dict[str, Type[Dataset]] = {
 
 
 CONFIG_FACTORY = {
-    'VAE': '/data/zero/zero/expJPeePose/config/VAE.yaml',
-    'MLP': '/data/zero/zero/expJPeePose/config/MLP.yaml'
+    'VAE': './zero/expJPeePose/config/VAE.yaml',
+    'MLP': './zero/expJPeePose/config/MLP.yaml'
 }
 
 
@@ -148,7 +148,7 @@ def train(config: yacs.config.CfgNode):
     model_name = config['Trainer']['model_name']
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     ckpt_name = current_time + model_name
-    log_path = f"/data/zero/2_Train/{model_name}"
+    log_path = f"./2_Train/{model_name}"
     log_name = ckpt_name
 
     # 1.trainer

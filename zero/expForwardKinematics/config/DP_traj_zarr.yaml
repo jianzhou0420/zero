@@ -25,13 +25,13 @@ Trainer:
 
 
 TrainDataset:
-  data_dir: /data/zero/1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/push_buttons
+  data_dir: ./1_Data/B_Preprocess/zarr/DP_traj_zarr/trajectory/push_buttons
   tasks_to_use: null
   cache_dataset_init_path: null
   image_rescales: [0.75,1.25]
-  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
-  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/data/zero/assets/taskvars_peract.json'
+  instr_embed_file: './assets/instr_embeds_clip.npy'
+  taskvar_instr_file: './assets/taskvars_instructions_peract.json'
+  taskvar_file: './assets/taskvars_peract.json'
   num_points: 4096
   augmentation: False
 

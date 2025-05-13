@@ -33,7 +33,7 @@ spec:
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
                 pip install numba
-                python /data/zero/zero/expForwardKinematics/trainer_FK_all.py --model DP_traj_zarr
+                python ./zero/expForwardKinematics/trainer_FK_all.py --model DP_traj_zarr
 
 
           resources:

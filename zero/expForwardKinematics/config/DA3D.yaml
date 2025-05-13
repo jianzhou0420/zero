@@ -11,12 +11,12 @@ Trainer:
   shuffle: True
 
 TrainDataset:
-  data_dir: /data/zero/1_Data/B_Preprocess/DA3D
+  data_dir: ./1_Data/B_Preprocess/DA3D
   tasks_to_use: put_groceries_in_cupboard
-  cache_dataset_init_path: /data/zero/1_Data/D_Cache_init/2025-04-18-18-45-58cache_dataset_init_path.pkl
+  cache_dataset_init_path: ./1_Data/D_Cache_init/2025-04-18-18-45-58cache_dataset_init_path.pkl
   image_rescales: [0.75,1.25]
-  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
-  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
+  instr_embed_file: './assets/instr_embeds_clip.npy'
+  taskvar_instr_file: './assets/taskvars_instructions_peract.json'
 
 DiffuserActor:
   Policy:

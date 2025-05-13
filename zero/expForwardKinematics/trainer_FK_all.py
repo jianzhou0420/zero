@@ -71,12 +71,12 @@ DATASET_FACTORY: Dict[str, Type[Dataset]] = {
 
 
 CONFIG_FACTORY = {
-    'FK': '/data/zero/zero/expForwardKinematics/config/FK.yaml',
-    'DP': '/data/zero/zero/expForwardKinematics/config/DP.yaml',
-    'DP3': '/data/zero/zero/expForwardKinematics/config/DP3.yaml',
-    'DA3D': '/data/zero/zero/expForwardKinematics/config/DA3DWrapper.yaml',
-    'DP_traj': '/data/zero/zero/expForwardKinematics/config/DP_traj.yaml',
-    'DP_traj_zarr': '/data/zero/zero/expForwardKinematics/config/DP_traj_zarr.yaml',
+    'FK': './zero/expForwardKinematics/config/FK.yaml',
+    'DP': './zero/expForwardKinematics/config/DP.yaml',
+    'DP3': './zero/expForwardKinematics/config/DP3.yaml',
+    'DA3D': './zero/expForwardKinematics/config/DA3DWrapper.yaml',
+    'DP_traj': './zero/expForwardKinematics/config/DP_traj.yaml',
+    'DP_traj_zarr': './zero/expForwardKinematics/config/DP_traj_zarr.yaml',
 }
 
 
@@ -213,7 +213,7 @@ def train(config: yacs.config.CfgNode):
     model_name = config['Trainer']['model_name']
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     ckpt_name = current_time + model_name
-    log_path = f"/data/zero/2_Train/{model_name}"
+    log_path = f"./2_Train/{model_name}"
     log_name = ckpt_name
 
     # 1.trainer

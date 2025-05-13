@@ -5,10 +5,10 @@
 # region Experiment configs
 pl_flag: True
 name: 'exp_tricks_all_together'
-A_Selfgen: /data/zero/1_Data/A_Selfgen/0.005all
-B_Preprocess: '/data/zero/1_Data/B_Preprocess/0.005all'
+A_Selfgen: ./1_Data/A_Selfgen/0.005all
+B_Preprocess: './1_Data/B_Preprocess/0.005all'
 
-log_dir: '/data/zero/2_Train'
+log_dir: './2_Train'
 optimizer: 'lotus'
 num_gpus: null
 epoches: null
@@ -43,9 +43,9 @@ TRAIN:
 
 TRAIN_DATASET:
   # data_dir: '/data/selfgen/after_shock3'
-  instr_embed_file: '/data/zero/assets/instr_embeds_clip.npy'
-  taskvar_instr_file: '/data/zero/assets/taskvars_instructions_peract.json'
-  taskvar_file: '/data/zero/assets/taskvars_peract.json'
+  instr_embed_file: './assets/instr_embeds_clip.npy'
+  taskvar_instr_file: './assets/taskvars_instructions_peract.json'
+  taskvar_file: './assets/taskvars_peract.json'
   num_points: 4096
   xyz_shift: center # none, center, gripper
   xyz_norm: False

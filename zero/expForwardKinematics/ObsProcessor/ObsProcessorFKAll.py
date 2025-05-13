@@ -38,7 +38,7 @@ class ObsProcessorDA3DWrapper(ObsProcessorRLBenchBase):
 
     @override
     def dataset_init(self, **kwargs):
-        instructions = self.load_instructions('/data/zero/wrapper/3d_diffuser_actor/instructions/peract/instructions.pkl')
+        instructions = self.load_instructions('./wrapper/3d_diffuser_actor/instructions/peract/instructions.pkl')
         self._instructions = instructions
         self.apply_cameras = ("left_shoulder", "right_shoulder", "wrist", "front")
         self.apply_rgb = True

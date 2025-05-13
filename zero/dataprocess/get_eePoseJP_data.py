@@ -6,7 +6,7 @@ from zero.z_utils.coding import natural_sort_key
 import pandas as pd
 
 
-data_dir = '/data/zero/1_Data/B_Preprocess/DP_traj/trajectory/test2/42/train'  # 因为namesapce不高亮，所以尽量用字典的方式，方便区分
+data_dir = './1_Data/B_Preprocess/DP_traj/trajectory/test2/42/train'  # 因为namesapce不高亮，所以尽量用字典的方式，方便区分
 
 # tasks_to_use
 tasks_to_use = None

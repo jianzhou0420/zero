@@ -81,7 +81,7 @@ class StaticProcess:  # just for code organization
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='Train FK')
     argparser.add_argument('--model', type=str, default='DP_traj')
-    argparser.add_argument('--obs_raw_path', type=str, default='/data/zero/1_Data/A_Selfgen/trajectory/test2/42')
+    argparser.add_argument('--obs_raw_path', type=str, default='./1_Data/A_Selfgen/trajectory/test2/42')
     args = argparser.parse_args()
 
     config = get_config(CONFIG_FACTORY[args.model])
@@ -89,5 +89,5 @@ if __name__ == "__main__":
 
     obs_raw_path = args.obs_raw_path
     tail_path = obs_raw_path.split('A_Selfgen')[1][1:]
-    save_root = os.path.join("/data/zero/1_Data/B_Preprocess", f"{args.model}", tail_path)
+    save_root = os.path.join("./1_Data/B_Preprocess", f"{args.model}", tail_path)
     StaticProcess.run(config, ObsProcessor, obs_raw_path, save_root)

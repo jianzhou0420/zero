@@ -54,7 +54,7 @@ class visualizor:
 
 if __name__ == '__main__':
     import pickle
-    with open('/data/zero/1_Data/B_Preprocess/eePoseJP/data.pkl', 'rb')as f:
+    with open('./1_Data/B_Preprocess/eePoseJP/data.pkl', 'rb')as f:
         data = pickle.load(f)
     single_data = data[0]
     JP = single_data[1][:-1]

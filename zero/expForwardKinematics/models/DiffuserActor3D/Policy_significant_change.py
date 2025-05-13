@@ -656,8 +656,8 @@ class Policy(BasePolicy):
 
 def test_policy():
     import pickle
-    example_data_path = '/data/zero/1_Data/B_Preprocess/DA3D/close_jar/variation0/episodes/episode0/data.pkl'
-    config_path = '/data/zero/zero/expForwardKinematics/config/DA3D.yaml'
+    example_data_path = './1_Data/B_Preprocess/DA3D/close_jar/variation0/episodes/episode0/data.pkl'
+    config_path = './zero/expForwardKinematics/config/DA3D.yaml'
     with open(example_data_path, 'rb') as f:
         example_data = pickle.load(f)
 

@@ -243,7 +243,7 @@ def get_gripper_loc_bounds(path: str, buffer: float = 0.0, task: Optional[str] =
 
 
 gripper_loc_bounds = get_gripper_loc_bounds(
-    "/data/zero/assets/18_peract_tasks_location_bounds.json",
+    "./assets/18_peract_tasks_location_bounds.json",
     buffer=0.04,
 )
 

@@ -9,7 +9,6 @@
 #SBATCH --gres=gpu:1                                            # generic resource required (here requires 4 GPUs)
 #SBATCH --mem=128GB
 
-
 module purge
 source ~/.bashrc
 cd zero
@@ -18,9 +17,6 @@ cd zero
 # module load Mesa/21.1.7-GCCcore-11.2.0
 module load Singularity/3.10.5
 conda activate /data/conda_env/zero
-
-
-
 
 export SINGULARITY_IMAGE_PATH='/data/singularity/nvcuda_v2.sif'
 export python_bin='/data/conda_env/zero/bin/python'
@@ -35,10 +31,6 @@ chmod 700 $XDG_RUNTIME_DIR
 
 echo $LD_LIBRARY_PATH
 singularity exec --bind $HOME:$HOME,$SCRATCH:$SCRATCH --nv $SINGULARITY_IMAGE_PATH xvfb-run -a ${python_bin} -m zero.expBaseV5.eval_expbase \
-    --config /data/zero/2_Train/2025_02_22__15-35_single_try/version_0/hparams.yaml\
-    --name test \
-    --checkpoint /data/zero/2_Train/2025_02_22__15-35_single_try/version_0/checkpoints/2025_02_22__15-35_single_try_epoch=799.ckpt\
-    --tasks_to_use ${tasks_to_use[@]} \
+    --config ./2_Train/2025_02_22__15-35_single_try/version_0/hparams.yaml --name test \
+    --checkpoint ./2_Train/2025_02_22__15-35_single_try/version_0/checkpoints/2025_02_22__15-35_single_try_epoch=799.ckpt --tasks_to_use ${tasks_to_use[@]} \
     --record_video False
-
-

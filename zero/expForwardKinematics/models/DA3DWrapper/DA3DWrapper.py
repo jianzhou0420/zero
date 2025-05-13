@@ -9,7 +9,7 @@ from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 class DA3DWrapper(BasePolicy):
     def __init__(self, config):
         super().__init__()
-        # 从bash /data/zero/wrapper/3d_diffuser_actor/scripts/train_keypose_peract.sh中获得。
+        # 从bash ./wrapper/3d_diffuser_actor/scripts/train_keypose_peract.sh中获得。
         backbone = 'clip'
         image_size = (256, 256)
         embedding_dim = 120

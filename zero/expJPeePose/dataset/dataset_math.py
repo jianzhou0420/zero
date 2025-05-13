@@ -103,6 +103,6 @@ class DatasetGeneral(Dataset):
 if __name__ == '__main__':
     from zero.expForwardKinematics.config.default import get_config
 
-    config = get_config('/data/zero/zero/expJPeePose/config/JPeePose.yaml')
+    config = get_config('./zero/expJPeePose/config/JPeePose.yaml')
     dataset = DatasetGeneral(config)
     print(dataset.__getitem__(0))

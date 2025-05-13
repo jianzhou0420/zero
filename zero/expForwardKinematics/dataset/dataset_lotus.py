@@ -485,7 +485,7 @@ if __name__ == '__main__':
     import yacs.config
     import pickle
     config = yacs.config.CfgNode(new_allowed=True)
-    config.merge_from_file('/data/zero/zero/v4/config/lotus_origin.yaml')
+    config.merge_from_file('./zero/v4/config/lotus_origin.yaml')
 
     dataset = SimplePolicyDataset(**config.TRAIN_DATASET)
 

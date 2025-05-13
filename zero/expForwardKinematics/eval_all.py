@@ -107,7 +107,7 @@ class Evaluator(object):
 
         '''
         # 1. get eval config and train config
-        eval_config = build_args('/data/zero/zero/expForwardKinematics/config/eval_all.yaml')
+        eval_config = build_args('./zero/expForwardKinematics/config/eval_all.yaml')
         eval_config.defrost()
         exp_dir = eval_config['exp_dir']
         model_config_path = os.path.join(exp_dir, 'hparams.yaml')
@@ -131,8 +131,8 @@ class Evaluator(object):
         cprint(f'ckpt_path: {ckpt_path}', 'blue')
 
         # 3. define path
-        eval_config['expr_dir'] = f'/data/zero/3_Eval/eval_log/{ckpt_name}/preds'
-        eval_config['video_dir'] = f'/data/zero/3_Eval/videos/{ckpt_name}/videos'
+        eval_config['expr_dir'] = f'./3_Eval/eval_log/{ckpt_name}/preds'
+        eval_config['video_dir'] = f'./3_Eval/videos/{ckpt_name}/videos'
         eval_config['checkpoint'] = ckpt_path
         if not os.path.exists(eval_config['checkpoint']):
             raise FileNotFoundError(f"Checkpoint {eval_config['checkpoint']} does not exist. Please check the path.")
