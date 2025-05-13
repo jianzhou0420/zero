@@ -237,6 +237,9 @@ def train(config: yacs.config.CfgNode):
         version=None
     )
 
+    num_gpus = torch.cuda.device_count()
+    config['Trainer']['num_gpus'] = num_gpus
+    print(f"num_gpus: {num_gpus}")
     trainer = pl.Trainer(callbacks=[checkpoint_callback, EpochCallback()],
                          #  max_steps=config['Trainer']['max_steps'],
                          max_epochs=config['Trainer']['epoches'],
@@ -245,7 +248,7 @@ def train(config: yacs.config.CfgNode):
                          logger=[csvlogger, tflogger],
                          #  profiler=profiler，
                          #  profiler='simple',
-                         use_distributed_sampler=False,
+                         use_distributed_sampler=True if num_gpus > 1 else False,
                          check_val_every_n_epoch=config['Trainer']['check_val_every_n_epoch'],
                          )
     config.freeze()
