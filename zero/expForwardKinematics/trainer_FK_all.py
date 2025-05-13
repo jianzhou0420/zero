@@ -7,7 +7,6 @@ try:
 except:
     pass
 
-import time
 from datetime import datetime
 import yacs.config
 import os

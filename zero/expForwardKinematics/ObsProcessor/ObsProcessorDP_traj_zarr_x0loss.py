@@ -123,7 +123,7 @@ class ObsProcessorDP_traj_zarr_x0loss(ObsProcessorRLBenchBase):
 
         # futr
         eePose = deepcopy(sample['action']['eePose'])[None, ...]
-        act_pos = normalize_pos(eePose[:, :, :3])
+        act_pos = eePose[:, :, :3]
         act_rot = self.norm_rot(eePose[:, :, 3:7])
         act_open = eePose[:, :, 7:8]
         eePose_futr = np.concatenate([act_pos, act_rot, act_open], axis=-1)
