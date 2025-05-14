@@ -1,5 +1,5 @@
-exp_dir: /media/jian/ssd4t/zero/2_Train/May13_09-47-52DP_traj_zarr/version_0
-epoch: 009
+exp_dir: /media/jian/ssd4t/zero/2_Train/DP_traj_x0loss/0513_03/version_0
+epoch: 049
 device: 'cuda'  # cpu, cuda
 image_size: [256, 256]
 max_tries:  3
@@ -20,7 +20,7 @@ video_resolution:  480
 real_robot: False
 
 
-seed: 500
+seed: 42
 num_workers : 1
 num_demos : 5 # 每个var eval多少次
 config: null

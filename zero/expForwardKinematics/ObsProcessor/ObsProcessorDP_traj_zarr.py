@@ -141,14 +141,14 @@ class ObsProcessorDP_traj_zarr(ObsProcessorRLBenchBase):
         # apply torch
         batch = {
             'obs': {
-                'image0': image0,
-                'image1': image1,
-                'image2': image2,
-                'image3': image3,
-                'eePos': eePos,
-                'eeRot': eeRot,
-                'eeOpen': eeOpen,
-                'JP_hist': JP_hist,
+                'image0': image0[:, -2:, ...],
+                'image1': image1[:, -2:, ...],
+                'image2': image2[:, -2:, ...],
+                'image3': image3[:, -2:, ...],
+                'eePos': eePos[:, -2:, ...],
+                'eeRot': eeRot[:, -2:, ...],
+                'eeOpen': eeOpen[:, -2:, ...],
+                'JP_hist': JP_hist[:, -2:, ...],
             },
             'action': action
         }

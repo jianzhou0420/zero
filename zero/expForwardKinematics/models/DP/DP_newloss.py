@@ -291,8 +291,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
                                                 t=timesteps,
                                                 noise=pred,
                                                 eePose=batch['eePose'])
-        x0Loss = reduce(x0Loss, 'b ... -> b (...)', 'mean')
-        x0Loss = x0Loss.mean()
+
         # /X0LossPlugin
 
         loss = F.mse_loss(pred, target, reduction='none')
@@ -318,6 +317,11 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
         alphas_bar = scheduler.alphas_cumprod
         alphas_bar_prev = F.pad(alphas_bar, [1, 0], value=1)[:max_t]
 
+        gripper_loc_bounds = torch.tensor(
+            [[-0.11010312, -0.5557904, 0.71287104],
+             [0.64813266, 0.51835946, 1.51160351]], device='cuda')
+
+        rb('gripper_loc_bounds', gripper_loc_bounds)
         rb('sqrt_alphas_bar', torch.sqrt(alphas_bar))
         rb('sqrt_one_minus_alphas_bar', torch.sqrt(1. - alphas_bar))
 
@@ -333,6 +337,8 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
         self.lower_t = torch.tensor(lower, device='cuda')
         self.upper_t = torch.tensor(upper, device='cuda')
 
+        self.sigmoid = nn.Sigmoid()
+
     def inverse_q_sample(self, x_t, t, noise):
         '''
         inverse diffusion process, it is not denoising! Just for apply pysical rules
@@ -345,15 +351,17 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
     def eePoseMseLoss(self, x_t, t, noise, eePose, rot_type='ortho6d'):
         '''
         x: JP: [B,H,8]
-        eePose:[B,H, 3+x+1], 默认没有被normalize过
+        eePose:[B,H, 3+x+1], 默认都是normalized的
         '''
 
         x_0_pred = self.inverse_q_sample(x_t, t, noise)
         JP_with_open_pred = self.denormalize_JP(x_0_pred)
         JP_pred = JP_with_open_pred[..., :-1]
-        isopen_pred = JP_with_open_pred[..., -1:]
+        isopen_pred = self.sigmoid(JP_with_open_pred[..., -1:])  # TODO：remove sigmoid
         eeHT_pred = self.franka.theta2HT(JP_pred)
+
         pos_pred = eeHT_pred[..., :3, 3]
+        pos_pred = self.normalize_pos(pos_pred)
         rot_pred = eeHT_pred[..., :3, :3]
         if rot_type == 'ortho6d':
             B, H, r, c = rot_pred.shape
@@ -366,6 +374,9 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
         eePose_pred = torch.cat([pos_pred, rot_pred, isopen_pred], dim=-1)
 
         loss = F.mse_loss(eePose_pred, eePose, reduction='none')
+        loss = reduce(loss, 'b ... -> b (...)', 'mean')
+        loss = loss.mean()
+
         return loss
 
     def denormalize_JP(self, norm_JP):
@@ -375,6 +386,16 @@ class X0LossPlugin(nn.Module):  # No trainable parameters, inherit from nn.Modul
     def denormalize_eePose(self, norm_eePose):
         eePose = self.lower_t + (norm_eePose + 1) / 2 * (self.upper_t - self.lower_t)
         return eePose
+
+    def normalize_pos(self, pos):
+        pos_min = self.gripper_loc_bounds[0]
+        pos_max = self.gripper_loc_bounds[1]
+        return (pos - pos_min) / (pos_max - pos_min) * 2.0 - 1.0
+
+    def denormalize_pos(self, pos):
+        pos_min = self.gripper_loc_bounds[0]
+        pos_max = self.gripper_loc_bounds[1]
+        return (pos + 1.0) / 2.0 * (pos_max - pos_min) + pos_min
 
 
 class DPWithLossWrapper(BasePolicy):

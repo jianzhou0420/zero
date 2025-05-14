@@ -247,6 +247,8 @@ gripper_loc_bounds = get_gripper_loc_bounds(
     buffer=0.04,
 )
 
+print("Gripper location bounds:", gripper_loc_bounds)
+
 
 def normalize_pos(pos):
     pos_min = gripper_loc_bounds[0]
@@ -302,5 +304,3 @@ if __name__ == "__main__":
         # Compare ortho6d vectors
         diff_o6d = np.abs(ortho6d_torch_back - ortho6d_np_back)
         print("Max difference in ortho6d vectors:", diff_o6d.max())
-
-    validate_ortho6d()
