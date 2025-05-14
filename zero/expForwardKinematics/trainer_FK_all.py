@@ -7,6 +7,7 @@ try:
 except:
     pass
 
+import math
 from datetime import datetime
 import yacs.config
 import os
@@ -22,6 +23,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 import pytorch_lightning as pl
 from torch.utils.data import Dataset
+from pytorch_lightning.strategies import DDPStrategy
+
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.expForwardKinematics.models.FK.Policy import PolicyFK
@@ -38,6 +41,8 @@ from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj_zarr import ObsP
 from zero.expForwardKinematics.dataset.dataset_zarr import DatasetTmp
 from zero.expForwardKinematics.models.DP.DP_newloss import DPWithLossWrapper
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj_zarr_x0loss import ObsProcessorDP_traj_zarr_x0loss
+
+
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
 torch.set_float32_matmul_precision('medium')
@@ -191,8 +196,23 @@ class MyDataModule(pl.LightningDataModule):
 # endregion
 # ---------------------------------------------------------------
 
+
 # ---------------------------------------------------------------
 # region 3. Callback
+
+
+class WarmupCosineScheduler(torch.optim.lr_scheduler.LambdaLR):
+    def __init__(self, optimizer, warmup_steps, total_steps, min_lr=1e-5, num_cycles=0.5):
+        def lr_lambda(current_step):
+            if current_step < warmup_steps:
+                # Linear warmup
+                return current_step / warmup_steps
+            # Cosine annealing
+            progress = float(current_step - warmup_steps) / float(max(1, total_steps - warmup_steps))
+            cosine_decay = 0.5 * (1 + math.cos(math.pi * float(num_cycles) * 2.0 * progress))
+            return max(min_lr, cosine_decay)
+
+        super().__init__(optimizer, lr_lambda)
 
 
 class EpochCallback(pl.Callback):
@@ -245,11 +265,13 @@ def train(config: yacs.config.CfgNode):
     num_gpus = torch.cuda.device_count()
     config['Trainer']['num_gpus'] = num_gpus
     print(f"num_gpus: {num_gpus}")
+    strategy = DDPStrategy(find_unused_parameters=True) if num_gpus > 1 else 'auto'
+
     trainer = pl.Trainer(callbacks=[checkpoint_callback, EpochCallback()],
                          #  max_steps=config['Trainer']['max_steps'],
                          max_epochs=config['Trainer']['epoches'],
                          devices='auto',
-                         strategy='auto',
+                         strategy=strategy,
                          logger=[csvlogger, tflogger],
                          #  profiler=profiler，
                          #  profiler='simple',
