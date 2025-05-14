@@ -167,7 +167,7 @@ class MyDataModule(pl.LightningDataModule):
             sampler=sampler,
             drop_last=False,
             # prefetch_factor=2 if self.config['Trainer']['n_workers'] > 1 else 0,
-            shuffle=self.config['Trainer']['train']['shuffle'],
+            shuffle=self.config['Trainer']['train']['shuffle'] if sampler is None else None,
             persistent_workers=True
         )
         return loader
@@ -262,8 +262,10 @@ def train(config: yacs.config.CfgNode):
         version=None
     )
 
-    num_gpus = torch.cuda.device_count()
+    # num_gpus = torch.cuda.device_count()
+    num_gpus = 2
     config['Trainer']['num_gpus'] = num_gpus
+
     print(f"num_gpus: {num_gpus}")
     strategy = DDPStrategy(find_unused_parameters=True) if num_gpus > 1 else 'auto'
 
