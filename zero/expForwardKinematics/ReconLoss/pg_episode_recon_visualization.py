@@ -1,7 +1,7 @@
 from zero.expForwardKinematics.config.default import get_config
 from einops import rearrange
-from codebase.z_utils.Rotation import *
-from codebase.z_utils.rotation_import import *
+from zero.z_utils.codebase.Rotation import *
+from zero.z_utils.codebase.rotation_import import *
 import pickle
 import open3d as o3d
 from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda

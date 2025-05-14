@@ -30,10 +30,17 @@ spec:
                 cd /data/zero
                 git pull
                 pip install -e .
+                cd /data/zero/6_ThirdParty/codebase
+                git stash
+                git pull
+                pip uninstall -y codebase
+                pip install -e .
+
+                cd /data/zero
                 python -c "import torch; print(torch.cuda.is_available());print(torch.__version__);print(torch.version.cuda)"
                 nvidia-smi
                 pip install numba
-                python ./zero/expForwardKinematics/trainer_FK_all.py --model DP_traj_zarr
+                python /data/zero/zero/expForwardKinematics/trainer_FK_all.py --model DP_traj_zarr
 
 
           resources:

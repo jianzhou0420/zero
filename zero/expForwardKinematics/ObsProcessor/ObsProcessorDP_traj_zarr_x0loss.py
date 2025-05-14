@@ -4,8 +4,8 @@ import torch
 from copy import deepcopy
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorBase import ObsProcessorRLBenchBase
 from zero.z_utils.utilities_all import *
-from codebase.z_utils.open3d import *
-from codebase.z_utils.idx_mask import *
+from zero.z_utils.codebase.open3d import *
+from zero.z_utils.codebase.idx_mask import *
 from typing_extensions import override
 from zero.z_utils.normalizer_action import \
     (normalize_pos, denormalize_pos, quat2ortho6D, normalize_JP, denormalize_JP, ortho6d2quat,

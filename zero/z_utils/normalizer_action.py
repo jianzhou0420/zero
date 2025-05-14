@@ -7,7 +7,7 @@ from typing import Optional
 import torch
 import numpy as np
 from copy import copy
-from codebase.z_utils.Rotation import *  # using scipy where xyzw is the default quat order compatible with rlbench
+from zero.z_utils.codebase.Rotation import *  # using scipy where xyzw is the default quat order compatible with rlbench
 import einops
 
 # region 1. rotation

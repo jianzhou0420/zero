@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
-from codebase.z_utils.Rotation import *
+from zero.z_utils.codebase.Rotation import *
 
 # np.set_printoptions(precision=4, suppress=True)
 

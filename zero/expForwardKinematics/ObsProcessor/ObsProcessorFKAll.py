@@ -18,9 +18,9 @@ import torchvision.transforms.functional as transforms_f
 from zero.expForwardKinematics.models.lotus.utils.rotation_transform import quaternion_to_discrete_euler, RotationMatrixTransform
 from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 import torchvision.transforms as transforms
-from codebase.z_utils.open3d import *
-from codebase.z_utils.idx_mask import *
-from codebase.z_utils.Rotation import quat2euler, euler2quat
+from zero.z_utils.codebase.open3d import *
+from zero.z_utils.codebase.idx_mask import *
+from zero.z_utils.codebase.Rotation import quat2euler, euler2quat
 from scipy.spatial.transform import Rotation as R
 from typing_extensions import override
 from zero.z_utils.constants import get_robot_workspace

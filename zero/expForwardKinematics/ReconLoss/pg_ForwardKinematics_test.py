@@ -18,8 +18,8 @@ from numpy.linalg import inv as matinv
 from numpy import array as npa
 import warnings
 
-from codebase.z_utils.Rotation import *
-from codebase.z_utils.rotation_import import *
+from zero.z_utils.codebase.Rotation import *
+from zero.z_utils.codebase.rotation_import import *
 warnings.filterwarnings("ignore")
 '''
 joint1: -166, 166

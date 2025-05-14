@@ -1,7 +1,7 @@
 """
 Generate the eePose and JP pairs
 """
-from codebase.z_utils.Rotation import *
+from zero.z_utils.codebase.Rotation import *
 import math
 from zero.expForwardKinematics.ReconLoss.FrankaPandaFK import FrankaEmikaPanda
 from zero.z_utils.coding import npa
