@@ -220,7 +220,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         nobs = self.normalizer.normalize(batch['obs'])
         nactions = self.normalizer['action'].normalize(batch['action'])
         batch_size = nactions.shape[0]
-        horizon = nactions.shape[1]
+        horizon = nactions.shape[1]  # 训练的时候horizon是nactions的shape
 
         # handle different ways of passing observation
         local_cond = None
@@ -244,7 +244,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
             trajectory = cond_data.detach()
 
         # generate impainting mask
-        condition_mask = self.mask_generator(trajectory.shape)
+        condition_mask = self.mask_generator(trajectory.shape)  # TODO：有问题为什么这里全False？
 
         # Sample noise that we'll add to the images
         noise = torch.randn(trajectory.shape, device=trajectory.device)
@@ -331,10 +331,10 @@ class DPWrapper(BasePolicy):
                 },
             }
             normalizer = LinearNormalizer()
-            normalizer['image0'] = get_image_range_normalizer()
-            normalizer['image1'] = get_image_range_normalizer()
-            normalizer['image2'] = get_image_range_normalizer()
-            normalizer['image3'] = get_image_range_normalizer()
+            normalizer['image0'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['image1'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['image2'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['image3'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['eePos'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['eeRot'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['eeOpen'] = SingleFieldLinearNormalizer.create_identity()
@@ -385,11 +385,12 @@ class DPWrapper(BasePolicy):
                     "shape": [8],
                 },
             }
+            # normalize on dataset part
             normalizer = LinearNormalizer()
-            normalizer['image0'] = get_image_range_normalizer()
-            normalizer['image1'] = get_image_range_normalizer()
-            normalizer['image2'] = get_image_range_normalizer()
-            normalizer['image3'] = get_image_range_normalizer()
+            normalizer['image0'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['image1'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['image2'] = SingleFieldLinearNormalizer.create_identity()
+            normalizer['image3'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['eePos'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['eeRot'] = SingleFieldLinearNormalizer.create_identity()
             normalizer['eeOpen'] = SingleFieldLinearNormalizer.create_identity()
@@ -418,9 +419,9 @@ class DPWrapper(BasePolicy):
             shape_meta=shape_meta,
             noise_scheduler=noise_scheduler,
             obs_encoder=encoder,
-            horizon=self.config['DP']['ActionHead']['horizon'],
-            n_action_steps=self.config['DP']['ActionHead']['horizon'],
-            n_obs_steps=self.config['DP']['ActionHead']['horizon'],
+            horizon=self.config['DP']['ActionHead']['n_obs_steps'],
+            n_obs_steps=self.config['DP']['ActionHead']['n_obs_steps'],
+            n_action_steps=self.config['DP']['ActionHead']['n_action_steps'],
             obs_as_global_cond=True,
             diffusion_step_embed_dim=256,
             down_dims=(256, 512, 1024),
@@ -441,93 +442,3 @@ class DPWrapper(BasePolicy):
         results = self.DP.predict_action(batch)
 
         return results
-
-
-if __name__ == '__main__':
-    def test():
-        shape_meta = {
-            # acceptable types: rgb, low_dim
-            "obs": {
-                "image0": {
-                    "shape": [3, 256, 256],
-                    "type": "rgb",
-                },
-                "image1": {
-                    "shape": [3, 256, 256],
-                    "type": "rgb",
-                },
-                "eePos": {
-                    "shape": [3],
-                    # type default: low_dim
-                },
-                "eeRot": {
-                    "shape": [4],
-                },
-                "eeOpen": {
-                    "shape": [1],
-                },
-            },
-            "action": {
-                "shape": [8],
-            },
-        }
-
-        noise_scheduler = DDPMScheduler(num_train_timesteps=100,
-                                        beta_start=0.0001,
-                                        beta_end=0.02,
-                                        beta_schedule='squaredcos_cap_v2',
-                                        variance_type='fixed_small',
-                                        clip_sample=True,
-                                        prediction_type='epsilon',)
-        encoder = MultiImageObsEncoder(
-            shape_meta=shape_meta,
-            rgb_model=get_resnet(name='resnet18', weights=None),
-            resize_shape=None,
-            crop_shape=None,
-            random_crop=False,
-            use_group_norm=True,
-            share_rgb_model=False,
-            imagenet_norm=True,
-        )
-
-        DP = DiffusionUnetImagePolicy(
-            shape_meta=shape_meta,
-            noise_scheduler=noise_scheduler,
-            obs_encoder=encoder,
-            horizon=1,
-            n_action_steps=8,
-            n_obs_steps=2,
-            obs_as_global_cond=True,
-            diffusion_step_embed_dim=256,
-            down_dims=(256, 512, 1024),
-            kernel_size=5,
-            n_groups=8,
-            cond_predict_scale=True
-        )
-
-        normalizer = LinearNormalizer()
-        normalizer['image0'] = get_image_range_normalizer()
-        normalizer['image1'] = get_image_range_normalizer()
-
-        batch = {
-            'obs': {
-                'image0': torch.randn(2, 8, 3, 256, 256),
-                'image1': torch.randn(2, 8, 3, 256, 256),
-                'eePos': torch.randn(2, 8, 3),
-                'eeRot': torch.randn(2, 8, 4),
-                'eeOpen': torch.randn(2, 8, 1),
-            },
-            'action': torch.randn(2, 8, 8)
-        }
-        # normalizer.fit(batch)
-
-        normalizer['eePos'] = SingleFieldLinearNormalizer.create_identity()
-        normalizer['eeRot'] = SingleFieldLinearNormalizer.create_identity()
-        normalizer['eeOpen'] = SingleFieldLinearNormalizer.create_identity()
-        normalizer['action'] = SingleFieldLinearNormalizer.create_identity()
-
-        DP.set_normalizer(normalizer)
-        loss = DP.compute_loss(batch)
-        print(loss)
-
-    # test()
