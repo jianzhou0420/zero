@@ -24,7 +24,7 @@ from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 import pytorch_lightning as pl
 from torch.utils.data import Dataset
 from pytorch_lightning.strategies import DDPStrategy
-
+from pytorch_lightning.loggers import WandbLogger
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.expForwardKinematics.models.FK.Policy import PolicyFK
@@ -116,7 +116,12 @@ class Trainer_all(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.policy.parameters(), weight_decay=self.config['Trainer']['weight_decay'], lr=self.config['Trainer']['lr'])
-        return optimizer
+        scheduler = {
+            'scheduler': torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100),
+            'interval': 'step',  # or 'epoch'
+            'frequency': 1
+        }
+        return [optimizer], [scheduler]
 
 
 # endregion
@@ -262,8 +267,14 @@ def train(config: yacs.config.CfgNode):
         version=None
     )
 
-    # num_gpus = torch.cuda.device_count()
-    num_gpus = 2
+    wandblogger = WandbLogger(
+        project='DecoupleActionHead',
+        name=log_name,
+        save_dir=log_path,
+        log_model=True,
+    )
+    num_gpus = torch.cuda.device_count()
+    # num_gpus = 2
     config['Trainer']['num_gpus'] = num_gpus
 
     print(f"num_gpus: {num_gpus}")
@@ -274,7 +285,7 @@ def train(config: yacs.config.CfgNode):
                          max_epochs=config['Trainer']['epoches'],
                          devices='auto',
                          strategy=strategy,
-                         logger=[csvlogger, tflogger],
+                         logger=[csvlogger, tflogger, wandblogger],
                          #  profiler=profiler，
                          #  profiler='simple',
                          use_distributed_sampler=True if num_gpus > 1 else False,

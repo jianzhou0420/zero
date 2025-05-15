@@ -86,7 +86,7 @@ class Actioner(object):
         new_actions = self.obs_processor.denormalize_action(actions)
 
         out = {
-            'actions': new_actions[1:],
+            'actions': new_actions[1:2],
         }
 
         if self.args.save_obs_outs_dir is not None:
@@ -141,7 +141,7 @@ class Evaluator(object):
         self.eval_config = eval_config
 
         self.obs_recorder = []
-        self.num_obs_hist = 8
+        self.num_obs_hist = 2
 
     def run_single_process(self):
         eval_config = self.eval_config
@@ -230,7 +230,7 @@ class Evaluator(object):
             video_log_dir = os.path.join(self.eval_config['video_dir'], f'{task_str}+{variation}')
             os.makedirs(str(video_log_dir), exist_ok=True)
 
-        move = Mover(task, max_tries=self.eval_config['max_tries'])
+        move = Mover(task, disabled=True, max_tries=self.eval_config['max_tries'])
         num_demos = self.eval_config['num_demos']
 
         # main loop

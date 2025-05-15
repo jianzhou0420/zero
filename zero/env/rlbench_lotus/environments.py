@@ -55,7 +55,8 @@ class Mover:
                          ((self._last_action[-1] < 0.5) & (action[-1] > 0.5))  # 是否需要改变gripper的状态
 
         if self._disabled:  # disable mover itself
-            return self._task.step(action)
+            obs, reward, terminate = self._task.step(action)
+            return obs, reward, terminate, []
 
         target = action.copy()
         if self._last_action is not None:

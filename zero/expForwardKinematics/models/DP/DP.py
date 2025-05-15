@@ -419,7 +419,7 @@ class DPWrapper(BasePolicy):
             shape_meta=shape_meta,
             noise_scheduler=noise_scheduler,
             obs_encoder=encoder,
-            horizon=self.config['DP']['ActionHead']['n_obs_steps'],
+            horizon=self.config['DP']['ActionHead']['n_action_steps'],
             n_obs_steps=self.config['DP']['ActionHead']['n_obs_steps'],
             n_action_steps=self.config['DP']['ActionHead']['n_action_steps'],
             obs_as_global_cond=True,
