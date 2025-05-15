@@ -24,7 +24,7 @@ from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 import pytorch_lightning as pl
 from torch.utils.data import Dataset
 from pytorch_lightning.strategies import DDPStrategy
-from pytorch_lightning.loggers import WandbLogger
+# from pytorch_lightning.loggers import WandbLogger
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.expForwardKinematics.models.FK.Policy import PolicyFK
@@ -267,12 +267,12 @@ def train(config: yacs.config.CfgNode):
         version=None
     )
 
-    wandblogger = WandbLogger(
-        project='DecoupleActionHead',
-        name=log_name,
-        save_dir=log_path,
-        log_model=True,
-    )
+    # wandblogger = WandbLogger(
+    #     project='DecoupleActionHead',
+    #     name=log_name,
+    #     save_dir=log_path,
+    #     log_model=True,
+    # )
     num_gpus = torch.cuda.device_count()
     # num_gpus = 2
     config['Trainer']['num_gpus'] = num_gpus
@@ -285,7 +285,7 @@ def train(config: yacs.config.CfgNode):
                          max_epochs=config['Trainer']['epoches'],
                          devices='auto',
                          strategy=strategy,
-                         logger=[csvlogger, tflogger, wandblogger],
+                         logger=[csvlogger, tflogger],
                          #  profiler=profiler，
                          #  profiler='simple',
                          use_distributed_sampler=True if num_gpus > 1 else False,

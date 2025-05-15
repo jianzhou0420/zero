@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: 0515_01_eePose_3050 # Your training job name
+  name: exp0515 # Your training job name
   
 spec:
   backoffLimit: 0   # add this line so --> If your pod failed, the training job will stop.
