@@ -12,6 +12,7 @@ class PushTImageEnv(PushTEnv):
                  block_cog=None,
                  damping=None,
                  render_size=96):
+
         super().__init__(
             legacy=legacy,
             block_cog=block_cog,

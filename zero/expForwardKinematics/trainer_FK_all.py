@@ -41,13 +41,13 @@ from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj_zarr import ObsP
 from zero.expForwardKinematics.dataset.dataset_zarr import DatasetTmp
 from zero.expForwardKinematics.models.DP.DP_newloss import DPWithLossWrapper
 from zero.expForwardKinematics.ObsProcessor.ObsProcessorDP_traj_zarr_x0loss import ObsProcessorDP_traj_zarr_x0loss
-
+from zero.expForwardKinematics.models.Base.BaseAll import BasePolicy
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
 torch.set_float32_matmul_precision('medium')
 
-POLICY_FACTORY = {
+POLICY_FACTORY: Dict[str, Type[BasePolicy]] = {
     'FK': PolicyFK,
     'DP': DPWrapper,
     'DA3D': DA3DWrapper,

@@ -103,9 +103,6 @@ class Actioner(object):
 
 class Evaluator(object):
     def __init__(self):
-        '''
-
-        '''
         # 1. get eval config and train config
         eval_config = build_args('./zero/expForwardKinematics/config/eval_all.yaml')
         eval_config.defrost()

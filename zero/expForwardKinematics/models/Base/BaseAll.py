@@ -44,6 +44,7 @@ class BasePolicy(nn.Module):
         example_data = batch['data']
         features = self.FeatureExtractor(example_data)
         loss = self.ActionHead.forward(features,)
+        NotImplementedError, 'need to be implemented'
         return loss
 
     def inference_one_sample(self, batch: dict) -> torch.Tensor:
@@ -53,4 +54,5 @@ class BasePolicy(nn.Module):
         example_data = batch['data']
         features = self.FeatureExtractor(example_data)
         action = self.ActionHead.inference_one_sample(features,)
+        NotImplementedError, 'need to be implemented'
         return action

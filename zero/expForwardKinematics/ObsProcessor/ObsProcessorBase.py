@@ -155,6 +155,11 @@ class ObsProcessorRLBenchBase:
 
         return state_dict
 
+    def obs2batch(self, obs):
+        raise NotImplementedError(
+            "ObsProcessorBase: obs2batch is not implemented, please implement it in your own ObsProcessor class."
+        )
+
     def static_process(self, obs_raw, **kwargs):
         raise NotImplementedError(
             "ObsProcessorBase: static_process is not implemented, please implement it in your own ObsProcessor class."
