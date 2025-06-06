@@ -87,7 +87,7 @@ class DatasetGeneral(Dataset):
         JP = torch.from_numpy(npa(JP).squeeze(0)).float()
         eePose = torch.from_numpy(npa(PosOrtho6D).squeeze()).float()
 
-        if self.config['Model']['FK'] is True:
+        if self.config['Model']['FK']:
             return {
                 'input': JP,
                 'output': eePose,

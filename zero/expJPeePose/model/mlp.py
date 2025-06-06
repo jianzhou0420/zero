@@ -26,7 +26,7 @@ class MLP(nn.Module):
         activation = ACTIVATION_FACTORY[config['Model']['activation']]
         layer_dims = config['Model']['middle_dims']  # type: List
         activate_last = config['Model']['activate_last']
-        if config['Model']['FK'] is True:
+        if config['Model']['FK']:
             layer_dims.insert(0, 7)  # JP 7
             layer_dims.append(9)  # PosOrtho6D 3+6
         else:
@@ -36,11 +36,12 @@ class MLP(nn.Module):
         for in_dim, out_dim in zip(layer_dims[:-1], layer_dims[1:]):
             layers.append(nn.Linear(in_dim, out_dim))
             # apply activation after every layer except, by default, the last
-            layers.append(activation(inplace=True))
+            layers.append(activation())
         if not activate_last:
             # remove the final activation
             layers.pop()
         self.net = nn.Sequential(*layers)
+        print(f"MLP architecture: {self.net}")
 
     def forward(self, batch):
         input = batch['input']

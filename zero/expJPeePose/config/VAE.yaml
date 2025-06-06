@@ -22,12 +22,13 @@ Trainer:
     shuffle: False
 
 Model:
-  encoder_depth: 10
-  decoder_depth: 10
+  # input_dim=8, output_dim=10, hidden_dims=None, z_dim=4
+  FK: True
   input_dim: 7
   output_dim: 9
-  hidden_dim: 256
-  latent_dim: 32
+  hidden_dims: [64, 64]
+  z_dim: 4
+
 
 
 # region tmp
