@@ -9,7 +9,6 @@ except:
 
 import time
 from datetime import datetime
-import yacs.config
 import os
 import os
 from typing import Type, Dict
@@ -20,50 +19,39 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
+from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger, WandbLogger
 import pytorch_lightning as pl
 from torch.utils.data import Dataset
 # zero package
 from zero.expForwardKinematics.config.default import get_config, build_args
 from zero.z_utils import *
 from zero.expForwardKinematics.ObsProcessor import *
-from zero.expJPeePose.dataset.dataset_math import DatasetGeneral
-from zero.expJPeePose.model.VAE import VAE
-from zero.expJPeePose.model.mlp import MLP
+from zero.expTemplate.dataset.dataset_math import DatasetGeneral
+from zero.expTemplate.model.VAE import VAE
+from zero.expTemplate.model.mlp import MLP
+
+# Hydra specific imports
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig, OmegaConf
+from hydra.core.hydra_config import HydraConfig
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
 
 torch.set_float32_matmul_precision('medium')
 
-POLICY_FACTORY = {
-    'VAE': VAE,
-    'MLP': MLP,
-}
-
-
-DATASET_FACTORY: Dict[str, Type[Dataset]] = {
-    'VAE': DatasetGeneral,
-    'MLP': DatasetGeneral,
-}
-
-
-CONFIG_FACTORY = {
-    'VAE': './zero/expJPeePose/config/VAE.yaml',
-    'MLP': './zero/expJPeePose/config/MLP.yaml'
-}
-
 
 # ---------------------------------------------------------------
 # region 1. Trainer
 class Trainer_all(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, cfg):
         super().__init__()
         self.save_hyperparameters()
-        self.config = config
-        Policy = POLICY_FACTORY[config['Trainer']['model_name']]
-        print(f"Policy: {Policy}")
-        self.policy = Policy(config)
+        self.cfg = cfg
+        Policy = hydra.utils.instantiate(cfg.policy)
+
+        self.policy = Policy
 
     def training_step(self, batch, batch_idx):
         loss = self.policy(batch)
@@ -143,9 +131,9 @@ class EpochCallback(pl.Callback):
 # ---------------------------------------------------------------
 # region Main
 
-
-def train(config: yacs.config.CfgNode):
-    model_name = config['Trainer']['model_name']
+@hydra.main(version_base=None, config_path="config", config_name="MLP")
+def main(cfg: DictConfig) -> None:
+    model_name = cfg['Trainer']['model_name']
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     ckpt_name = current_time + model_name
     log_path = f"./2_Train/{model_name}"
@@ -153,39 +141,29 @@ def train(config: yacs.config.CfgNode):
 
     # 1.trainer
     checkpoint_callback = ModelCheckpoint(
-        every_n_epochs=config['Trainer']['save_every_n_epochs'],
+        every_n_epochs=cfg['Trainer']['save_every_n_epochs'],
         save_top_k=-1,
         save_last=False,
         filename=f'{ckpt_name}_' + '{epoch:03d}',  # Checkpoint filename
-        save_on_train_epoch_end=True,  # must have it if you config check_val_every_n_epoch on trainer
+        save_on_train_epoch_end=True,  # must have it if you cfg check_val_every_n_epoch on trainer
     )
-
-    tflogger = TensorBoardLogger(
-        save_dir=log_path,
-        name=log_name,
-        version=None
-    )
-
-    csvlogger = CSVLogger(
-        save_dir=log_path,
-        name=log_name,
-        version=None
+    wandb_logger = WandbLogger(
+        **cfg['Trainer']['wandb'],
     )
 
     trainer = pl.Trainer(callbacks=[checkpoint_callback, EpochCallback()],
-                         #  max_steps=config['Trainer']['max_steps'],
-                         max_epochs=config['Trainer']['epoches'],
+                         #  max_steps=cfg['Trainer']['max_steps'],
+                         max_epochs=cfg['Trainer']['epoches'],
                          devices='auto',
                          strategy='auto',
-                         logger=[csvlogger, tflogger],
+                         logger=[wandb_logger],
                          #  profiler=profiler，
                          #  profiler='simple',
                          use_distributed_sampler=False,
-                         check_val_every_n_epoch=config['Trainer']['check_val_every_n_epoch'],
+                         check_val_every_n_epoch=cfg['Trainer']['check_val_every_n_epoch'],
                          )
-    config.freeze()
-    trainer_model = Trainer_all(config)
-    data_module = MyDataModule(config)
+    trainer_model = Trainer_all(cfg)
+    data_module = MyDataModule(cfg)
     trainer.fit(trainer_model, datamodule=data_module)
     # print(profiler.key_averages().table(max_len=200))
 
@@ -193,17 +171,4 @@ def train(config: yacs.config.CfgNode):
 # endregion
 # ---------------------------------------------------------------
 if __name__ == '__main__':
-    argparser = argparse.ArgumentParser(description='Train FK')
-    argparser.add_argument('--model', type=str, default='VAE', help='model name')
-    argparser.add_argument('--config', type=str, default=None, help='config file path')
-    args = argparser.parse_args()
-    pl.seed_everything(42)
-
-    if args.config is not None:
-        config_path = args.config
-    else:
-        config_path = CONFIG_FACTORY[args.model]
-
-    config = get_config(config_path)
-    # 1. train
-    train(config)
+    main()

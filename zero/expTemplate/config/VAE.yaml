@@ -1,0 +1,38 @@
+Trainer:
+  model_name: VAE
+  lr: 0.0001
+  weight_decay: 0.00001
+  epoches: 1000
+  max_steps: -1
+  save_every_n_epochs: 10
+  num_gpus: 1
+  check_val_every_n_epoch: 25
+
+
+  train:
+    batch_size: 256
+    n_workers: 15
+    pin_mem: True
+    shuffle: True
+
+  val:
+    batch_size: 8
+    n_workers: 8
+    pin_mem: True
+    shuffle: False
+
+Model:
+  # input_dim=8, output_dim=10, hidden_dims=None, z_dim=4
+  FK: True
+  input_dim: 7
+  output_dim: 9
+  hidden_dims: [64, 64]
+  z_dim: 4
+
+
+
+# region tmp
+Dataset:
+  length: 100000
+
+
